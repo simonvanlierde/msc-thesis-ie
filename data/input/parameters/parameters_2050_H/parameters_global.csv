@@ -1,0 +1,35 @@
+parameter,value,unit
+weather_data_start_year,2018,yr
+weather_data_end_year,2022,yr
+weather_station,330,-
+UHI_effect_day_C,9.8,°C
+UHI_effect_night_C,3.6,°C
+delta_T_winter_C,1.49,°C
+delta_T_spring_C,1.16,°C
+delta_T_summer_C,1.27,°C
+delta_T_autumn_C,1.27,°C
+delta_T_annual_C,1.27,°C
+delta_P_solar_RoY,0.0090,-
+delta_P_solar_summer,0.0480,-
+T_thresh_C,23,°C
+people_per_hh,2.01,-
+people_density_office,0.067,-
+air_heat_capacity,1006,J/(kg*K)
+air_density,1.2,kg/m3
+building_type_age_cutoff_yr,2003,yr
+building_type_height_cutoff_m,17.5,m
+peak_cooling_percentile_cap,98,-
+alfa_i,7.5,W/(m2*K)
+alfa_o,27.5,W/(m2*K)
+T_sub_C,13.1,°C
+ventilation_efficiency,0.625,-
+int_heat_gain_pp_W,120,W
+int_heat_gain_light_W_m2,6,W/m2
+carbon_intensity_electric_grid_kgCO2eq_kWh,0.159,kg CO2eq/kWh
+gwp_refrigerant_kgCO2eq_kg,809,kg CO2eq/kg
+adp_intensity_cooling_equipment_kgSbeq_kg,0.00026,kg Sb-eq/kg
+csi_intensity_cooling_equipment_kgSbeq_kg,1625,kg Si-eq/kg
+carbon_intensity_production_kgCO2eq_kg,4.15,kg CO2eq/kg
+carbon_intensity_EoL_kgCO2eq_kg,0.30,kg CO2eq/kg
+building_stock_growth_residential_new,1.82,-
+building_stock_growth_office_old,-0.14,-

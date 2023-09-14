@@ -1,0 +1,5 @@
+energy_class_int,energy_class,energy_labels_included_residential,energy_labels_included_office,Rc_wall_m2K_W,Rc_roof_m2K_W,Rc_floor_m2K_W,U_window_W_m2K,g_window
+1,A-A+++++,"[1,2,3,4,5,6]","[1,2,3,4,5,6]",8,10,6,1,0.4
+2,B-C,"[7,8,11,12]","[7,8,9,10,11,12]",3,4,2,2,0.6
+3,D-E,"[9,10]","[]",1,1.5,0.75,3,0.7
+4,F-G,"[]","[]",0.35,0.5,0.25,6,0.8

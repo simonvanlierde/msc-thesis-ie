@@ -1,0 +1,9 @@
+building_type_int,building_type,f_window,f_wall,ventilation_rate_pp_m3_h,pressure_drop_Pa,infiltration_ACH,int_heat_gain_appliances_W_m2,cooling_technology_share_ASHP,cooling_technology_share_GSHP,cooling_technology_share_WSHP,cooling_technology_share_chiller,cooling_technology_share_AC_split,cooling_technology_share_AC_mobile
+1,New highrise residential,0.15,0.85,25,800,0.10,5,0.42,0.15,0.20,0.00,0.00,0.00
+2,Old highrise residential,0.15,0.85,0,0,0.50,5,0.26,0.09,0.12,0.00,0.00,0.00
+3,New lowrise residential,0.15,0.85,0,0,0.10,5,0.26,0.09,0.12,0.00,0.00,0.00
+4,Old lowrise residential,0.15,0.85,0,0,0.50,5,0.26,0.09,0.12,0.00,0.00,0.00
+5,New highrise office,0.25,0.75,25,800,0.10,15,0.33,0.12,0.06,0.49,0.00,0.00
+6,Old highrise office,0.25,0.75,0,0,0.50,15,0.33,0.12,0.06,0.49,0.00,0.00
+7,New lowrise office,0.25,0.75,25,200,0.10,15,0.13,0.26,0.13,0.00,0.23,0.26
+8,Old lowrise office,0.25,0.75,0,0,0.50,15,0.13,0.26,0.13,0.00,0.23,0.26
