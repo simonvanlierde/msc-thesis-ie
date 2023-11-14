@@ -11,34 +11,54 @@ This repository contains the codebase for a MSc thesis in Industrial Ecology on 
 
     This directory contains a collection of Python scripts that provide various functionalities required for the project. Here's a breakdown of the scripts:
 
-- **data_handling.py**: Contains tha main functions related to data processing and handling.
-- **environmental.py**: Functions related to environmental calculations and metrics.
-- **figures.py**: Functions to generate and handle figures for visualization of results.
-- **geometric.py**: Geometric calculations and related functions.
-- **sensitivity_analysis.py**: Functions for performing sensitivity analysis.
-- **thermodynamic.py**: Thermodynamic calculations and related functions.
-- **time_series.py**: Generation and processing of weather data and other time series.
+    - **data_handling.py**: Contains tha main functions related to data processing and handling.
+    - **environmental.py**: Functions related to environmental calculations and metrics.
+    - **figures.py**: Functions to generate and handle figures for visualization of results.
+    - **geometric.py**: Geometric calculations and related functions.
+    - **sensitivity_analysis.py**: Functions for performing sensitivity analysis.
+    - **thermodynamic.py**: Thermodynamic calculations and related functions.
+    - **time_series.py**: Generation and processing of weather data and other time series.
 
-### 2. Notebooks
+2. **Notebooks**
 
-- **gis.ipynb**: A Jupyter notebook focused on preparing the GIS (Geographical Information System) data from the BAG (*Basisregistratie Adressen en Gebouwen*; Registry of Addresses and Buildings), related tasks and spatial visualizations.
-- **main.ipynb**: The main Jupyter notebook that integrates the calculation of the cooling demand for buildings in The Hague and related environmental impacts, as well as sensitivity analyses and visualization of results.
+    - **gis.ipynb**: A Jupyter notebook focused on preparing the GIS (Geographical Information System) data from the BAG (*Basisregistratie Adressen en Gebouwen*; Registry of Addresses and Buildings), related tasks and spatial visualizations.
+    - **main.ipynb**: The main Jupyter notebook that integrates the calculation of the cooling demand for buildings in The Hague and related environmental impacts, as well as sensitivity analyses and visualization of results.
 
+3. **Data**
+    - ***input/parameters/***: Contains all input parameters used in the thermodynamic and environmental impact modeling.
+    - ***output/***: Contains the main model results, aggregated by building type and energy label.
+    - **background_research_data.xlsx**: This spreadsheet contains comprehensive background research calculations supporting the shaping of input parameters used in the model. It contains several sheets:
+    
+        - **Cooling Technologies**: Details the various cooling technologies examined in the study, summarizing their characteristics and the market penetration mixes utilized in the analysis.
 
-### 3. Project Configuration
+        - **LCA Results of Ventilation Systems**: Provides an overview of the ecoinvent processes serving as proxies for the life-cycle impacts of cooling equipment, along with calculations of the weight of cooling systems and contribution tables from the LCA-based assessment.
 
-- **requirements.txt**: Lists all the Python packages required to run the project.
+        - **Material Scarcity**: A detailed examination of the critical raw material content in the material footprint of ecoinvent processes, representing cooling equipment.
+
+        - **Heat Plans per Neighbourhood**: Forecasts of future heating solutions for each neighbourhood in The Hague.
+
+        - **Building Stock**: Analysis of the projected growth trends in residential and office building stocks in The Hague.
+
+        - **AC Market**: Market analysis covering air conditioner sales in the Netherlands from 2002 to 2022.
+
+        - **Climate Change**: Computations of climate-related parameters based on KNMI climate scenarios.
+
+        - **Electricity Mix Analysis**: Analysis of future projections for the Dutch electricity grid and calculations of life-cycle carbon intensities of the grid.
+
+4. **Project Configuration**
+
+    - **requirements.txt**: Lists all the Python packages required to run the project.
 
 ## Getting Started
 
 1. Clone the repository to your local machine.
 2. Install the required Python packages using the command:
 
-```
-pip install -r requirements.txt
-```
-4. Download the required spatial datasets used as input from Zenodo: https://zenodo.org/record/8344581
-3. Launch Jupyter Notebook to access the `gis.ipynb` and `main.ipynb` notebooks.
+    ```
+    pip install -r requirements.txt
+    ```
+3. Download the required spatial datasets used as input from Zenodo: https://zenodo.org/record/8344581
+4. Launch Jupyter Notebook to access the `gis.ipynb` and `main.ipynb` notebooks.
 
 ## Contribution
 
