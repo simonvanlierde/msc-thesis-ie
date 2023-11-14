@@ -25,25 +25,8 @@ This repository contains the codebase for a MSc thesis in Industrial Ecology on 
     - **main.ipynb**: The main Jupyter notebook that integrates the calculation of the cooling demand for buildings in The Hague and related environmental impacts, as well as sensitivity analyses and visualization of results.
 
 3. **Data**
-    - ***input/parameters/***: Contains all input parameters used in the thermodynamic and environmental impact modeling.
+    - ***input/parameters/***: Contains all input parameters used in the thermodynamic and environmental impact modeling. Larger spatial datasets used in the model are hosted separately at https://zenodo.org/record/8344581.
     - ***output/***: Contains the main model results, aggregated by building type and energy label.
-    - **background_research_data.xlsx**: This spreadsheet contains comprehensive background research calculations supporting the shaping of input parameters used in the model. It contains several sheets:
-    
-        - **Cooling Technologies**: Details the various cooling technologies examined in the study, summarizing their characteristics and the market penetration mixes utilized in the analysis.
-
-        - **LCA Results of Ventilation Systems**: Provides an overview of the ecoinvent processes serving as proxies for the life-cycle impacts of cooling equipment, along with calculations of the weight of cooling systems and contribution tables from the LCA-based assessment.
-
-        - **Material Scarcity**: A detailed examination of the critical raw material content in the material footprint of ecoinvent processes, representing cooling equipment.
-
-        - **Heat Plans per Neighbourhood**: Forecasts of future heating solutions for each neighbourhood in The Hague.
-
-        - **Building Stock**: Analysis of the projected growth trends in residential and office building stocks in The Hague.
-
-        - **AC Market**: Market analysis covering air conditioner sales in the Netherlands from 2002 to 2022.
-
-        - **Climate Change**: Computations of climate-related parameters based on KNMI climate scenarios.
-
-        - **Electricity Mix Analysis**: Analysis of future projections for the Dutch electricity grid and calculations of life-cycle carbon intensities of the grid.
 
 4. **Project Configuration**
 
