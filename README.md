@@ -25,7 +25,7 @@ This repository contains the codebase for a MSc thesis in Industrial Ecology on 
     - **main.ipynb**: The main Jupyter notebook that integrates the calculation of the cooling demand for buildings in The Hague and related environmental impacts, as well as sensitivity analyses and visualization of results.
 
 3. **Data**
-    - ***input/parameters/***: Contains all input parameters used in the thermodynamic and environmental impact modeling. Larger spatial datasets used in the model are hosted separately at https://zenodo.org/records/10277791.
+    - ***input/parameters/***: Contains all input parameters used in the thermodynamic and environmental impact modeling. Larger spatial datasets used in the model are hosted separately at https://zenodo.org/doi/10.5281/zenodo.8344580.
     - ***output/***: Contains the main model results, aggregated by building type and energy label.
 
 4. **Project Configuration**
@@ -40,7 +40,7 @@ This repository contains the codebase for a MSc thesis in Industrial Ecology on 
     ```
     pip install -r requirements.txt
     ```
-3. Download the required spatial datasets used as input from Zenodo: https://zenodo.org/records/10277791
+3. Download the required spatial datasets used as input from Zenodo: https://zenodo.org/doi/10.5281/zenodo.8344580
 4. Launch Jupyter Notebook to access the `gis.ipynb` and `main.ipynb` notebooks.
 
 ## Contribution
