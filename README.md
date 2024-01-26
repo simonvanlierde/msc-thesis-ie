@@ -3,7 +3,7 @@
 
 ### Introduction
 
-This repository contains the codebase for a MSc thesis in Industrial Ecology on the topic of residential and office cooling and its environmental impacts in the city of The Hague, The Netherlands. It was authored by Simon van Lierde under the guidance of Dr. Ir. Peter Luscuere and Dr. Benjamin Sprecher.
+This repository contains the codebase for a MSc thesis in Industrial Ecology on the topic of residential and office cooling and its environmental impacts in the city of The Hague, The Netherlands. It was authored by Simon van Lierde under the guidance of Prof. Ir. Peter Luscuere and Dr. Benjamin Sprecher.
 
 ### Directory & File Structure
 
