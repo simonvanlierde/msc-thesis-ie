@@ -1,52 +1,128 @@
 # Cooling for Comfort, Warming the World
-## Residential and Office Cooling and its Environmental Implications in The Hague
 
-### Introduction
+**Residential and office cooling and its environmental impacts in The Hague, the Netherlands.**
 
-This repository contains the codebase for a MSc thesis in Industrial Ecology on the topic of residential and office cooling and its environmental impacts in the city of The Hague, The Netherlands. It was authored by Simon van Lierde under the guidance of Prof. Ir. Peter Luscuere and Dr. Benjamin Sprecher.
+[![CI](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![Data DOI](https://img.shields.io/badge/data-10.5281%2Fzenodo.8344580-blue.svg)](https://doi.org/10.5281/zenodo.8344580)
+[![Thesis](https://img.shields.io/badge/thesis-TU%20Delft%20repository-blue.svg)](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a)
 
-### Directory & File Structure
+This repository contains the model behind my MSc Industrial Ecology thesis (joint degree of
+Leiden University and TU Delft). It estimates how much cooling the building stock of The Hague
+needs, and what that cooling costs in electricity, greenhouse-gas emissions and material use,
+under current conditions and across future scenarios for 2030 and 2050.
 
-1. **Functions**
+The pipeline combines three layers:
 
-    This directory contains a collection of Python scripts that provide various functionalities required for the project. Here's a breakdown of the scripts:
+1. **Geospatial data** — building footprints and attributes from the Dutch BAG (*Basisregistratie
+   Adressen en Gebouwen*), processed into building archetypes.
+2. **Thermodynamic modelling** — an hourly heat-balance model (transmission, infiltration,
+   ventilation, solar gains and internal loads) driven by KNMI weather data, giving cooling
+   energy and peak power demand per building.
+3. **Environmental impact assessment** — life-cycle-based impacts (climate change, abiotic
+   resource depletion, crustal scarcity) from both the operational energy and the cooling
+   equipment itself.
 
-    - **data_handling.py**: Contains tha main functions related to data processing and handling.
-    - **environmental.py**: Functions related to environmental calculations and metrics.
-    - **figures.py**: Functions to generate and handle figures for visualization of results.
-    - **geometric.py**: Geometric calculations and related functions.
-    - **sensitivity_analysis.py**: Functions for performing sensitivity analysis.
-    - **thermodynamic.py**: Thermodynamic calculations and related functions.
-    - **time_series.py**: Generation and processing of weather data and other time series.
+## Key findings
 
-2. **Notebooks**
+![Cooling demand and emissions across scenarios](docs/scenario_overview.png)
 
-    - **gis.ipynb**: A Jupyter notebook focused on preparing the GIS (Geographical Information System) data from the BAG (*Basisregistratie Adressen en Gebouwen*; Registry of Addresses and Buildings), related tasks and spatial visualizations.
-    - **main.ipynb**: The main Jupyter notebook that integrates the calculation of the cooling demand for buildings in The Hague and related environmental impacts, as well as sensitivity analyses and visualization of results.
+- Offices occupy only **13%** of the floor area but account for **34%** of current cooling
+  demand and **65%** of cooling-related greenhouse-gas emissions.
+- Cooling already represents about **25%** of office electricity use, against **5.5%** for
+  residential buildings.
+- An estimated **77%** of cooling demand is currently unmet, and that gap falls hardest on
+  economically disadvantaged neighbourhoods.
+- Under a business-as-usual 2050 scenario, cooling energy demand roughly **doubles** relative
+  to today, putting pressure on the Netherlands' 2050 net-zero target.
 
-3. **Data**
-    - ***input/parameters/***: Contains all input parameters used in the thermodynamic and environmental impact modeling. Larger spatial datasets used in the model are hosted separately at https://zenodo.org/doi/10.5281/zenodo.8344580.
-    - ***output/***: Contains the main model results, aggregated by building type and energy label.
+The full method and discussion are in the
+[thesis](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a).
 
-4. **Project Configuration**
+## Repository structure
 
-    - **requirements.txt**: Lists all the Python packages required to run the project.
+| Path | Description |
+| --- | --- |
+| `functions/` | The model, split into focused modules (see below). |
+| `main.ipynb` | End-to-end notebook: cooling demand, environmental impacts, sensitivity analysis and result figures. |
+| `gis.ipynb` | Preparation of the BAG geospatial data and spatial visualisations. |
+| `data/input/parameters/` | All model input parameters, organised per scenario. |
+| `data/output/` | Aggregated model results per building type and energy label. |
+| `docs/` | The headline figure and the script that regenerates it. |
+| `tests/` | Unit tests for the geometric, thermodynamic and environmental functions. |
 
-## Getting Started
+Inside `functions/`:
 
-1. Clone the repository to your local machine.
-2. Install the required Python packages using the command:
+- `data_handling.py` — reading, joining and preparing the building data.
+- `geometric.py` — building geometry: facade orientation, window and wall areas.
+- `thermodynamic.py` — the hourly heat-balance and cooling-demand calculations.
+- `environmental.py` — life-cycle environmental impacts of cooling.
+- `time_series.py` — weather data retrieval (KNMI) and time-series construction.
+- `sensitivity_analysis.py` — scenario and one-at-a-time sensitivity analysis.
+- `figures.py` — plotting helpers for the result figures.
 
-    ```
-    pip install -r requirements.txt
-    ```
-3. Download the required spatial datasets used as input from Zenodo: https://zenodo.org/doi/10.5281/zenodo.8344580
-4. Launch Jupyter Notebook to access the `gis.ipynb` and `main.ipynb` notebooks.
+## Getting started
 
-## Contribution
+The large spatial input datasets are hosted separately on Zenodo
+([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)) and are not part of this
+repository.
 
-Feel free to fork the repository, make changes, and submit pull requests. Any contributions to improve the project are welcome.
+### With [uv](https://docs.astral.sh/uv/) (recommended)
+
+```bash
+git clone https://github.com/simonvanlierde/msc-thesis-ie.git
+cd msc-thesis-ie
+uv sync                 # creates a locked environment from uv.lock
+uv run jupyter lab      # open main.ipynb and gis.ipynb
+```
+
+### With pip
+
+```bash
+git clone https://github.com/simonvanlierde/msc-thesis-ie.git
+cd msc-thesis-ie
+python -m venv .venv && source .venv/bin/activate
+pip install .
+jupyter lab
+```
+
+Then download the spatial datasets from Zenodo into `data/input/geodata/` before running
+`gis.ipynb`.
+
+### Regenerating the headline figure
+
+```bash
+uv run python docs/make_overview_figure.py
+```
+
+## Development
+
+The project uses the [Astral](https://astral.sh/) toolchain:
+
+```bash
+uv run ruff check .            # lint
+uv run ruff format .           # format
+uv run ty check                # type check (informational)
+uv run pytest                  # run the test suite
+```
+
+The same checks run in CI on every push and pull request
+([workflow](.github/workflows/ci.yml)).
+
+## Citation
+
+If you use this work, please cite the thesis and dataset (see
+[`CITATION.cff`](CITATION.cff)):
+
+> van Lierde, S. (2024). *Cooling for Comfort, Warming the World: Residential and Office Cooling
+> and its Environmental Implications in The Hague.* MSc thesis, Industrial Ecology, Leiden
+> University & TU Delft.
+
+## Acknowledgements
+
+Supervised by Prof. ir. Peter Luscuere and Dr. Benjamin Sprecher.
 
 ## License
 
-Please refer to the repository's license file for usage and distribution guidelines.
+Released under the [GNU General Public License v3.0](LICENSE).
