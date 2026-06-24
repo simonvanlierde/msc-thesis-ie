@@ -3,7 +3,6 @@
 @author: Simon van Lierde
 """
 
-
 from datetime import datetime
 
 import matplotlib.pyplot as plt

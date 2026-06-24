@@ -272,9 +272,7 @@ def add_energy_class_data_to_buildings(
 
     # Determine energy label class based on the energy label, using the right mapping for residential and office buildings
     df_buildings["energy_class_int"] = df_buildings.apply(
-        lambda row: energy_label_to_class_mapping_residential[int(row["energy_label_int"])]
-        if row["end_use"] == "residential"
-        else energy_label_to_class_mapping_office[int(row["energy_label_int"])],
+        lambda row: energy_label_to_class_mapping_residential[int(row["energy_label_int"])] if row["end_use"] == "residential" else energy_label_to_class_mapping_office[int(row["energy_label_int"])],
         axis=1,
     )
 
@@ -343,9 +341,7 @@ def add_cooling_technology_data_to_buildings(buildings: pd.DataFrame, cooling_te
         tech_name = share_column.split("cooling_technology_share_")[-1]  # Extract the cooling technology name from the share column name
         for param, value in cooling_tech_reshaped.loc[tech_name].items():  # Loop over all cooling technology dependent parameters
             column_name = f"avg_{param}"  # Create the column name for the weighted parameter
-            weighted_parameters_df[column_name] = (
-                weighted_parameters_df.get(column_name, 0) + buildings[share_column] * value
-            )  # Compute the weighted parameter and add it to the DataFrame
+            weighted_parameters_df[column_name] = weighted_parameters_df.get(column_name, 0) + buildings[share_column] * value  # Compute the weighted parameter and add it to the DataFrame
 
     # Merge the computed weighted parameters with the original buildings DataFrame
     buildings_with_cooling_tech_data = pd.concat([buildings, weighted_parameters_df], axis=1)

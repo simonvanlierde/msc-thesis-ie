@@ -117,13 +117,7 @@ def add_seasonal_temperature_boosts(
 
     # If the month in the weather DataFrame is in the winter months, apply the winter effect, otherwise apply the spring effect
     weather_series_df["delta_T_season_C"] = weather_series_df.apply(
-        lambda row: delta_T_winter_C
-        if row["date"].month in winter_months
-        else delta_T_spring_C
-        if row["date"].month in spring_months
-        else delta_T_summer_C
-        if row["date"].month in summer_months
-        else delta_T_autumn_C,
+        lambda row: delta_T_winter_C if row["date"].month in winter_months else delta_T_spring_C if row["date"].month in spring_months else delta_T_summer_C if row["date"].month in summer_months else delta_T_autumn_C,
         axis=1,
     )
 
