@@ -1,0 +1,76 @@
+[project]
+name = "cooling-demand-model"
+version = "1.0.0"
+description = "Cooling demand and environmental impact model for residential and office buildings in The Hague (MSc Industrial Ecology thesis)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "Simon van Lierde" }]
+keywords = [
+    "industrial-ecology",
+    "cooling-demand",
+    "energy-modelling",
+    "life-cycle-assessment",
+    "urban-heat",
+    "geospatial",
+]
+
+dependencies = [
+    "geopandas==0.13.2",
+    "itables==1.5.4",
+    "jupyter==1.0.0",
+    "matplotlib==3.7.2",
+    "numpy==1.25.2",
+    "pandas==2.0.3",
+    "requests==2.31.0",
+    "rasterio==1.3.8",
+    "rasterstats==0.19.0",
+    "scipy==1.11.3",
+    "seaborn==0.12.2",
+    "tqdm==4.66.1",
+]
+
+[project.urls]
+Thesis = "https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a"
+Data = "https://doi.org/10.5281/zenodo.8344580"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "ty>=0.0.1a1",
+]
+
+[tool.setuptools]
+packages = ["functions"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+# The model code uses long inline comments by design; keep a generous line length
+# rather than reformatting the scientific code.
+[tool.ruff]
+line-length = 250
+target-version = "py311"
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "D"]
+ignore = [
+    "D203", # one-blank-line-before-class (conflicts with D211)
+    "D213", # multi-line-summary-second-line (conflicts with D212)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]      # don't require docstrings in tests
+"functions/__init__.py" = ["D104"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ty.environment]
+python-version = "3.11"

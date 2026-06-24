@@ -183,8 +183,7 @@ Temporary Items
 .vscode/*
 
 # Ruff
-pyproject.toml
-.ruff_chache/
+.ruff_cache/
 
 # Large geodata files and images
 data/input/geodata/*
