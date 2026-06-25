@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite both the thesis and the dataset below."
+title: "Cooling for Comfort, Warming the World: cooling demand and environmental impact model for The Hague"
+abstract: >-
+  Codebase for an MSc Industrial Ecology thesis modelling residential and office
+  cooling demand and its environmental impacts in The Hague, the Netherlands,
+  combining geospatial building data, thermodynamic modelling and life-cycle-based
+  environmental impact assessment across 2020, 2030 and three 2050 scenarios.
+type: software
+authors:
+  - family-names: "van Lierde"
+    given-names: "Simon"
+    orcid: "https://orcid.org/0009-0006-6953-909X"
+license: GPL-3.0-or-later
+repository-code: "https://github.com/simonvanlierde/msc-thesis-ie"
+url: "https://github.com/simonvanlierde/msc-thesis-ie"
+keywords:
+  - industrial ecology
+  - cooling demand
+  - urban heat
+  - energy modelling
+  - life cycle assessment
+  - geospatial analysis
+references:
+  - type: thesis
+    title: "Cooling for Comfort, Warming the World: Residential and Office Cooling and its Environmental Implications in The Hague"
+    authors:
+      - family-names: "van Lierde"
+        given-names: "Simon"
+    year: 2024
+    institution:
+      name: "Delft University of Technology & Leiden University (MSc Industrial Ecology)"
+    url: "https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a"
+  - type: data
+    title: "Spatial datasets for the cooling demand model of The Hague"
+    authors:
+      - family-names: "van Lierde"
+        given-names: "Simon"
+    doi: "10.5281/zenodo.8344580"
+    url: "https://doi.org/10.5281/zenodo.8344580"

@@ -5,7 +5,6 @@
 
 # Import packages
 
-
 import numpy as np
 import pandas as pd
 
@@ -550,7 +549,7 @@ def calc_cooling_demand_metrics_for_df(
 
         # Unpack the heat flows dictionary into separate columns
         for heat_flow in result_df.iloc[0][9]:  # The heat flows are stored in the 10th column of the result_df
-            result_df[heat_flow] = result_df.apply(lambda row: row[9][heat_flow], axis=1)
+            result_df[heat_flow] = result_df.apply(lambda row: row[9][heat_flow], axis=1)  # noqa: B023 (apply runs eagerly within the loop iteration)
 
         # Drop the heat flows dictionary column
         result_df = result_df.drop(result_df.columns[9], axis=1)

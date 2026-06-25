@@ -9,33 +9,23 @@ import pandas as pd
 def calculate_environmental_parameters_for_cooling_technologies(
     cooling_technology_parameters: list[dict[str, float]],
     global_parameters: dict[str, float],
-) -> list[dict[str, float]]:
+) -> pd.DataFrame:
     """Calculates the derivative cooling technology parameters for each cooling technology.
 
     Args:
-        cooling_technology_parameters (list[dict[str, float]]): _description_
-        global_parameters (dict[str, float]): _description_
+        cooling_technology_parameters (list[dict[str, float]]): Per-technology parameters (e.g. SEER, refrigerant leakage rate and density, material density, average lifetime) for each cooling technology.
+        global_parameters (dict[str, float]): Global parameters shared across technologies, such as the grid carbon intensity, refrigerant GWP, and production/end-of-life carbon and resource intensities.
 
     Returns:
-        list[dict[str, float]]: An updated list of cooling technology parameters
+        pd.DataFrame: A DataFrame of cooling technologies with the derived environmental parameters added as columns.
     """
     # Unload global parameters:
     carbon_intensity_electric_grid_kgCO2eq_kWh = global_parameters["carbon_intensity_electric_grid_kgCO2eq_kWh"]  # Carbon intensity of the electric grid in kg CO2-eq per kWh
-    gwp_refrigerant_kgCO2eq_kg = global_parameters[
-        "gwp_refrigerant_kgCO2eq_kg"
-    ]  # Global warming potential of the refrigerant in kg CO2-eq per kg refrigerant emitted into the atmosphere
-    carbon_intensity_production_kgCO2eq_kg = global_parameters[
-        "carbon_intensity_production_kgCO2eq_kg"
-    ]  # Carbon intensity of the production of the cooling equipment in kg CO2-eq per kg cooling equipment
-    carbon_intensity_EoL_kgCO2eq_kg = global_parameters[
-        "carbon_intensity_EoL_kgCO2eq_kg"
-    ]  # Carbon intensity of the end-of-life phase of the cooling equipment in kg CO2-eq per kg cooling equipment
-    adp_intensity_cooling_equipment_kgSbeq_kg = global_parameters[
-        "adp_intensity_cooling_equipment_kgSbeq_kg"
-    ]  # Abiotic depletion potential of the cooling equipment in kg Sb-eq per kg cooling equipment
-    csi_intensity_cooling_equipment_kgSbeq_kg = global_parameters[
-        "csi_intensity_cooling_equipment_kgSbeq_kg"
-    ]  # Critical scarcity index of the cooling equipment in kg Sb-eq per kg cooling equipment
+    gwp_refrigerant_kgCO2eq_kg = global_parameters["gwp_refrigerant_kgCO2eq_kg"]  # Global warming potential of the refrigerant in kg CO2-eq per kg refrigerant emitted into the atmosphere
+    carbon_intensity_production_kgCO2eq_kg = global_parameters["carbon_intensity_production_kgCO2eq_kg"]  # Carbon intensity of the production of the cooling equipment in kg CO2-eq per kg cooling equipment
+    carbon_intensity_EoL_kgCO2eq_kg = global_parameters["carbon_intensity_EoL_kgCO2eq_kg"]  # Carbon intensity of the end-of-life phase of the cooling equipment in kg CO2-eq per kg cooling equipment
+    adp_intensity_cooling_equipment_kgSbeq_kg = global_parameters["adp_intensity_cooling_equipment_kgSbeq_kg"]  # Abiotic depletion potential of the cooling equipment in kg Sb-eq per kg cooling equipment
+    csi_intensity_cooling_equipment_kgSbeq_kg = global_parameters["csi_intensity_cooling_equipment_kgSbeq_kg"]  # Critical scarcity index of the cooling equipment in kg Sb-eq per kg cooling equipment
 
     # Convert the cooling technology parameters to a DataFrame
     df_cooling_technologies = pd.DataFrame(cooling_technology_parameters)
@@ -53,24 +43,16 @@ def calculate_environmental_parameters_for_cooling_technologies(
     df_cooling_technologies["GHG_emissions_refrigerant_leaks_kgCO2eq_kW"] = gwp_refrigerant_kgCO2eq_kg * df_cooling_technologies["refrigerant_leakage_kg_kW"]
 
     # Calculate the annualized climate change impact from the production phase of the cooling technology in kg CO2-eq per kW of installation power
-    df_cooling_technologies["GHG_emissions_production_phase_kgCO2eq_kW"] = (
-        carbon_intensity_production_kgCO2eq_kg * df_cooling_technologies["material_density_kg_kW"] / df_cooling_technologies["average_lifetime_yr"]
-    )
+    df_cooling_technologies["GHG_emissions_production_phase_kgCO2eq_kW"] = carbon_intensity_production_kgCO2eq_kg * df_cooling_technologies["material_density_kg_kW"] / df_cooling_technologies["average_lifetime_yr"]
 
     # Calculate the annualized climate change impact from the end-of-life phase of the cooling technology in kg CO2-eq per kW of installation power
-    df_cooling_technologies["GHG_emissions_EoL_phase_kgCO2eq_kW"] = (
-        carbon_intensity_EoL_kgCO2eq_kg * df_cooling_technologies["material_density_kg_kW"] / df_cooling_technologies["average_lifetime_yr"]
-    )
+    df_cooling_technologies["GHG_emissions_EoL_phase_kgCO2eq_kW"] = carbon_intensity_EoL_kgCO2eq_kg * df_cooling_technologies["material_density_kg_kW"] / df_cooling_technologies["average_lifetime_yr"]
 
     # Calculate the annualized abiotic depletion potential (ADP) from the production phase of the cooling technology in kg Sb-eq per kW of installation power
-    df_cooling_technologies["ADP_kgSbeq_kW"] = (
-        adp_intensity_cooling_equipment_kgSbeq_kg * df_cooling_technologies["material_density_kg_kW"] / df_cooling_technologies["average_lifetime_yr"]
-    )
+    df_cooling_technologies["ADP_kgSbeq_kW"] = adp_intensity_cooling_equipment_kgSbeq_kg * df_cooling_technologies["material_density_kg_kW"] / df_cooling_technologies["average_lifetime_yr"]
 
     # Calculate the annualized crustal scarcity index (CSI) from the production phase of the cooling technology in kg Sb-eq per kW of installation power
-    df_cooling_technologies["CSI_kgSieq_kW"] = (
-        csi_intensity_cooling_equipment_kgSbeq_kg * df_cooling_technologies["material_density_kg_kW"] / df_cooling_technologies["average_lifetime_yr"]
-    )
+    df_cooling_technologies["CSI_kgSieq_kW"] = csi_intensity_cooling_equipment_kgSbeq_kg * df_cooling_technologies["material_density_kg_kW"] / df_cooling_technologies["average_lifetime_yr"]
 
     return df_cooling_technologies
 
@@ -192,12 +174,7 @@ def calculate_environmental_impacts_from_cooling_demand(
     buildings = calculate_impacts_from_peak_cooling_power_demand(buildings, cap_percentile)
 
     # Calculate the total GHG emissions in kg CO2-eq
-    buildings["GHG_emissions_total_kgCO2eq"] = (
-        buildings["GHG_emissions_electricity_kgCO2eq"]
-        + buildings["GHG_emissions_refrigerant_leaks_kgCO2eq"]
-        + buildings["GHG_emissions_production_phase_kgCO2eq"]
-        + buildings["GHG_emissions_EoL_phase_kgCO2eq"]
-    )
+    buildings["GHG_emissions_total_kgCO2eq"] = buildings["GHG_emissions_electricity_kgCO2eq"] + buildings["GHG_emissions_refrigerant_leaks_kgCO2eq"] + buildings["GHG_emissions_production_phase_kgCO2eq"] + buildings["GHG_emissions_EoL_phase_kgCO2eq"]
 
     # Calculate the impact intensity (per floor area) for the three main impact categories
     buildings["electricity_use_intensity_kWh_m2"] = buildings["electricity_use_kWh"] / buildings["floor_area_total_m2"]
