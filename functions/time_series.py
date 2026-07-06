@@ -4,10 +4,13 @@
 """
 
 import io
+import warnings
 
 import numpy as np
 import pandas as pd
 import requests
+
+MIN_RESPONSE_LINES_FOR_DATA = 15  # Below this line count, the KNMI API returned only header info and no data
 
 
 def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
@@ -22,7 +25,9 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     # Unpack parameters from the global parameters dictionary
     start_year = int(global_parameters["weather_data_start_year"])  # The starting year of the desired weather series.
     end_year = int(global_parameters["weather_data_end_year"])  # The ending year of the desired weather series.
-    station = int(global_parameters["weather_station"])  # The number of the KNMI weather station. Defaults to 330 (Hoek van Holland).
+    station = int(
+        global_parameters["weather_station"],
+    )  # The number of the KNMI weather station. Defaults to 330 (Hoek van Holland).
     # All weather station numbers can be found here: https://cdn.knmi.nl/knmi/map/page/klimatologie/gegevens/AWS_stationsmetadata.txt
 
     # Define parameters for the KNMI API request
@@ -31,23 +36,32 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     weather_measurements = "T:Q"  # Temperature (in tenths of °C) and solar radiation (in J/cm2)
 
     knmi_url = "https://www.daggegevens.knmi.nl/klimatologie/uurgegevens"  # KNMI API url
-    knmi_params = {"start": start_time, "end": end_time, "vars": weather_measurements, "stns": str(station)}  # KNMI API parameters
+    knmi_params = {
+        "start": start_time,
+        "end": end_time,
+        "vars": weather_measurements,
+        "stns": str(station),
+    }  # KNMI API parameters
 
-    # Wrap the below in a try-except block to catch any errors
+    backup_local_weather_data_path = (
+        "data/input/parameters/raw_weather_data_2018_2022_HvH.csv"  # Local backup used when the API is unavailable
+    )
+
+    # Request the data from the KNMI API, falling back to the local backup file if the API times out
     try:
         response = requests.post(knmi_url, data=knmi_params, timeout=10)  # Send request to KNMI API
-    except (requests.exceptions.Timeout, requests.exceptions.ReadTimeout):
-        backup_local_weather_data_path = "data/input/parameters/raw_weather_data_2018_2022_HvH.csv"
+    except requests.exceptions.Timeout, requests.exceptions.ReadTimeout:
+        warnings.warn("The KNMI API request timed out. Backup weather data file will be used instead.", stacklevel=2)
         weather_series_df = pd.read_csv(backup_local_weather_data_path, header=6)
-        raise Warning("The KNMI API request timed out. Backup weather data file will be used instead..") from None
+    else:
+        if len(response.text.splitlines()) > MIN_RESPONSE_LINES_FOR_DATA:
+            weather_series_df = pd.read_csv(io.StringIO(response.text), header=9)  # Read data into DataFrame
+        else:  # Sometimes the API returns an empty response with just the header information, in which case we use a backup file
+            weather_series_df = pd.read_csv(backup_local_weather_data_path, header=6)
 
-    if len(response.text.splitlines()) > 15:
-        weather_series_df = pd.read_csv(io.StringIO(response.text), header=9)  # Read data into DataFrame
-    else:  # Sometimes the API returns an empty response with just the header information, in which case we use a backup file
-        backup_local_weather_data_path = "data/input/parameters/raw_weather_data_2018_2022_HvH.csv"
-        weather_series_df = pd.read_csv(backup_local_weather_data_path, header=6)
-
-    weather_series_df.columns = weather_series_df.columns.str.strip()  # Strip all columns names from extraneous whitespace
+    weather_series_df.columns = (
+        weather_series_df.columns.str.strip()
+    )  # Strip all columns names from extraneous whitespace
 
     # Convert the raw temperature data to numeric and divide by 10 to get °C
     weather_series_df["T_outdoor_raw_C"] = pd.to_numeric(weather_series_df["T"], errors="coerce").astype("float") / 10
@@ -60,12 +74,12 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     )
 
     # Remove leap days to prevent errors
-    weather_series_df = weather_series_df[weather_series_df["date"].dt.strftime("%m-%d") != "02-29"].reset_index(drop=True)
+    weather_series_df = weather_series_df[weather_series_df["date"].dt.strftime("%m-%d") != "02-29"].reset_index(
+        drop=True,
+    )
 
     # For some reason the API returns the first day of the year after the end_year, so we manually cut that out
-    weather_series_df = weather_series_df[weather_series_df["date"].dt.year <= end_year].reset_index(drop=True)
-
-    return weather_series_df
+    return weather_series_df[weather_series_df["date"].dt.year <= end_year].reset_index(drop=True)
 
 
 def add_UHI_effect(weather_series_df: pd.DataFrame, UHI_effect_day_C: float, UHI_effect_night_C: float) -> pd.DataFrame:
@@ -82,11 +96,9 @@ def add_UHI_effect(weather_series_df: pd.DataFrame, UHI_effect_day_C: float, UHI
     day_start_hour = 8  # Start hour of the day, non-inclusive
     day_end_hour = 20  # End hour of the day, inclusive
 
-    # If the H column in the weather DataFrame is between 8 and 20, apply the day effect, otherwise apply the night effect
-    weather_series_df["UHI_effect_C"] = weather_series_df.apply(
-        lambda row: UHI_effect_day_C if row["H"] > day_start_hour and row["H"] <= day_end_hour else UHI_effect_night_C,
-        axis=1,
-    )
+    # Apply the day boost when the hour is between 8 and 20, otherwise the night boost
+    is_day = (weather_series_df["H"] > day_start_hour) & (weather_series_df["H"] <= day_end_hour)
+    weather_series_df["UHI_effect_C"] = np.where(is_day, UHI_effect_day_C, UHI_effect_night_C)
 
     return weather_series_df
 
@@ -115,16 +127,22 @@ def add_seasonal_temperature_boosts(
     spring_months = [3, 4, 5]
     summer_months = [6, 7, 8]
 
-    # If the month in the weather DataFrame is in the winter months, apply the winter effect, otherwise apply the spring effect
-    weather_series_df["delta_T_season_C"] = weather_series_df.apply(
-        lambda row: delta_T_winter_C if row["date"].month in winter_months else delta_T_spring_C if row["date"].month in spring_months else delta_T_summer_C if row["date"].month in summer_months else delta_T_autumn_C,
-        axis=1,
+    # Map each hour to its seasonal boost based on the month, defaulting to autumn
+    month = weather_series_df["date"].dt.month
+    weather_series_df["delta_T_season_C"] = np.select(
+        [month.isin(winter_months), month.isin(spring_months), month.isin(summer_months)],
+        [delta_T_winter_C, delta_T_spring_C, delta_T_summer_C],
+        default=delta_T_autumn_C,
     )
 
     return weather_series_df
 
 
-def add_seasonal_solar_radiation_boosts(weather_series_df: pd.DataFrame, delta_P_solar_summer: float, delta_P_solar_RoY: float) -> pd.DataFrame:
+def add_seasonal_solar_radiation_boosts(
+    weather_series_df: pd.DataFrame,
+    delta_P_solar_summer: float,
+    delta_P_solar_RoY: float,
+) -> pd.DataFrame:
     """Add seasonal solar radiation boosts to weather DataFrame.
 
     Args:
@@ -138,22 +156,28 @@ def add_seasonal_solar_radiation_boosts(weather_series_df: pd.DataFrame, delta_P
     # Define the start and end months of the summer season
     summer_months = [6, 7, 8]
 
-    # If the month in the weather DataFrame is in the summer months, apply the summer effect, otherwise apply the rest of the year effect
-    weather_series_df["delta_P_solar"] = weather_series_df.apply(
-        lambda row: delta_P_solar_summer if row["date"].month in summer_months else delta_P_solar_RoY,
-        axis=1,
+    # Apply the summer boost in the summer months, otherwise the rest-of-year boost
+    weather_series_df["delta_P_solar"] = np.where(
+        weather_series_df["date"].dt.month.isin(summer_months),
+        delta_P_solar_summer,
+        delta_P_solar_RoY,
     )
 
     # Rename the original column containing solar radiation data
     weather_series_df = weather_series_df.rename(columns={"Q": "Q_sol_raw_J_cm2"})
 
     # Multiply the solar radiation with the seasonal solar radiation boost factor and convert from J/cm2 to W/m2 (which can be done as long as the data is in hourly resolution)
-    weather_series_df["P_sol_total_W_m2"] = weather_series_df["Q_sol_raw_J_cm2"] * (1 + weather_series_df["delta_P_solar"]) / 3600 * 10000
+    weather_series_df["P_sol_total_W_m2"] = (
+        weather_series_df["Q_sol_raw_J_cm2"] * (1 + weather_series_df["delta_P_solar"]) / 3600 * 10000
+    )
 
     return weather_series_df
 
 
-def add_multidirectional_solar_radiation(weather_series_df: pd.DataFrame, multidirectional_solar_radiation_fractions_path: str) -> pd.DataFrame:
+def add_multidirectional_solar_radiation(
+    weather_series_df: pd.DataFrame,
+    multidirectional_solar_radiation_fractions_path: str,
+) -> pd.DataFrame:
     """Add multidirectional solar radiation to weather DataFrame.
 
     Args:
@@ -170,13 +194,17 @@ def add_multidirectional_solar_radiation(weather_series_df: pd.DataFrame, multid
     years = len(weather_series_df["date"].dt.year.unique())
 
     # Repeat the multidirectional solar radiation fractions for the amount of years
-    multidirectional_solar_radiation_fractions = pd.concat([multidirectional_solar_radiation_fractions] * years).reset_index(drop=True)
+    multidirectional_solar_radiation_fractions = pd.concat(
+        [multidirectional_solar_radiation_fractions] * years,
+    ).reset_index(drop=True)
 
     directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]  # Define the eight compass directions
 
     # Create a new column for each of the eight compass directions (N, NE, E, etc.) multiplying the "Q" radiation with the multidirectional solar radiation fraction in that direction
     for direction in directions:
-        weather_series_df[f"P_sol_{direction}_W_m2"] = weather_series_df["P_sol_total_W_m2"] * multidirectional_solar_radiation_fractions[direction]
+        weather_series_df[f"P_sol_{direction}_W_m2"] = (
+            weather_series_df["P_sol_total_W_m2"] * multidirectional_solar_radiation_fractions[direction]
+        )
 
     return weather_series_df
 
@@ -201,9 +229,7 @@ def add_presence_load_factors(time_series_df: pd.DataFrame, presence_load_factor
     presence_load_factors = pd.concat([presence_load_factors] * int(days)).reset_index(drop=True)
 
     # Join the presence load factors to the weather DataFrame
-    time_series_df = time_series_df.join(presence_load_factors)
-
-    return time_series_df
+    return time_series_df.join(presence_load_factors)
 
 
 def create_time_series(
@@ -212,10 +238,9 @@ def create_time_series(
     multidirectional_solar_radiation_fractions_path: str,
     presence_load_factors_path: str,
 ) -> dict[str, np.ndarray]:
-    """Reads the time series data from a csv file and converts it to a dictionary of numpy arrays.
+    """Assembles the hourly model time series (weather, solar and presence factors) into a dictionary of numpy arrays.
 
     Args:
-        time_series_path (Path): The path to the csv file containing the time series data.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
         raw_weather_df (pd.DataFrame): DataFrame containing the raw weather data.
         multidirectional_solar_radiation_fractions_path (str): Path to file containing multidirectional solar radiation fractions for one year.
@@ -231,24 +256,39 @@ def create_time_series(
     delta_T_spring_C = global_parameters["delta_T_spring_C"]  # Temperature boost during the spring, in °C
     delta_T_summer_C = global_parameters["delta_T_summer_C"]  # Temperature boost during the summer, in °C
     delta_T_autumn_C = global_parameters["delta_T_autumn_C"]  # Temperature boost during the autumn, in °C
-    delta_P_solar_summer = global_parameters["delta_P_solar_summer"]  # Relative increase factor for solar radiation during the summer
-    delta_P_solar_RoY = global_parameters["delta_P_solar_RoY"]  # Relative increase factor for solar radiation during the rest of the year
+    delta_P_solar_summer = global_parameters[
+        "delta_P_solar_summer"
+    ]  # Relative increase factor for solar radiation during the summer
+    delta_P_solar_RoY = global_parameters[
+        "delta_P_solar_RoY"
+    ]  # Relative increase factor for solar radiation during the rest of the year
     T_thresh_C = global_parameters["T_thresh_C"]  # Cooling threshold temperature, in °C
 
     # Add seasonal solar radiation boosts to time series DataFrame
     time_series_df = add_seasonal_solar_radiation_boosts(raw_weather_df, delta_P_solar_summer, delta_P_solar_RoY)
 
     # Add multidirectional solar radiation to time series DataFrame
-    time_series_df = add_multidirectional_solar_radiation(time_series_df, multidirectional_solar_radiation_fractions_path)
+    time_series_df = add_multidirectional_solar_radiation(
+        time_series_df,
+        multidirectional_solar_radiation_fractions_path,
+    )
 
     # Add UHI time of day boosts to time series DataFrame
     time_series_df = add_UHI_effect(time_series_df, UHI_effect_day_C, UHI_effect_night_C)
 
     # Add seasonal temperature boosts to time series DataFrame
-    time_series_df = add_seasonal_temperature_boosts(time_series_df, delta_T_winter_C, delta_T_spring_C, delta_T_summer_C, delta_T_autumn_C)
+    time_series_df = add_seasonal_temperature_boosts(
+        time_series_df,
+        delta_T_winter_C,
+        delta_T_spring_C,
+        delta_T_summer_C,
+        delta_T_autumn_C,
+    )
 
     # Create a new column "T_outdoor_C" which sums the T_outdoor_raw_C, UHI_effect_C and delta_T_season_C columns
-    time_series_df["T_outdoor_C"] = time_series_df["T_outdoor_raw_C"] + time_series_df["UHI_effect_C"] + time_series_df["delta_T_season_C"]
+    time_series_df["T_outdoor_C"] = (
+        time_series_df["T_outdoor_raw_C"] + time_series_df["UHI_effect_C"] + time_series_df["delta_T_season_C"]
+    )
 
     # Add a column to the time series dictionary with the difference between the inside cooling threshold temperature and the outside air temperature in °C
     time_series_df["T_outdoor_minus_indoor_C"] = time_series_df["T_outdoor_C"] - T_thresh_C
@@ -257,9 +297,7 @@ def create_time_series(
     time_series_df = add_presence_load_factors(time_series_df, presence_load_factors_path)
 
     # Convert the time series DataFrame to a dictionary of numpy arrays
-    time_series_dict = {column: time_series_df[column].to_numpy() for column in time_series_df.columns}
-
-    return time_series_dict
+    return {column: time_series_df[column].to_numpy() for column in time_series_df.columns}
 
 
 def read_dynamic_subsurface_temperature(
@@ -284,7 +322,8 @@ def read_dynamic_subsurface_temperature(
 
     # Check if the provided measurement_depth is valid
     if measurement_depth_cm not in depth_mapping:
-        raise ValueError("Invalid measurement_depth. Choose from 5, 10, 20, 50, or 100 cm.")
+        msg = "Invalid measurement_depth. Choose from 5, 10, 20, 50, or 100 cm."
+        raise ValueError(msg)
 
     # Read in the dynamic (in blocks of 6 hours) subsurface temperature data of De Bilt (Closest available weather station with ground temperature records)
     subsurface_temperature_df = pd.read_csv(subsurface_temperature_path, skiprows=16)
@@ -293,21 +332,30 @@ def read_dynamic_subsurface_temperature(
     subsurface_temperature_df.columns = subsurface_temperature_df.columns.str.strip()
 
     # Read in string as datetime
-    subsurface_temperature_df["date"] = pd.to_datetime(subsurface_temperature_df["YYYYMMDD"].astype(str), format="%Y%m%d", errors="coerce")
+    subsurface_temperature_df["date"] = pd.to_datetime(
+        subsurface_temperature_df["YYYYMMDD"].astype(str),
+        format="%Y%m%d",
+        errors="coerce",
+    )
 
     # Extract the data between the indicated start and end year. The full file contains data from 1981 to 2022.
-    subsurface_temperature_df = subsurface_temperature_df[(subsurface_temperature_df["date"].dt.year >= start_year) & (subsurface_temperature_df["date"].dt.year <= end_year)]
+    subsurface_temperature_df = subsurface_temperature_df[
+        (subsurface_temperature_df["date"].dt.year >= start_year)
+        & (subsurface_temperature_df["date"].dt.year <= end_year)
+    ]
 
     # Remove leap days to prevent errors
-    subsurface_temperature_df = subsurface_temperature_df[subsurface_temperature_df["date"].dt.strftime("%m-%d") != "02-29"].reset_index(drop=True)
+    subsurface_temperature_df = subsurface_temperature_df[
+        subsurface_temperature_df["date"].dt.strftime("%m-%d") != "02-29"
+    ].reset_index(drop=True)
 
     # Repeat the subsurface temperature data to go from 6-hourly to hourly time-steps
-    ground_temperature_series = subsurface_temperature_df[f"TB{depth_mapping[measurement_depth_cm]}"].repeat(6).reset_index(drop=True)
+    ground_temperature_series = (
+        subsurface_temperature_df[f"TB{depth_mapping[measurement_depth_cm]}"].repeat(6).reset_index(drop=True)
+    )
 
     # Convert the subsurface temperature data to numeric and divide by 10 to get °C
     ground_temperature_series = ground_temperature_series.astype("float") / 10
 
     # Convert the series to a numpy array for faster calculations
-    subsurface_temperature = ground_temperature_series.to_numpy()
-
-    return subsurface_temperature
+    return ground_temperature_series.to_numpy()

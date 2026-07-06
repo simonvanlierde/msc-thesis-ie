@@ -3,13 +3,19 @@
 @author: Simon van Lierde
 """
 
-### Import packages
+from __future__ import annotations
 
+### Import packages
 import math
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
-from geopandas.geoseries import GeoSeries
+
+if TYPE_CHECKING:
+    import pandas as pd
+    from geopandas.geoseries import GeoSeries
+
+MAX_AZIMUTH_DEGREES = 180  # Azimuths are measured in range 0-180 degrees
 
 ### Geometry functions
 
@@ -34,9 +40,8 @@ def azimuth_rectangle(rectangle: GeoSeries) -> tuple[float, float, float]:
         rectangle (GeoSeries): A GeoSeries object representing a rotated rectangle.
 
     Returns:
-        tuple[float, float, float]: The azimuth of th rotated rectangle in degrees, and the width of the rotated rectangle in meters.
+        tuple[float, float, float]: The azimuth of the rotated rectangle in degrees, and its width and length in meters.
     """
-    """Calculate the azimuth of a rotated rectangle in degrees."""
     bbox = list(rectangle.exterior.coords)  # Get the coordinates of the rotated rectangle
     axis1 = dist(bbox[0], bbox[3])  # Calculate the length of the first axis
     axis2 = dist(bbox[0], bbox[1])  # Calculate the length of the second axis
@@ -63,8 +68,9 @@ def determine_orientation_class(azimuth: float) -> int:
     Returns:
         int: The orientation class of the building, represented as integer (1: N-S, 2: NE-SW, 3: E-W, 4: NW-SE)
     """
-    if not 0 <= azimuth <= 180:
-        raise ValueError("Azimuth should be between 0 and 180 degrees")
+    if not 0 <= azimuth <= MAX_AZIMUTH_DEGREES:
+        msg = "Azimuth should be between 0 and 180 degrees"
+        raise ValueError(msg)
 
     orientation_class_ranges = [22.5, 67.5, 112.5, 157.5]
 
@@ -75,7 +81,7 @@ def determine_orientation_class(azimuth: float) -> int:
     return 1  # Default to orientation class 1 for values larger than 157.5
 
 
-def calc_facade_area_per_orientation(building: pd.Series, orientation_class_int: int) -> np.array:
+def calc_facade_area_per_orientation(building: pd.Series, orientation_class_int: int) -> np.ndarray:
     """Calculate the facade area per compass direction in m2.
 
     Args:
@@ -86,10 +92,11 @@ def calc_facade_area_per_orientation(building: pd.Series, orientation_class_int:
         ValueError: If the orientation class integer is not in range 1-4.
 
     Returns:
-        np.array: The facade area per compass direction in m2.
+        np.ndarray: The facade area per compass direction in m2.
     """
     if orientation_class_int not in range(1, 5):
-        raise ValueError("orientation_class_int should be between 1 and 4")
+        msg = "orientation_class_int should be between 1 and 4"
+        raise ValueError(msg)
 
     # Load the building attributes
     width = building["MBR_width_m"]  # The width (short side) of the building MBR in m
@@ -106,23 +113,27 @@ def calc_facade_area_per_orientation(building: pd.Series, orientation_class_int:
     return height * np.array(orientation_to_facade_lengths[orientation_class_int])
 
 
-def calc_window_and_wall_areas(building: pd.Series) -> tuple[int, np.array, float, float]:
+def calc_window_and_wall_areas(building: pd.Series) -> tuple[np.ndarray, float, float]:
     """Calculate the window and wall areas of a building in m2.
 
     Args:
         building (pd.Series): The building row for which the window and wall areas are calculated.
 
     Returns:
-        tuple[int, np.array, float, float]: The orientation class of the building, the window area per compass direction in m2, and the total window and wall areas in m2
+        tuple[np.ndarray, float, float]: The window area per compass direction in m2, and the total window and wall areas in m2.
     """
-    orientation_class = determine_orientation_class(building["MBR_azimuth"])  # Determine the orientation class of the building
+    orientation_class = determine_orientation_class(
+        building["MBR_azimuth"],
+    )  # Determine the orientation class of the building
     facade_area_per_orientation_m2 = calc_facade_area_per_orientation(
         building,
         orientation_class,
     )  # Calculate the facade area per compass direction in m2
     facade_area_total_m2 = facade_area_per_orientation_m2.sum()  # Calculate the total facade area in m2
     wall_area_total_m2 = facade_area_total_m2 * building["f_wall"]  # Calculate the total wall area in m2
-    window_area_per_orientation_m2 = facade_area_per_orientation_m2 * building["f_window"]  # Calculate the window area per compass direction in m2
+    window_area_per_orientation_m2 = (
+        facade_area_per_orientation_m2 * building["f_window"]
+    )  # Calculate the window area per compass direction in m2
     window_area_total_m2 = window_area_per_orientation_m2.sum()  # Calculate the total window area in m2
 
     return window_area_per_orientation_m2, window_area_total_m2, wall_area_total_m2

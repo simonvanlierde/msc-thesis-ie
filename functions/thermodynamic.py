@@ -3,10 +3,15 @@
 @author: Simon van Lierde
 """
 
+from __future__ import annotations
+
 # Import packages
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 # Parameter derivation functions
 
@@ -30,18 +35,18 @@ def R_to_U(Rc: float, alfa_i: float = 7.5, alfa_o: float = 27.5) -> float:
 
 def calc_Q_transmission(
     building: pd.Series,
-    time_series: dict[str, np.array],
+    time_series: dict[str, np.ndarray],
     global_parameters: dict[str, float],
-) -> np.array:
+) -> np.ndarray:
     """calc_Q_transmission calculates the transmission heat flow Q of a building in Wh across a given time series.
 
     Args:
         building (pd.Series): The building row for which the transmission heat flows are calculated.
-        time_series (dict[str, np.array]): The time series dictionary containing the weather data for the building.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data for the building.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
 
     Returns:
-        np.array: The total transmission heat flow in Wh for each hour in the time series.
+        np.ndarray: The total transmission heat flow in Wh for each hour in the time series.
     """
     # Load building data from row
     window_area = building["window_area_total_m2"]  # The window area of the building in m2
@@ -61,8 +66,12 @@ def calc_Q_transmission(
     # Load global parameters
     T_thresh_C = global_parameters["T_thresh_C"]  # The cooling threshold temperature in °C
     T_sub_C = global_parameters["T_sub_C"]  # The subsurface temperature in °C
-    alfa_i = global_parameters["alfa_i"]  # Combined heat transfer coefficient of convection and radiation on the inside in W/m2K
-    alfa_o = global_parameters["alfa_o"]  # Combined heat transfer coefficient of convection and radiation on the outside in W/m2K
+    alfa_i = global_parameters[
+        "alfa_i"
+    ]  # Combined heat transfer coefficient of convection and radiation on the inside in W/m2K
+    alfa_o = global_parameters[
+        "alfa_o"
+    ]  # Combined heat transfer coefficient of convection and radiation on the outside in W/m2K
 
     # Determine U values for the walls, floors, and roofs
     U_wall, U_roof, U_floor = (R_to_U(Rc, alfa_i, alfa_o) for Rc in [Rc_wall, Rc_roof, Rc_floor])
@@ -79,18 +88,18 @@ def calc_Q_transmission(
 
 def calc_Q_infiltration(
     building: pd.Series,
-    time_series: dict[str, np.array],
+    time_series: dict[str, np.ndarray],
     global_parameters: dict[str, float],
-) -> np.array:
+) -> np.ndarray:
     """calc_Q_infiltration calculates the infiltration heat flows of a building in Wh across a given time series.
 
     Args:
         building (pd.Series): The building row for which the heat flows are calculated.
-        time_series (dict[str, np.array]): The time series dictionary containing the weather data for the building.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data for the building.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
 
     Returns:
-        np.array: The  infiltration heat flows in Wh, for each hour in the time series.
+        np.ndarray: The  infiltration heat flows in Wh, for each hour in the time series.
     """
     # Load building data from row
     building_volume = building["volume_m3"]  # The volume of the building in m3
@@ -112,20 +121,20 @@ def calc_Q_infiltration(
 
 def calc_Q_ventilation(
     building: pd.Series,
-    time_series: dict[str, np.array],
+    time_series: dict[str, np.ndarray],
     global_parameters: dict[str, float],
     calc_electricity_demand: bool = False,
-) -> tuple[np.array, np.array, float]:
+) -> tuple[np.ndarray, np.ndarray | None, float | None]:
     """calc_Q_ventilation calculates the ventilation heat flows and the electricity demand of ventilation systems of a building in Wh across a given time series.
 
     Args:
         building (pd.Series): The building row for which the heat flows are calculated.
-        time_series (dict[str, np.array]): The time series dictionary containing the weather data and presence load factors for the building.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data and presence load factors for the building.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
         calc_electricity_demand (bool, optional): Whether to calculate the electricity demand of the ventilation system. Defaults to False, as we currently don't take electricity from ventilation systems into account in the cooling demand model.
 
     Returns:
-        tuple[np.array, np.array, float]: The hourly ventilation heat flow and electricity demand time series in Wh, and the total annual average electricity demand of the ventilation system in kWh.
+        tuple[np.ndarray, np.ndarray, float]: The hourly ventilation heat flow and electricity demand time series in Wh, and the total annual average electricity demand of the ventilation system in kWh.
     """
     # Load building data from row
     building_end_use = building["end_use"]  # The building end use (residential, office, etc.)
@@ -140,7 +149,9 @@ def calc_Q_ventilation(
     # Load global parameters
     air_density = global_parameters["air_density"]  # The density of air in kg/m3
     air_heat_capacity = global_parameters["air_heat_capacity"]  # The heat capacity of air in J/kgK
-    ventilation_efficiency = global_parameters["ventilation_efficiency"]  # The assumed average electrical efficiency of ventilation systems
+    ventilation_efficiency = global_parameters[
+        "ventilation_efficiency"
+    ]  # The assumed average electrical efficiency of ventilation systems
 
     # Determine the air mass flow rate due to ventilation in kg/s
     ventilation_rate = air_density * ventilation_rate_pp * population * people_presence / 3600
@@ -164,25 +175,29 @@ def calc_Q_ventilation(
     return Q_ventilation, Q_ventilation_electric, E_ventilation_electric_kWh
 
 
-def calc_Q_solar_radiation(building: pd.Series, time_series: dict[str, np.array]) -> np.array:
+def calc_Q_solar_radiation(building: pd.Series, time_series: dict[str, np.ndarray]) -> np.ndarray:
     """calc_Q_solar_radiation calculates the heat gains due to solar radiation of a building in Wh across a given time series.
 
     Args:
         building (pd.Series): The building row for which the heat gains are calculated.
-        time_series (dict[str, np.array]): The time series dictionary containing the weather data for the building.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data for the building.
 
     Returns:
-        np.array: The total solar radiation heat inflows in Wh, for each hour in the time series.
+        np.ndarray: The total solar radiation heat inflows in Wh, for each hour in the time series.
     """
     # Load building data from row
-    window_area_per_orientation = building["window_area_per_orientation_m2"]  # The window area per compass direction (N, NE, ...) of the building in m2
+    window_area_per_orientation = building[
+        "window_area_per_orientation_m2"
+    ]  # The window area per compass direction (N, NE, ...) of the building in m2
     g_window = building["g_window"]  # The solar transmittance factor of the windows (ranging from 0 to 1)
 
     # Load the solar radiation for each direction from the time series, unpacking any key with the word "P_sol_" in it
     solar_radiation_per_direction = np.array([time_series[key] for key in time_series if "P_sol_" in key])
 
     # Calculate the solar radiation heat inflow for each direction in Wh
-    Q_solar_radiation_per_direction = np.array([window_area_per_orientation[i] * g_window * solar_radiation_per_direction[i] for i in range(8)])
+    Q_solar_radiation_per_direction = np.array(
+        [window_area_per_orientation[i] * g_window * solar_radiation_per_direction[i] for i in range(8)],
+    )
 
     # Calculate the total solar radiation heat inflow in Wh
     return np.sum(Q_solar_radiation_per_direction, axis=0)
@@ -190,24 +205,26 @@ def calc_Q_solar_radiation(building: pd.Series, time_series: dict[str, np.array]
 
 def calc_Q_internal_heat(
     building: pd.Series,
-    time_series: dict[str, np.array],
+    time_series: dict[str, np.ndarray],
     global_parameters: dict[str, float],
-) -> np.array:
+) -> np.ndarray:
     """calc_Q_internal_heat calculates the internal heat gains in Wh across a given time series.
 
     Args:
         building (pd.Series): The building row for which the heat gains are calculated.
-        time_series (dict[str, np.array]): The time series dictionary containing the presence load factors data for the building.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the presence load factors data for the building.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
 
     Returns:
-        np.array: The total internal heat gains in Wh, for each hour in the time series.
+        np.ndarray: The total internal heat gains in Wh, for each hour in the time series.
     """
     # Load building data from row
     population = building["population"]  # The population of the building
     building_end_use = building["end_use"]  # The building end use (residential, office, etc.)
     floor_area_total = building["floor_area_total_m2"]  # The total floor area of the building in m2
-    int_heat_gain_appliances = building["int_heat_gain_appliances_W_m2"]  # The internal heat gain density of appliances in W/m2
+    int_heat_gain_appliances = building[
+        "int_heat_gain_appliances_W_m2"
+    ]  # The internal heat gain density of appliances in W/m2
 
     # Load presence load factors from time series, depending on building end use
     presence_people = time_series[f"presence_people_{building_end_use}"]
@@ -216,7 +233,9 @@ def calc_Q_internal_heat(
 
     # Load global parameters
     int_heat_gain_pp_W = global_parameters["int_heat_gain_pp_W"]  # The internal heat gain per person in W
-    int_heat_gain_light_W_m2 = global_parameters["int_heat_gain_light_W_m2"]  # The internal heat gain density of lighting in W/m2
+    int_heat_gain_light_W_m2 = global_parameters[
+        "int_heat_gain_light_W_m2"
+    ]  # The internal heat gain density of lighting in W/m2
 
     # Calculate the internal heat gains from people, lighting and appliances in Wh
     Q_internal_heat_people = population * int_heat_gain_pp_W * presence_people
@@ -228,23 +247,23 @@ def calc_Q_internal_heat(
 
 
 def calc_cooling_demand_from_thermal_flows(
-    Q_transmission: np.array,
-    Q_infiltration: np.array,
-    Q_ventilation: np.array,
-    Q_solar_radiation: np.array,
-    Q_internal_heat: np.array,
-) -> tuple[np.array, float, float]:
+    Q_transmission: np.ndarray,
+    Q_infiltration: np.ndarray,
+    Q_ventilation: np.ndarray,
+    Q_solar_radiation: np.ndarray,
+    Q_internal_heat: np.ndarray,
+) -> tuple[np.ndarray, float, float]:
     """calc_cooling_demand calculates a number of metrics related to the cooling demand.
 
     Args:
-        Q_transmission (np.array): The time series of the transmission heat flows in Wh.
-        Q_infiltration (np.array): The time series of the infiltration heat flows in Wh.
-        Q_ventilation (np.array): The time series of the ventilation heat flows in Wh.
-        Q_solar_radiation (np.array): The time series of the solar radiation heat flows in Wh.
-        Q_internal_heat (np.array): The time series of the internal heat gains in Wh.
+        Q_transmission (np.ndarray): The time series of the transmission heat flows in Wh.
+        Q_infiltration (np.ndarray): The time series of the infiltration heat flows in Wh.
+        Q_ventilation (np.ndarray): The time series of the ventilation heat flows in Wh.
+        Q_solar_radiation (np.ndarray): The time series of the solar radiation heat flows in Wh.
+        Q_internal_heat (np.ndarray): The time series of the internal heat gains in Wh.
 
     Returns:
-        Q_cooling (np.array): The cooling demand per hour Q_cooling (Wh) across the time series for which heat flow data is available.
+        Q_cooling (np.ndarray): The cooling demand per hour Q_cooling (Wh) across the time series for which heat flow data is available.
         E_cooling_avg_kWh (float): The average total cooling energy demand (kWh) per year.
         P_cooling_peak_avg_kW (float): The average peak cooling power demand (kW) per year.
     """
@@ -270,19 +289,19 @@ def calc_cooling_demand_from_thermal_flows(
 
 
 def calc_cooling_demand_percentile_per_year(
-    Q_cooling_demand_Wh: np.array,
+    Q_cooling_demand_Wh: np.ndarray,
     n_percentile: float = 98,
-) -> tuple[np.array, float, np.array, float]:
+) -> tuple[np.ndarray, float, np.ndarray, float]:
     """calc_cooling_demand_percentile_per_year calculates cooling demand metrics for a given peak percentile n of the cooling demand distribution for a one-year period.
 
     Args:
-        Q_cooling_demand_Wh (np.array): The hourly cooling demand series (Wh) for a one-year period.
+        Q_cooling_demand_Wh (np.ndarray): The hourly cooling demand series (Wh) for a one-year period.
         n_percentile (float, optional): The percentile that the peak cooling power demand (kW) should be capped at. Defaults to 98.
 
     Returns:
-        Q_cooling_sorted_Wh (np.array): The hourly cooling demand series (Wh), sorted by size.
+        Q_cooling_sorted_Wh (np.ndarray): The hourly cooling demand series (Wh), sorted by size.
         P_cooling_peak_percentile_kW (float): The percentile of the peak cooling power demand (kW), i.e. the peak percentile of the cooling power demand.
-        Q_cooling_capped_at_percentile_Wh (np.array): The hourly cooling energy demand series Q_cooling (Wh), capped at the peak percentile of the cooling power demand.
+        Q_cooling_capped_at_percentile_Wh (np.ndarray): The hourly cooling energy demand series Q_cooling (Wh), capped at the peak percentile of the cooling power demand.
         E_cooling_capped_at_percentile_kWh (float): The total cooling energy demand (kWh), when capped at the peak percentile of the cooling power demand.
     """
     # Sort the cooling demand series by size (starting with the largest values)
@@ -306,21 +325,21 @@ def calc_cooling_demand_percentile_per_year(
 
 
 def calc_cooling_demand_percentile(
-    Q_cooling_demand_Wh: np.array,
+    Q_cooling_demand_Wh: np.ndarray,
     n_percentile: float = 98,
     include_time_series: bool = False,
-) -> tuple[np.array, float, float]:
+) -> tuple[np.ndarray | None, float, np.ndarray | None, float]:
     """calc_cooling_demand_percentile calculates cooling demand metrics for a given peak percentile of the cooling demand distribution for a full time series.
 
     Args:
-        Q_cooling_demand_Wh (np.array): The hourly cooling demand time series (Wh), for any number of years.
+        Q_cooling_demand_Wh (np.ndarray): The hourly cooling demand time series (Wh), for any number of years.
         n_percentile (float, optional): The percentile that the peak cooling power demand (kW) should be capped at. Defaults to 98.
         include_time_series: (bool, optional): Whether to include the time series of the cooling demand metrics in the return values. Defaults to False.
 
     Returns:
-        Q_cooling_sorted_Wh (np.array): The hourly cooling demand series (Wh), sorted by size.
+        Q_cooling_sorted_Wh (np.ndarray): The hourly cooling demand series (Wh), sorted by size.
         P_cooling_peak_percentile_kW (float): The percentile of the peak cooling power demand (kW), i.e. the peak percentile of the cooling power demand.
-        Q_cooling_capped_at_percentile_Wh (np.array): The hourly cooling energy demand series Q_cooling (Wh), capped at the peak percentile of the cooling power demand.
+        Q_cooling_capped_at_percentile_Wh (np.ndarray): The hourly cooling energy demand series Q_cooling (Wh), capped at the peak percentile of the cooling power demand.
         E_cooling_capped_at_percentile_kWh (float): The total cooling energy demand (kWh), when capped at the peak percentile of the cooling power demand.
 
     """
@@ -383,20 +402,20 @@ def calc_cooling_demand_percentile(
 
 def calc_cooling_demand_for_building_row(
     building: pd.Series,
-    time_series: dict[str, np.array],
+    time_series: dict[str, np.ndarray],
     global_parameters: dict[str, float],
     include_heat_flows: bool = False,
-) -> tuple[np.array, float, float]:
+) -> tuple[np.ndarray, float, float, dict[str, np.ndarray] | None]:
     """calculate_cooling_demand_from_building_row calculates the cooling demand time series, total cooling energy demand and peak cooling power demand for a given building row.
 
     Args:
         building (pd.Series): The building row for which the cooling demand is calculated.
-        time_series (dict[str, np.array]): The time series dictionary containing the weather data and presence load factors for the building.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data and presence load factors for the building.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
         include_heat_flows: (bool, optional): Whether to return the time series of the individual heat flows. Defaults to False.
 
     Returns:
-        Q_cooling_demand_Wh (np.array): The cooling demand per hour Q_cooling (Wh) across the time series for which heat flow data is available.
+        Q_cooling_demand_Wh (np.ndarray): The cooling demand per hour Q_cooling (Wh) across the time series for which heat flow data is available.
         E_cooling_avg_kWh (float): The average total cooling energy demand (kWh) per year.
         P_cooling_peak_avg_kW (float): The average peak cooling power demand (kW) per year.
     """
@@ -439,25 +458,27 @@ def calc_cooling_demand_for_building_row(
 
 def calc_cooling_demand_metrics_for_building_row(
     building: pd.Series,
-    time_series: dict[str, np.array],
+    time_series: dict[str, np.ndarray],
     global_parameters: dict[str, float],
     include_time_series: bool = False,
-) -> tuple[np.array, float, float]:
+) -> tuple:
     """calculate_cooling_demand_from_building_row calculates the cooling demand time series, total cooling energy demand and peak cooling power demand for a given building row.
 
     Args:
         building (pd.Series): The building row for which the cooling demand metrics area calculated.
-        time_series (dict[str, np.array]): The time series dictionary containing the weather data and presence load factors for the building.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data and presence load factors for the building.
         global_parameters (Dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
         include_time_series: (bool, optional): Whether to include the time series of the cooling demand metrics in the return values. Defaults to False.
 
     Returns:
-        Q_cooling_demand_Wh (np.array): The cooling demand per hour Q_cooling (Wh) across the time series for which heat flow data is available.
+        Q_cooling_demand_Wh (np.ndarray): The cooling demand per hour Q_cooling (Wh) across the time series for which heat flow data is available.
         E_cooling_avg_kWh (float): The average total cooling energy demand (kWh) per year.
         P_cooling_peak_avg_kW (float): The average peak cooling power demand (kW) per year.
     """
     # Load global parameters
-    peak_cooling_percentile_cap = global_parameters["peak_cooling_percentile_cap"]  # The percentile that the peak cooling power demand (kW) should be capped at
+    peak_cooling_percentile_cap = global_parameters[
+        "peak_cooling_percentile_cap"
+    ]  # The percentile that the peak cooling power demand (kW) should be capped at
 
     # Calculate the cooling demand for the building row
     (
@@ -507,7 +528,7 @@ def calc_cooling_demand_metrics_for_building_row(
 
 def calc_cooling_demand_metrics_for_df(
     df_buildings: pd.DataFrame,
-    time_series: dict[str, np.array],
+    time_series: dict[str, np.ndarray],
     global_parameters: dict[str, float],
     include_time_series: bool = False,
 ) -> pd.DataFrame:
@@ -515,7 +536,7 @@ def calc_cooling_demand_metrics_for_df(
 
     Args:
         df_buildings (pd.DataFrame): The DataFrame containing the building rows for which the cooling demand metrics are calculated.
-        time_series (dict[str, np.array]): The time series dictionary containing the weather data and presence load factors for the building.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data and presence load factors for the building.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
         include_time_series: (bool, optional): Whether to include the time series of the cooling demand metrics in the return values. Defaults to False.
 

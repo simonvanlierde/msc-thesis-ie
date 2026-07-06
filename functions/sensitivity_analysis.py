@@ -3,6 +3,8 @@
 @author: Simon van Lierde
 """
 
+import os
+
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -16,6 +18,51 @@ from functions.environmental import (
 from functions.thermodynamic import calc_cooling_demand_metrics_for_df
 from functions.time_series import create_time_series
 
+# Directory for sensitivity-analysis figures. Overridable via the SA_IMAGE_DIR
+# environment variable so the Snakemake pipeline can write under results/ while
+# the notebook keeps the original location.
+SA_IMAGE_DIR = os.environ.get("SA_IMAGE_DIR", "data/output/images/SA")
+
+
+def _record_impact_intensities(
+    results: pd.DataFrame,
+    index_value: float,
+    impact_summary: dict[str, dict[str, float]],
+) -> None:
+    """Write the five per-floor-area impact intensities from an impact summary into one results row."""
+    intensities = impact_summary["impacts_per_floor_area"]
+    results.loc[index_value, "Cooling energy demand (kWh/m2)"] = intensities["E_cooling_capped_at_percentile_kWh_m2"]
+    results.loc[index_value, "Peak cooling power demand (W/m2)"] = intensities["P_cooling_peak_percentile_W_m2"]
+    results.loc[index_value, "Electricity use (kWh/m2)"] = intensities["electricity_use_intensity_kWh_m2"]
+    results.loc[index_value, "GHG emissions (kg CO2eq/m2)"] = intensities["GHG_emissions_intensity_kgCO2eq_m2"]
+    results.loc[index_value, "Material demand (kg/m2)"] = intensities["material_use_intensity_kg_m2"]
+
+
+def _draw_future_scenario_lines(ax: plt.Axes, reference_values: dict[str, float]) -> None:
+    """Draw the four future-scenario reference lines (2030, 2050 L/M/H) on an axis."""
+    ax.axvline(x=reference_values["2030"], color="gray", linestyle="dotted", alpha=0.7, label="Value in 2030 scenario")
+    ax.axvline(
+        x=reference_values["2050_L"],
+        color="gold",
+        linestyle="dotted",
+        alpha=0.7,
+        label="Value in 2050 L scenario",
+    )
+    ax.axvline(
+        x=reference_values["2050_M"],
+        color="darkorange",
+        linestyle="dotted",
+        alpha=0.7,
+        label="Value in 2050 M scenario",
+    )
+    ax.axvline(
+        x=reference_values["2050_H"],
+        color="red",
+        linestyle="dotted",
+        alpha=0.7,
+        label="Value in 2050 H scenario",
+    )
+
 
 def run_CDM_model_for_SA(
     buildings: pd.DataFrame,
@@ -26,7 +73,7 @@ def run_CDM_model_for_SA(
     cooling_technology_parameters: list[dict[str, float]],
     multi_directional_solar_radiation_fractions_path: str,
     presence_load_factors_path: str,
-) -> tuple[pd.DataFrame, dict[str, float]]:
+) -> tuple[pd.DataFrame, dict[str, dict[str, float]]]:
     """run_CDM_model_for_SA is a wrapper function that runs the cooling demand model for a sensitivity analysis.
 
     Args:
@@ -43,10 +90,18 @@ def run_CDM_model_for_SA(
         tuple[pd.DataFrame, dict[str, float]]: The DataFrame containing the buildings with the cooling demand metrics and environmental impacts added, and a dictionary containing the summary of environmental impacts.
     """
     # Assign the building parameters
-    buildings = add_parameters_to_buildings(buildings, global_parameters, building_type_parameters, energy_class_parameters)
+    buildings = add_parameters_to_buildings(
+        buildings,
+        global_parameters,
+        building_type_parameters,
+        energy_class_parameters,
+    )
 
     # Build the cooling technologies DataFrame
-    cooling_technologies = calculate_environmental_parameters_for_cooling_technologies(cooling_technology_parameters, global_parameters)
+    cooling_technologies = calculate_environmental_parameters_for_cooling_technologies(
+        cooling_technology_parameters,
+        global_parameters,
+    )
 
     # Assign the cooling technology parameters to the buildings
     buildings = add_cooling_technology_data_to_buildings(buildings, cooling_technologies)
@@ -75,7 +130,7 @@ def run_CDM_model_for_SA_for_indirect_parameter(
     variable_name_to_report: str,
     aggregation_type: str,
     parameters: dict,
-) -> tuple[pd.DataFrame, dict[str, float]]:
+) -> tuple[pd.DataFrame, dict[str, dict[str, float]], float]:
     """A wrapper function that runs the cooling demand model for a sensitivity analysis and reports back the value of an indirect parameter.
 
     Args:
@@ -84,54 +139,35 @@ def run_CDM_model_for_SA_for_indirect_parameter(
         parameters (dict): A dictionary containing the parameters for the cooling demand model.
 
     Returns:
-        tuple[pd.DataFrame, dict[str, float]]: The DataFrame containing the buildings with the cooling demand metrics and environmental impacts added, and a dictionary containing the summary of environmental impacts.
+        tuple[pd.DataFrame, dict[str, dict[str, float]], float]: The buildings DataFrame with cooling demand metrics and environmental impacts added, the impact summary, and the aggregated value of the requested indirect variable.
     """
-    # Unload the parameters
-    buildings = parameters["buildings"]
-    raw_weather_data = parameters["raw_weather_data"]
-    global_parameters = parameters["global_parameters"]
-    building_type_parameters = parameters["building_type_parameters"]
-    energy_class_parameters = parameters["energy_class_parameters"]
-    cooling_technology_parameters = parameters["cooling_technology_parameters"]
-    multi_directional_solar_radiation_fractions_path = parameters["multi_directional_solar_radiation_fractions_path"]
-    presence_load_factors_path = parameters["presence_load_factors_path"]
-
-    # Assign the building parameters
-    buildings = add_parameters_to_buildings(buildings, global_parameters, building_type_parameters, energy_class_parameters)
-
-    # Build the cooling technologies DataFrame
-    cooling_technologies = calculate_environmental_parameters_for_cooling_technologies(cooling_technology_parameters, global_parameters)
-
-    # Assign the cooling technology parameters to the buildings
-    buildings = add_cooling_technology_data_to_buildings(buildings, cooling_technologies)
-
-    # Create time series for weather series and other hourly data
-    time_series = create_time_series(
-        global_parameters,
-        raw_weather_data,
-        multi_directional_solar_radiation_fractions_path,
-        presence_load_factors_path,
+    # Run the cooling demand model, reusing the shared SA runner
+    buildings, impact_summary = run_CDM_model_for_SA(
+        parameters["buildings"],
+        parameters["raw_weather_data"],
+        parameters["global_parameters"],
+        parameters["building_type_parameters"],
+        parameters["energy_class_parameters"],
+        parameters["cooling_technology_parameters"],
+        parameters["multi_directional_solar_radiation_fractions_path"],
+        parameters["presence_load_factors_path"],
     )
-
-    # Calculate the cooling demand
-    buildings = calc_cooling_demand_metrics_for_df(buildings, time_series, global_parameters, include_time_series=False)
-
-    # Drop duplicate columns from the DataFrame
-    buildings = buildings.loc[:, ~buildings.columns.duplicated()]
-
-    # Calculate the environmental impacts
-    buildings, impact_summary = calculate_environmental_impacts_from_cooling_demand(buildings, global_parameters)
 
     # Calculate the total floor area of the buildings
     total_floor_area_m2 = buildings["floor_area_total_m2"].sum()
 
     # Calculate the weighted value of the variable
     if aggregation_type == "sum":
-        value_of_variable = (buildings[variable_name_to_report] * buildings["floor_area_total_m2"]).sum() / total_floor_area_m2
+        value_of_variable = (
+            buildings[variable_name_to_report] * buildings["floor_area_total_m2"]
+        ).sum() / total_floor_area_m2
     elif aggregation_type == "mean":
-        value_of_variable = (buildings[variable_name_to_report] * buildings["floor_area_total_m2"]).mean() / total_floor_area_m2
+        value_of_variable = (
+            buildings[variable_name_to_report] * buildings["floor_area_total_m2"]
+        ).mean() / total_floor_area_m2
     else:
-        raise ValueError("The aggregation type must be either 'sum' or 'mean'.")
+        msg = "The aggregation type must be either 'sum' or 'mean'."
+        raise ValueError(msg)
 
     return buildings, impact_summary, value_of_variable
 
@@ -183,67 +219,7 @@ def run_SA_for_variable_in_global_parameters(
         )
 
         # Add the results to the DataFrame
-        df_variable_results.loc[variable, "Cooling energy demand (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["E_cooling_capped_at_percentile_kWh_m2"]
-        df_variable_results.loc[variable, "Peak cooling power demand (W/m2)"] = impact_summary["impacts_per_floor_area"]["P_cooling_peak_percentile_W_m2"]
-        df_variable_results.loc[variable, "Electricity use (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["electricity_use_intensity_kWh_m2"]
-        df_variable_results.loc[variable, "GHG emissions (kg CO2eq/m2)"] = impact_summary["impacts_per_floor_area"]["GHG_emissions_intensity_kgCO2eq_m2"]
-        df_variable_results.loc[variable, "Material demand (kg/m2)"] = impact_summary["impacts_per_floor_area"]["material_use_intensity_kg_m2"]
-
-    return df_variable_results
-
-
-def run_SA_for_variable_in_building_type_parameters(
-    variable_name: str,
-    variable_start: float,
-    variable_end: float,
-    building_type_parameters: list[dict[str, float]],
-    static_parameters: dict,
-    calculation_steps: int = 50,
-) -> pd.DataFrame:
-    """A wrapper function that runs a sensitivity analysis on a variable in the building type parameters.
-
-    Args:
-        variable_name (str): The name of the variable in the building type parameters for which the sensitivity analysis is run.
-        variable_start (float): The start of the value range for which the sensitivity analysis is run.
-        variable_end (float): The end of the value range for which the sensitivity analysis is run.
-        building_type_parameters (list[dict[str, float]]): The dictionary containing the building type parameters for the cooling demand model.
-        static_parameters (dict): A dictionary containing the other parameters for the cooling demand model that will not be altered throughout the sensitivity analysis.
-        calculation_steps (int, optional): The number of times the cooling demand model is run for different values of the variable. Defaults to 50.
-
-    Returns:
-        pd.DataFrame: The DataFrame containing the results of the sensitivity analysis.
-
-    """
-    # Define the variable range
-    variable_range = np.linspace(variable_start, variable_end, calculation_steps)
-
-    # Define the DataFrame to which the results should be added
-    df_variable_results = pd.DataFrame(index=variable_range)
-
-    # Loop over the variable range
-    for variable in tqdm(variable_range):
-        # Create a copy of the building_type_parameters in which the variable is changed to the current variable
-        building_type_parameters_with_variable = building_type_parameters.copy()
-        building_type_parameters_with_variable[variable_name] = variable
-
-        # Run the cooling demand model with the current variable
-        _, impact_summary = run_CDM_model_for_SA(
-            static_parameters["buildings"],
-            static_parameters["raw_weather_data"],
-            static_parameters["global_parameters"],
-            building_type_parameters_with_variable,
-            static_parameters["energy_class_parameters"],
-            static_parameters["cooling_technology_parameters"],
-            static_parameters["multi_directional_solar_radiation_fractions_path"],
-            static_parameters["presence_load_factors_path"],
-        )
-
-        # Add the results to the DataFrame
-        df_variable_results.loc[variable, "Cooling energy demand (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["E_cooling_capped_at_percentile_kWh_m2"]
-        df_variable_results.loc[variable, "Peak cooling power demand (W/m2)"] = impact_summary["impacts_per_floor_area"]["P_cooling_peak_percentile_W_m2"]
-        df_variable_results.loc[variable, "Electricity use (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["electricity_use_intensity_kWh_m2"]
-        df_variable_results.loc[variable, "GHG emissions (kg CO2eq/m2)"] = impact_summary["impacts_per_floor_area"]["GHG_emissions_intensity_kgCO2eq_m2"]
-        df_variable_results.loc[variable, "Material demand (kg/m2)"] = impact_summary["impacts_per_floor_area"]["material_use_intensity_kg_m2"]
+        _record_impact_intensities(df_variable_results, variable, impact_summary)
 
     return df_variable_results
 
@@ -307,11 +283,7 @@ def run_SA_for_variable_in_cooling_technology_parameters(
         )
 
         # Add the results to the DataFrame
-        df_variable_results.loc[variable, "Cooling energy demand (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["E_cooling_capped_at_percentile_kWh_m2"]
-        df_variable_results.loc[variable, "Peak cooling power demand (W/m2)"] = impact_summary["impacts_per_floor_area"]["P_cooling_peak_percentile_W_m2"]
-        df_variable_results.loc[variable, "Electricity use (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["electricity_use_intensity_kWh_m2"]
-        df_variable_results.loc[variable, "GHG emissions (kg CO2eq/m2)"] = impact_summary["impacts_per_floor_area"]["GHG_emissions_intensity_kgCO2eq_m2"]
-        df_variable_results.loc[variable, "Material demand (kg/m2)"] = impact_summary["impacts_per_floor_area"]["material_use_intensity_kg_m2"]
+        _record_impact_intensities(df_variable_results, variable, impact_summary)
 
     return df_variable_results
 
@@ -346,7 +318,9 @@ def run_SA_for_cooling_technology_mix(
     df_building_type_parameters = pd.DataFrame(building_type_parameters)
 
     # Set all cooling technology shares to zero
-    df_building_type_parameters = df_building_type_parameters.assign(**{col: 0 for col in df_building_type_parameters.columns if col.startswith("cooling_technology_share")})
+    df_building_type_parameters = df_building_type_parameters.assign(
+        **{col: 0 for col in df_building_type_parameters.columns if col.startswith("cooling_technology_share")},
+    )
 
     # Loop over the variable range
     for mix_share in tqdm(mix_range):
@@ -355,7 +329,9 @@ def run_SA_for_cooling_technology_mix(
 
         # Assign the mix shares to the cooling technology shares
         df_building_type_parameters_with_mix_share["cooling_technology_share_" + cooling_tech_one] = mix_share / 100
-        df_building_type_parameters_with_mix_share["cooling_technology_share_" + cooling_tech_two] = (100 - mix_share) / 100
+        df_building_type_parameters_with_mix_share["cooling_technology_share_" + cooling_tech_two] = (
+            100 - mix_share
+        ) / 100
 
         # Run the cooling demand model with the current variable
         _, impact_summary = run_CDM_model_for_SA(
@@ -370,11 +346,7 @@ def run_SA_for_cooling_technology_mix(
         )
 
         # Add the results to the DataFrame
-        df_variable_results.loc[mix_share, "Cooling energy demand (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["E_cooling_capped_at_percentile_kWh_m2"]
-        df_variable_results.loc[mix_share, "Peak cooling power demand (W/m2)"] = impact_summary["impacts_per_floor_area"]["P_cooling_peak_percentile_W_m2"]
-        df_variable_results.loc[mix_share, "Electricity use (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["electricity_use_intensity_kWh_m2"]
-        df_variable_results.loc[mix_share, "GHG emissions (kg CO2eq/m2)"] = impact_summary["impacts_per_floor_area"]["GHG_emissions_intensity_kgCO2eq_m2"]
-        df_variable_results.loc[mix_share, "Material demand (kg/m2)"] = impact_summary["impacts_per_floor_area"]["material_use_intensity_kg_m2"]
+        _record_impact_intensities(df_variable_results, mix_share, impact_summary)
 
     return df_variable_results
 
@@ -422,12 +394,22 @@ def run_SA_for_total_market_penetration(
                 df_building_type_parameters_with_multiplier[col] *= multiplier
 
         # Calculate the weighted total market penetration rate
-        df_building_type_parameters_with_multiplier["total_market_penetration_rate"] = df_building_type_parameters_with_multiplier[
-            [col for col in df_building_type_parameters_with_multiplier.columns if col.startswith("cooling_technology_share")]
-        ].sum(axis=1)
+        df_building_type_parameters_with_multiplier["total_market_penetration_rate"] = (
+            df_building_type_parameters_with_multiplier[
+                [
+                    col
+                    for col in df_building_type_parameters_with_multiplier.columns
+                    if col.startswith("cooling_technology_share")
+                ]
+            ].sum(axis=1)
+        )
 
         # Figure out the weighted average value of the total market penetration
-        total_market_penetration_with_multiplier = df_building_type_parameters_with_multiplier["total_market_penetration_rate"].mul(building_type_prevalence).sum()
+        total_market_penetration_with_multiplier = (
+            df_building_type_parameters_with_multiplier["total_market_penetration_rate"]
+            .mul(building_type_prevalence)
+            .sum()
+        )
 
         # Run the cooling demand model with the current variable
         _, impact_summary = run_CDM_model_for_SA(
@@ -443,17 +425,11 @@ def run_SA_for_total_market_penetration(
 
         # Add the results to the DataFrame
         df_results.loc[multiplier, "Total MPR"] = total_market_penetration_with_multiplier
-        df_results.loc[multiplier, "Cooling energy demand (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["E_cooling_capped_at_percentile_kWh_m2"]
-        df_results.loc[multiplier, "Peak cooling power demand (W/m2)"] = impact_summary["impacts_per_floor_area"]["P_cooling_peak_percentile_W_m2"]
-        df_results.loc[multiplier, "Electricity use (kWh/m2)"] = impact_summary["impacts_per_floor_area"]["electricity_use_intensity_kWh_m2"]
-        df_results.loc[multiplier, "GHG emissions (kg CO2eq/m2)"] = impact_summary["impacts_per_floor_area"]["GHG_emissions_intensity_kgCO2eq_m2"]
-        df_results.loc[multiplier, "Material demand (kg/m2)"] = impact_summary["impacts_per_floor_area"]["material_use_intensity_kg_m2"]
+        _record_impact_intensities(df_results, multiplier, impact_summary)
 
     # Set the index of the results DataFrame to the measured total market penetration, in percent
     df_results = df_results.set_index(df_results["Total MPR"] * 100)
-    df_results = df_results.drop(columns="Total MPR")
-
-    return df_results
+    return df_results.drop(columns="Total MPR")
 
 
 def normalize_SA_results(
@@ -488,7 +464,9 @@ def calculate_elasticity_for_SA_results(SA_results: pd.DataFrame) -> pd.DataFram
         pd.DataFrame: The DataFrame containing the elasticity of the cooling demand and environmental impacts with respect to the independent variable.
     """
     # Determine the elasticity between the independent variable and the cooling demand and environmental impacts
-    SA_results_elasticity = SA_results.pct_change() / SA_results.index.to_series().pct_change().to_numpy()[:, np.newaxis]
+    SA_results_elasticity = (
+        SA_results.pct_change() / SA_results.index.to_series().pct_change().to_numpy()[:, np.newaxis]
+    )
 
     # Rename all the columns in SA_results_elasticity to remove impact units from the labels
     SA_results_elasticity.columns = [col.split("(")[0].strip() for col in SA_results_elasticity.columns]
@@ -519,20 +497,23 @@ def plot_SA_results_per_impact(
     plt.suptitle(f"Influence of {variable_name_print} on impacts")  # Add a title to the plot
 
     for ax in plt.gcf().axes:  # Add the line indicating the reference value in each subplot
-        ax.axvline(x=reference_values["SQ"], color="dimgray", linestyle="dashed", alpha=0.7, label="Value in reference scenario")
+        ax.axvline(
+            x=reference_values["SQ"],
+            color="dimgray",
+            linestyle="dashed",
+            alpha=0.7,
+            label="Value in reference scenario",
+        )
 
         if include_scenario_lines_in_plots:
-            ax.axvline(x=reference_values["2030"], color="gray", linestyle="dotted", alpha=0.7, label="Value in 2030 scenario")
-            ax.axvline(x=reference_values["2050_L"], color="gold", linestyle="dotted", alpha=0.7, label="Value in 2050 L scenario")
-            ax.axvline(x=reference_values["2050_M"], color="darkorange", linestyle="dotted", alpha=0.7, label="Value in 2050 M scenario")
-            ax.axvline(x=reference_values["2050_H"], color="red", linestyle="dotted", alpha=0.7, label="Value in 2050 H scenario")
+            _draw_future_scenario_lines(ax, reference_values)
 
     plt.gcf().axes[0].legend()  # Add a legend for the reference value to the first subplot
     plt.xlabel(x_axis_label)  # Add the x-axis label
     plt.tight_layout()  # Make sure the subplots don't overlap
 
     plt.savefig(
-        f"data/output/images/SA/SA_results_{variable_name_print.replace(' ', '_')}{'_with_scenario_lines' if include_scenario_lines_in_plots else ''}.png",
+        f"{SA_IMAGE_DIR}/SA_results_{variable_name_print.replace(' ', '_')}{'_with_scenario_lines' if include_scenario_lines_in_plots else ''}.png",
         dpi=300,
         bbox_inches="tight",
     )  # Save the figure
@@ -542,7 +523,7 @@ def plot_SA_results_per_impact(
 
 def plot_SA_results_normalized(
     SA_results_normalized: pd.DataFrame,
-    reference_values: float,
+    reference_values: dict[str, float],
     ref_value_in_SA_results: float,
     variable_name_print: str,
     variable_unit_print: str,
@@ -569,19 +550,22 @@ def plot_SA_results_normalized(
     plt.title(
         f"Influence of {variable_name_print} on impacts,\nnormalized to the value at {round(reference_values['SQ'], round_to)} {variable_unit_print}",
     )  # Add a title to the plot
-    plt.axvline(x=ref_value_in_SA_results, color="dimgray", linestyle="dashed", alpha=0.7, label="Value in reference scenario")
+    plt.axvline(
+        x=ref_value_in_SA_results,
+        color="dimgray",
+        linestyle="dashed",
+        alpha=0.7,
+        label="Value in reference scenario",
+    )
 
     if include_scenario_lines_in_plots:
-        plt.axvline(x=reference_values["2030"], color="gray", linestyle="dotted", alpha=0.7, label="Value in 2030 scenario")
-        plt.axvline(x=reference_values["2050_L"], color="gold", linestyle="dotted", alpha=0.7, label="Value in 2050 L scenario")
-        plt.axvline(x=reference_values["2050_M"], color="darkorange", linestyle="dotted", alpha=0.7, label="Value in 2050 M scenario")
-        plt.axvline(x=reference_values["2050_H"], color="red", linestyle="dotted", alpha=0.7, label="Value in 2050 H scenario")
+        _draw_future_scenario_lines(plt.gca(), reference_values)
 
     plt.xlabel(x_axis_label)  # Add the x-axis label
     plt.legend()  # Add a legend to the plot
     plt.tight_layout()  # Make sure the subplots don't overlap
     plt.savefig(
-        f"data/output/images/SA/SA_results_{variable_name_print.replace(' ', '_')}_normalized{'_with_scenario_lines' if include_scenario_lines_in_plots else ''}.png",
+        f"{SA_IMAGE_DIR}/SA_results_{variable_name_print.replace(' ', '_')}_normalized{'_with_scenario_lines' if include_scenario_lines_in_plots else ''}.png",
         dpi=300,
         bbox_inches="tight",
     )  # Save the figure
@@ -591,7 +575,7 @@ def plot_SA_results_normalized(
 
 def plot_SA_results_elasticities(
     SA_results_elasticities: pd.DataFrame,
-    reference_values: float,
+    reference_values: dict[str, float],
     variable_name_print: str,
     x_axis_label: str,
     include_scenario_lines_in_plots: bool = True,
@@ -612,20 +596,23 @@ def plot_SA_results_elasticities(
 
     plt.title(f"Elasticity of impacts with respect to the {variable_name_print}")  # Add a title to the plot
 
-    plt.axvline(x=reference_values["SQ"], color="dimgray", linestyle="dashed", alpha=0.7, label="Value in reference scenario")
+    plt.axvline(
+        x=reference_values["SQ"],
+        color="dimgray",
+        linestyle="dashed",
+        alpha=0.7,
+        label="Value in reference scenario",
+    )
 
     if include_scenario_lines_in_plots:
-        plt.axvline(x=reference_values["2030"], color="gray", linestyle="dotted", alpha=0.7, label="Value in 2030 scenario")
-        plt.axvline(x=reference_values["2050_L"], color="gold", linestyle="dotted", alpha=0.7, label="Value in 2050 L scenario")
-        plt.axvline(x=reference_values["2050_M"], color="darkorange", linestyle="dotted", alpha=0.7, label="Value in 2050 M scenario")
-        plt.axvline(x=reference_values["2050_H"], color="red", linestyle="dotted", alpha=0.7, label="Value in 2050 H scenario")
+        _draw_future_scenario_lines(plt.gca(), reference_values)
 
     plt.xlabel(x_axis_label)  # Add the x-axis label
     plt.legend()  # Add a legend to the plot
     plt.tight_layout()  # Make sure the subplots don't overlap
 
     plt.savefig(
-        f"data/output/images/SA/SA_results_{variable_name_print.replace(' ', '_')}_elasticities{'_with_scenario_lines' if include_scenario_lines_in_plots else ''}.png",
+        f"{SA_IMAGE_DIR}/SA_results_{variable_name_print.replace(' ', '_')}_elasticities{'_with_scenario_lines' if include_scenario_lines_in_plots else ''}.png",
         dpi=300,
         bbox_inches="tight",
     )  # Save the figure
@@ -678,7 +665,14 @@ def post_process_SA_results(
         SA_results_elasticity = SA_results_elasticity.iloc[:, -3:]
 
     # Plot the sensitivity analysis results per impact
-    plot_SA_results_per_impact(SA_results, reference_values, variable_name_print, x_axis_label, include_scenario_lines_in_plots, figure_size)
+    plot_SA_results_per_impact(
+        SA_results,
+        reference_values,
+        variable_name_print,
+        x_axis_label,
+        include_scenario_lines_in_plots,
+        figure_size,
+    )
 
     # Plot the normalized results
     plot_SA_results_normalized(
@@ -703,10 +697,11 @@ def post_process_SA_results(
         figure_size,
     )
 
-    # Return the elasticities at the value closest to the reference value
-    print(
+    print(  # noqa: T201 -- intentional user-facing console output
         f"The elasticities of the cooling demand and environmental impacts with respect to the {variable_name_print} at {round(reference_values['SQ'])} {variable_unit_print} are:",
     )
+
+    # Return the elasticities at the value closest to the reference value
     return SA_results_elasticity_full.loc[ref_value_in_SA_results]
 
 
@@ -730,7 +725,9 @@ def post_process_SA_cooling_tech_mix(
         pd.DataFrame: The DataFrame containing the elasticity of the cooling demand and environmental impacts with respect to the mix split between the two cooling technologies.
     """
     # Calculate the elasticity of the environmental impacts with respect to the cooling technology mix
-    SA_results_elasticity = SA_results.pct_change() / SA_results.index.to_series().pct_change().to_numpy()[:, np.newaxis]
+    SA_results_elasticity = (
+        SA_results.pct_change() / SA_results.index.to_series().pct_change().to_numpy()[:, np.newaxis]
+    )
 
     # Rename all the columns in SA_results_elasticity to remove impact units from the labels
     SA_results_elasticity.columns = [col.split("(")[0].strip() for col in SA_results_elasticity.columns]
@@ -748,7 +745,7 @@ def post_process_SA_cooling_tech_mix(
     plt.xlabel(x_axis_label)  # Add the x-axis label
     plt.tight_layout()  # Make sure the subplots don't overlap
     plt.savefig(
-        "data/output/images/SA/SA_results_cooling_technology_mix.png",
+        f"{SA_IMAGE_DIR}/SA_results_cooling_technology_mix.png",
         dpi=300,
         bbox_inches="tight",
     )  # Save the figure
@@ -758,12 +755,14 @@ def post_process_SA_cooling_tech_mix(
 
     # Plot the elasticity of the cooling demand and environmental impacts with respect to the independent variable
     SA_results_elasticity.plot(subplots=False, figsize=figure_size, sharex=True)  # Initialize the plot
-    plt.title(f"Elasticity of impacts with respect to the cooling technology mix: share of {cooling_tech_one} vs. {cooling_tech_two}")  # Add a title to the plot
+    plt.title(
+        f"Elasticity of impacts with respect to the cooling technology mix: share of {cooling_tech_one} vs. {cooling_tech_two}",
+    )  # Add a title to the plot
     plt.xlabel(x_axis_label)  # Add the x-axis label
     plt.legend()  # Add a legend to the plot
     plt.tight_layout()  # Make sure the subplots don't overlap
     plt.savefig(
-        "data/output/images/SA/SA_results_cooling_technology_mix_elasticities.png",
+        f"{SA_IMAGE_DIR}/SA_results_cooling_technology_mix_elasticities.png",
         dpi=300,
         bbox_inches="tight",
     )  # Save the figure

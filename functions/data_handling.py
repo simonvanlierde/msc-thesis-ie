@@ -3,16 +3,22 @@
 @author: Simon van Lierde
 """
 
+from __future__ import annotations
+
 # Import packages
 import csv
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 
 from functions.geometric import calc_window_and_wall_areas
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from pathlib import Path
 
 # Data reading functions
 
@@ -29,10 +35,16 @@ def read_buildings(buildings_path: Path, layer_name: str = "BAG_buildings") -> g
     """
     return (
         gpd.read_file(filename=buildings_path, layer=layer_name)  # Read the building data
-        .loc[lambda df: df["end_use"].isin(["woonfunctie", "kantoorfunctie", "residential", "office"])]  # Filter by end use
+        .loc[
+            lambda df: df["end_use"].isin(["woonfunctie", "kantoorfunctie", "residential", "office"])
+        ]  # Filter by end use
         .replace({"woonfunctie": "residential", "kantoorfunctie": "office"})  # Translate end use from Dutch to English
-        .loc[lambda df: df["status"] == "Pand in gebruik"]  # Keep only in-use buildings, i.e. drop those not built yet or already demolished
-        .dropna(subset=["energy_label"])  # Drop buildings without energy label as we cannot determine the cooling demand without it
+        .loc[
+            lambda df: df["status"] == "Pand in gebruik"
+        ]  # Keep only in-use buildings, i.e. drop those not built yet or already demolished
+        .dropna(
+            subset=["energy_label"],
+        )  # Drop buildings without energy label as we cannot determine the cooling demand without it
     )
 
 
@@ -45,33 +57,37 @@ def read_global_parameters(global_parameters_path: Path) -> dict[str, float]:
     Returns:
         dict[str, float]: The dictionary containing the global parameters for the cooling demand model.
     """
-    global_parameters = {}  # Dictionary containing the global parameters for the cooling demand model
-    with open(global_parameters_path) as csv_file:
+    with global_parameters_path.open() as csv_file:
         reader = csv.DictReader(csv_file)
-        global_parameters = {
-            row["parameter"]: json.loads(row["value"]) if row["parameter"] == "energy_class_ranges" else float(row["value"]) for row in reader
+        return {
+            row["parameter"]: json.loads(row["value"])
+            if row["parameter"] == "energy_class_ranges"
+            else float(row["value"])
+            for row in reader
         }  # Convert the string value to a list of lists for the energy label class ranges and to a float for the other parameters
 
-    return global_parameters
 
-
-def read_parameter_specific_data(parameters_path: Path) -> list[dict[str, float]]:
+def read_parameter_specific_data(parameters_path: Path) -> list[dict]:
     """Reads the building, energy label or cooling technology parameters for the cooling demand model from a csv file.
+
+    Each record mixes value types (an integer id, a string name, optional list-valued columns and float parameters), so the dictionaries are intentionally left untyped at the value level.
 
     Args:
         parameters_path (Path): The path to the csv file containing the parameters for the cooling demand model.
 
     Returns:
-        list[dict[str, float]]: The list of dictionaries containing the parameters for the cooling demand model.
+        list[dict]: The list of dictionaries containing the parameters for the cooling demand model.
     """
-    with open(parameters_path) as csv_file:
+    with parameters_path.open() as csv_file:
         reader = csv.DictReader(csv_file)
-        parameter_specific_data = [
+        return [
             {
                 key: int(value)
-                if i == 0  # Convert the value of the first parameter (which contains the building type, energy class or cooling technology in integer representation) to integer
+                if i
+                == 0  # Convert the value of the first parameter (which contains the building type, energy class or cooling technology in integer representation) to integer
                 else str(value)
-                if i == 1  # Convert the value of the second parameter (which contains the building type, energy class or cooling technology name) to string
+                if i
+                == 1  # Convert the value of the second parameter (which contains the building type, energy class or cooling technology name) to string
                 else json.loads(value)
                 if key.startswith("energy_labels_included_")  #  Convert energy label lists to a list
                 else float(value)  # Convert all other parameter values to float
@@ -79,8 +95,6 @@ def read_parameter_specific_data(parameters_path: Path) -> list[dict[str, float]
             }
             for row in reader
         ]  # Add the parameter and value to the dictionary for each row
-
-    return parameter_specific_data
 
 
 # NOTE: The following function is not used in the current version of the model, but is kept for archival sake
@@ -202,7 +216,11 @@ def add_building_type_data_to_buildings(
     df_buildings["building_type_int"] = df_buildings.apply(determine_building_type, args=(global_parameters,), axis=1)
 
     # Determine the building-type specific parameters based on the building type
-    df_building_type_parameters = df_buildings.apply(assign_building_type_parameters, args=(building_type_parameters,), axis=1).drop(
+    df_building_type_parameters = df_buildings.apply(
+        assign_building_type_parameters,
+        args=(building_type_parameters,),
+        axis=1,
+    ).drop(
         columns=["building_type_int"],
     )
     df_buildings[df_building_type_parameters.columns] = df_building_type_parameters
@@ -214,22 +232,30 @@ def add_building_type_data_to_buildings(
 
 
 def determine_energy_label_to_class_mappings(
-    energy_class_parameters: dict[str, float],
-) -> dict[int, int]:
+    energy_class_parameters: list[dict],
+) -> tuple[dict[int, int], dict[int, int]]:
     """Determines the mapping from energy label to energy class.
 
     Args:
-        energy_class_parameters (dict[str, float]): The dictionary containing the energy label class data
+        energy_class_parameters (list[dict]): The list of dictionaries containing the energy label class data. Each record mixes value types (int ids, float parameters and list-valued ``energy_labels_included_*`` columns).
 
     Returns:
-        dict[int, int]: The dictionaries containing the mappings from energy label to energy class, for both residential and office buildings.
+        tuple[dict[int, int], dict[int, int]]: The dictionaries mapping energy label to energy class, for residential and office buildings respectively.
     """
     # Convert the energy class parameters to a DataFrame
     df_energy_class_parameters = pd.DataFrame(energy_class_parameters)
 
     # Construct the energy label to energy class mappings
-    residential_mapping = {label: row["energy_class_int"] for _, row in df_energy_class_parameters.iterrows() for label in row["energy_labels_included_residential"]}
-    office_mapping = {label: row["energy_class_int"] for _, row in df_energy_class_parameters.iterrows() for label in row["energy_labels_included_office"]}
+    residential_mapping = {
+        label: row["energy_class_int"]
+        for _, row in df_energy_class_parameters.iterrows()
+        for label in row["energy_labels_included_residential"]
+    }
+    office_mapping = {
+        label: row["energy_class_int"]
+        for _, row in df_energy_class_parameters.iterrows()
+        for label in row["energy_labels_included_office"]
+    }
 
     return residential_mapping, office_mapping
 
@@ -266,18 +292,28 @@ def add_energy_class_data_to_buildings(
         pd.DataFrame: The DataFrame containing the buildings with the energy class dependent data added.
     """
     # Create energy label to energy class mappings for residential and office buildings
-    energy_label_to_class_mapping_residential, energy_label_to_class_mapping_office = determine_energy_label_to_class_mappings(
-        energy_class_parameters,
+    energy_label_to_class_mapping_residential, energy_label_to_class_mapping_office = (
+        determine_energy_label_to_class_mappings(
+            energy_class_parameters,
+        )
     )
 
     # Determine energy label class based on the energy label, using the right mapping for residential and office buildings
     df_buildings["energy_class_int"] = df_buildings.apply(
-        lambda row: energy_label_to_class_mapping_residential[int(row["energy_label_int"])] if row["end_use"] == "residential" else energy_label_to_class_mapping_office[int(row["energy_label_int"])],
+        lambda row: (
+            energy_label_to_class_mapping_residential[int(row["energy_label_int"])]
+            if row["end_use"] == "residential"
+            else energy_label_to_class_mapping_office[int(row["energy_label_int"])]
+        ),
         axis=1,
     )
 
     # Determine the energy class-specific parameters based on the energy class
-    df_energy_class_parameters = df_buildings.apply(assign_energy_class_parameters, args=(energy_class_parameters,), axis=1).drop(
+    df_energy_class_parameters = df_buildings.apply(
+        assign_energy_class_parameters,
+        args=(energy_class_parameters,),
+        axis=1,
+    ).drop(
         columns=["energy_class_int"],
     )
     df_buildings[df_energy_class_parameters.columns] = df_energy_class_parameters
@@ -312,7 +348,9 @@ def add_derived_parameters_to_buildings(
     ) = zip(*df_buildings.apply(calc_window_and_wall_areas, axis=1), strict=True)
 
     # Determine the total market penetration rate of cooling equipment
-    df_buildings["total_MPR"] = df_buildings[[col for col in df_buildings.columns if col.startswith("cooling_technology_share")]].sum(axis=1)
+    df_buildings["total_MPR"] = df_buildings[
+        [col for col in df_buildings.columns if col.startswith("cooling_technology_share")]
+    ].sum(axis=1)
 
     return df_buildings
 
@@ -320,7 +358,10 @@ def add_derived_parameters_to_buildings(
 # Cooling technology parameter assignment functions
 
 
-def add_cooling_technology_data_to_buildings(buildings: pd.DataFrame, cooling_technologies: pd.DataFrame) -> pd.DataFrame:
+def add_cooling_technology_data_to_buildings(
+    buildings: pd.DataFrame,
+    cooling_technologies: pd.DataFrame,
+) -> pd.DataFrame:
     """Assigns the cooling technology-specific parameters to the buildings DataFrame based on the cooling technology mix of each building.
 
     Args:
@@ -336,20 +377,30 @@ def add_cooling_technology_data_to_buildings(buildings: pd.DataFrame, cooling_te
     )
 
     # Compute weighted averages for all cooling technology dependent parameters
-    weighted_parameters_df = pd.DataFrame(index=buildings.index)  # Initialize DataFrame to store the weighted parameters
-    for share_column in buildings.filter(like="cooling_technology_share").columns:  # Loop over all cooling technology share columns
-        tech_name = share_column.split("cooling_technology_share_")[-1]  # Extract the cooling technology name from the share column name
-        for param, value in cooling_tech_reshaped.loc[tech_name].items():  # Loop over all cooling technology dependent parameters
+    weighted_parameters_df = pd.DataFrame(
+        index=buildings.index,
+    )  # Initialize DataFrame to store the weighted parameters
+    for share_column in buildings.filter(
+        like="cooling_technology_share",
+    ).columns:  # Loop over all cooling technology share columns
+        tech_name = share_column.split("cooling_technology_share_")[
+            -1
+        ]  # Extract the cooling technology name from the share column name
+        for param, value in cooling_tech_reshaped.loc[
+            tech_name
+        ].items():  # Loop over all cooling technology dependent parameters
             column_name = f"avg_{param}"  # Create the column name for the weighted parameter
-            weighted_parameters_df[column_name] = weighted_parameters_df.get(column_name, 0) + buildings[share_column] * value  # Compute the weighted parameter and add it to the DataFrame
+            weighted_parameters_df[column_name] = (
+                weighted_parameters_df.get(column_name, 0) + buildings[share_column] * value
+            )  # Compute the weighted parameter and add it to the DataFrame
 
     # Merge the computed weighted parameters with the original buildings DataFrame
     buildings_with_cooling_tech_data = pd.concat([buildings, weighted_parameters_df], axis=1)
 
     # Rename the cooling technology share columns to reflect the cooling technology name
-    buildings_with_cooling_tech_data = buildings_with_cooling_tech_data.rename(columns={"avg_average_lifetime_yr": "avg_lifetime_cooling_technology_yr"})
-
-    return buildings_with_cooling_tech_data
+    return buildings_with_cooling_tech_data.rename(
+        columns={"avg_average_lifetime_yr": "avg_lifetime_cooling_technology_yr"},
+    )
 
 
 # Aggregation functions
@@ -379,12 +430,14 @@ def add_parameters_to_buildings(
     df_buildings = add_energy_class_data_to_buildings(df_buildings, energy_class_parameters)
 
     # Add the derived parameters
-    df_buildings = add_derived_parameters_to_buildings(df_buildings, global_parameters)
-
-    return df_buildings
+    return add_derived_parameters_to_buildings(df_buildings, global_parameters)
 
 
-def scale_results_with_building_stock(buildings_agg: pd.DataFrame, global_parameters: dict[str, float], columns_to_scale: list[str]) -> pd.DataFrame:
+def scale_results_with_building_stock(
+    buildings_agg: pd.DataFrame,
+    global_parameters: dict[str, float],
+    columns_to_scale: list[str],
+) -> pd.DataFrame:
     """Scales the aggregated results of the cooling demand model with the building stock growth rates.
 
     Args:
@@ -395,8 +448,12 @@ def scale_results_with_building_stock(buildings_agg: pd.DataFrame, global_parame
     Returns:
         pd.DataFrame: The DataFrame containing the scaled aggregated results of the cooling demand model for each building type and energy class.
     """  # Unload the global parameters
-    bs_scale_factor_residential = 1 + global_parameters["building_stock_growth_residential_new"]  # Building stock growth rate of new residential buildings (type 1 and 3)
-    bs_scale_factor_office = 1 + global_parameters["building_stock_growth_office_old"]  # Building stock growth rate of old office buildings (type 6 and 8)
+    bs_scale_factor_residential = (
+        1 + global_parameters["building_stock_growth_residential_new"]
+    )  # Building stock growth rate of new residential buildings (type 1 and 3)
+    bs_scale_factor_office = (
+        1 + global_parameters["building_stock_growth_office_old"]
+    )  # Building stock growth rate of old office buildings (type 6 and 8)
 
     # Multiply relevant columns with the residential building stock scale factor
     buildings_agg.loc[buildings_agg["building_type_int"].isin([1, 3]), columns_to_scale] *= bs_scale_factor_residential
@@ -409,8 +466,8 @@ def scale_results_with_building_stock(buildings_agg: pd.DataFrame, global_parame
 
 def aggregate_results(
     buildings: pd.DataFrame,
-    global_parameters: pd.DataFrame,
-    groupby_columns: tuple = ("building_type_int", "building_type", "energy_class", "energy_class_int"),
+    global_parameters: dict[str, float],
+    groupby_columns: Sequence[str] = ("building_type_int", "building_type", "energy_class", "energy_class_int"),
     scale_with_building_stock: bool = True,
     include_time_series: bool = False,
 ) -> pd.DataFrame:
@@ -467,11 +524,11 @@ def aggregate_results(
 
     if include_time_series:
 
-        def sum_arrays(series_with_arrays: pd.Series) -> np.array:
-            return np.sum(np.vstack(series_with_arrays), axis=0)
+        def sum_arrays(series_with_arrays: pd.Series) -> np.ndarray:
+            return np.sum(np.vstack(list(series_with_arrays)), axis=0)
 
         # Add the time series aggregations to the aggregations dictionary
-        time_series_aggregations = {time_series_colum: sum_arrays for time_series_colum in buildings.filter(like="Q_").columns}
+        time_series_aggregations = dict.fromkeys(buildings.filter(like="Q_").columns, sum_arrays)
         aggregations.update(time_series_aggregations)
 
     # Group by building type and energy class and aggregate the results
@@ -481,7 +538,11 @@ def aggregate_results(
     buildings_agg = buildings_agg.reset_index()
 
     # Fetch columns that are summed, as these need to be scaled with the building stock growth rates
-    sum_columns = [key for key, value in aggregations.items() if str(value).startswith("sum") or str(value).startswith("<function aggregate_results.<locals>.sum_arrays")]
+    sum_columns = [
+        key
+        for key, value in aggregations.items()
+        if str(value).startswith("sum") or str(value).startswith("<function aggregate_results.<locals>.sum_arrays")
+    ]
 
     if scale_with_building_stock:
         # Scale the aggregated results with the building stock growth rates
