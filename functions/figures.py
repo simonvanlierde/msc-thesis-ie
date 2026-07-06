@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from functions.constants import HOURS_PER_YEAR
+
 if TYPE_CHECKING:
     from datetime import datetime
 
@@ -221,7 +223,7 @@ def _plot_cooling_loads(
 
     # Fetch the average cooling demand per hour per m2 of floor area in a year, averaged over all years in the time series
     Q_cooling_demand_average = (
-        building["Q_cooling_demand_Wh"].reshape(years_int_time_series, 8760).mean(axis=0) / floor_area
+        building["Q_cooling_demand_Wh"].reshape(years_int_time_series, HOURS_PER_YEAR).mean(axis=0) / floor_area
     )
 
     # Sort the average cooling demand in descending order
@@ -245,14 +247,14 @@ def _plot_cooling_loads(
     ax.hlines(
         peak_power_percentile,
         0,
-        8760,
+        HOURS_PER_YEAR,
         label=f"{int(peak_power_percentile_cap)}th percentile of cooling demand",
         color="red",
         linestyle="--",
     )
     ax.plot(Q_cooling_demand_capped_sorted, label="Cooling energy demand, capped", color="blue")
-    ax.fill_between(range(8760), Q_cooling_demand_sorted, color="blue", alpha=0.2)
-    ax.fill_between(range(8760), Q_cooling_demand_capped_sorted, color="blue", alpha=0.2)
+    ax.fill_between(range(HOURS_PER_YEAR), Q_cooling_demand_sorted, color="blue", alpha=0.2)
+    ax.fill_between(range(HOURS_PER_YEAR), Q_cooling_demand_capped_sorted, color="blue", alpha=0.2)
 
     if subplot_ax:
         subplot_ax.set_title(subplot_title)

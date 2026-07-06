@@ -10,11 +10,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from functions.constants import HOURS_PER_YEAR, SOLAR_DIRECTIONS
+
 if TYPE_CHECKING:
     import pandas as pd
-
-# The eight window/facade compass directions, in the order used for both window areas and solar radiation
-SOLAR_DIRECTIONS = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
 
 # Parameter derivation functions
 
@@ -167,7 +166,7 @@ def calc_Q_ventilation(
         Q_ventilation_electric = pressure_drop * ventilation_rate / ventilation_efficiency
 
         # Determine the amount of years in the time series
-        years = len(Q_ventilation) / 8760
+        years = len(Q_ventilation) / HOURS_PER_YEAR
 
         # Determine the total electricity demand per year in kWh
         E_ventilation_electric_kWh = np.sum(Q_ventilation_electric) / years / 1000
@@ -278,10 +277,10 @@ def calc_cooling_demand_from_thermal_flows(
     Q_cooling_demand_Wh = np.maximum(Q_net, 0)
 
     # Calculate the average total cooling energy demand in kWh per year
-    E_cooling_avg_kWh = np.sum(Q_cooling_demand_Wh) / 1000 / (len(Q_cooling_demand_Wh) / 8760)
+    E_cooling_avg_kWh = np.sum(Q_cooling_demand_Wh) / 1000 / (len(Q_cooling_demand_Wh) / HOURS_PER_YEAR)
 
     # Determine the peak cooling power demand in kW for each year
-    P_cooling_peaks_kW = Q_cooling_demand_Wh.reshape(-1, 8760).max(axis=1) / 1000
+    P_cooling_peaks_kW = Q_cooling_demand_Wh.reshape(-1, HOURS_PER_YEAR).max(axis=1) / 1000
 
     # Determine the average peak cooling power demand in kW per year
     P_cooling_peak_avg_kW = np.mean(P_cooling_peaks_kW)
@@ -347,9 +346,9 @@ def calc_cooling_demand_percentile(
         E_cooling_capped_at_percentile_kWh (float): The total cooling energy demand (kWh), when capped at the peak percentile of the cooling power demand.
 
     """
-    # Split the hourly demand into full years (rows of 8760 hours)
-    years = len(Q_cooling_demand_Wh) // 8760
-    Q_cooling_demand_years = Q_cooling_demand_Wh.reshape(years, 8760)
+    # Split the hourly demand into full years (rows of HOURS_PER_YEAR hours)
+    years = len(Q_cooling_demand_Wh) // HOURS_PER_YEAR
+    Q_cooling_demand_years = Q_cooling_demand_Wh.reshape(years, HOURS_PER_YEAR)
 
     # Peak percentile of the cooling power demand per year (Wh), then averaged across years (kW)
     P_cooling_peak_percentile_per_year_Wh = np.percentile(Q_cooling_demand_years, n_percentile, axis=1)
