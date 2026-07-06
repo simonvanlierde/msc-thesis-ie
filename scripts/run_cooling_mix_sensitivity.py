@@ -32,18 +32,20 @@ from functions.sensitivity_analysis import (
     post_process_SA_cooling_tech_mix,
     run_SA_for_cooling_technology_mix,
 )
-from functions.time_series import get_raw_weather_data
 
 COOLING_TECHS = ["ASHP", "GSHP", "WSHP", "chiller", "AC_split", "AC_mobile"]
+PARAMETER_DIR = Path("data/input/parameters")
+PARAMETERS_TOML = PARAMETER_DIR / "parameters.toml"
 
 
 def _scenario_parameters(scenario: str) -> dict:
-    folder = Path("data/input/parameters") / f"parameters_{scenario}"
     return {
-        "global": read_global_parameters(folder / "parameters_global.csv"),
-        "building_type": read_parameter_specific_data(folder / "parameters_building_type.csv"),
-        "energy_class": read_parameter_specific_data(folder / "parameters_energy_class.csv"),
-        "cooling_technology": read_parameter_specific_data(folder / "parameters_cooling_technology.csv"),
+        "global": read_global_parameters(PARAMETERS_TOML, scenario),
+        "building_type": read_parameter_specific_data(PARAMETER_DIR / "parameters_building_type.csv", scenario),
+        "energy_class": read_parameter_specific_data(PARAMETER_DIR / "parameters_energy_class.csv", scenario),
+        "cooling_technology": read_parameter_specific_data(
+            PARAMETER_DIR / "parameters_cooling_technology.csv", scenario,
+        ),
     }
 
 
@@ -91,13 +93,14 @@ def main() -> None:
     parser.add_argument("--buildings-layer", required=True)
     parser.add_argument("--solar-fractions", required=True)
     parser.add_argument("--presence-load-factors", required=True)
+    parser.add_argument("--weather-csv", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--calculation-steps", type=int, default=20)
     args = parser.parse_args()
 
     parameters = _scenario_parameters(args.scenario)
     buildings = read_buildings(Path(args.buildings), args.buildings_layer)
-    raw_weather_data = get_raw_weather_data(parameters["global"])
+    raw_weather_data = pd.read_csv(args.weather_csv, parse_dates=["date"])
 
     static_parameters = {
         "buildings": buildings,

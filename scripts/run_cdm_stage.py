@@ -11,6 +11,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 
 from functions.data_handling import (
     add_cooling_technology_data_to_buildings,
@@ -25,7 +26,7 @@ from functions.environmental import (
     calculate_environmental_parameters_for_cooling_technologies,
 )
 from functions.thermodynamic import calc_cooling_demand_metrics_for_df
-from functions.time_series import create_time_series, get_raw_weather_data
+from functions.time_series import create_time_series
 
 PARAMETER_COLUMNS_TO_DROP_AFTER_CALCULATIONS = [
     "avg_ADP_kgSbeq_kW",
@@ -69,13 +70,19 @@ PARAMETER_COLUMNS_TO_DROP_AFTER_CALCULATIONS = [
 ]
 
 
-def _scenario_paths(scenario: str) -> dict[str, Path]:
-    scenario_folder = Path("data/input/parameters") / f"parameters_{scenario}"
+PARAMETER_DIR = Path("data/input/parameters")
+PARAMETERS_TOML = PARAMETER_DIR / "parameters.toml"
+
+
+def _load_parameters(scenario: str) -> dict:
+    """Load the scenario's parameters from the consolidated parameters.toml + per-group CSVs."""
     return {
-        "global": scenario_folder / "parameters_global.csv",
-        "building_type": scenario_folder / "parameters_building_type.csv",
-        "energy_class": scenario_folder / "parameters_energy_class.csv",
-        "cooling_technology": scenario_folder / "parameters_cooling_technology.csv",
+        "global": read_global_parameters(PARAMETERS_TOML, scenario),
+        "building_type": read_parameter_specific_data(PARAMETER_DIR / "parameters_building_type.csv", scenario),
+        "energy_class": read_parameter_specific_data(PARAMETER_DIR / "parameters_energy_class.csv", scenario),
+        "cooling_technology": read_parameter_specific_data(
+            PARAMETER_DIR / "parameters_cooling_technology.csv", scenario,
+        ),
     }
 
 
@@ -90,14 +97,14 @@ def _drop_array_columns(buildings: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 def run_cooling_demand(args: argparse.Namespace) -> None:
     """Run the notebook's parameter assignment, time series and CDM steps."""
-    paths = _scenario_paths(args.scenario)
-    global_parameters = read_global_parameters(paths["global"])
-    building_type_parameters = read_parameter_specific_data(paths["building_type"])
-    energy_class_parameters = read_parameter_specific_data(paths["energy_class"])
-    cooling_technology_parameters = read_parameter_specific_data(paths["cooling_technology"])
+    parameters = _load_parameters(args.scenario)
+    global_parameters = parameters["global"]
+    building_type_parameters = parameters["building_type"]
+    energy_class_parameters = parameters["energy_class"]
+    cooling_technology_parameters = parameters["cooling_technology"]
 
     buildings = read_buildings(Path(args.buildings), args.buildings_layer)
-    raw_weather_data = get_raw_weather_data(global_parameters)
+    raw_weather_data = pd.read_csv(args.weather_csv, parse_dates=["date"])
 
     buildings = add_parameters_to_buildings(
         buildings,
@@ -130,8 +137,7 @@ def run_cooling_demand(args: argparse.Namespace) -> None:
 
 def run_lca(args: argparse.Namespace) -> None:
     """Run the notebook's environmental-impact and aggregation steps."""
-    paths = _scenario_paths(args.scenario)
-    global_parameters = read_global_parameters(paths["global"])
+    global_parameters = read_global_parameters(PARAMETERS_TOML, args.scenario)
 
     buildings = gpd.read_file(args.cooling_demand, layer=args.cooling_demand_layer)
     buildings, _impact_summary = calculate_environmental_impacts_from_cooling_demand(
@@ -166,6 +172,7 @@ def parse_args() -> argparse.Namespace:
     cooling.add_argument("--buildings-layer", required=True)
     cooling.add_argument("--solar-fractions", required=True)
     cooling.add_argument("--presence-load-factors", required=True)
+    cooling.add_argument("--weather-csv", required=True)
     cooling.add_argument("--output", required=True)
     cooling.add_argument("--output-layer", required=True)
     cooling.add_argument("--include-time-series", action="store_true")

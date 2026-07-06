@@ -3,11 +3,21 @@
 # originals (diff results/ against data/output/ to check reproduction).
 results_dir: results
 
-area:
-  name: The Hague
-  # CRS84 lon/lat bbox used for OGC API discovery. Keep deliberately a little
-  # wider than the municipal outline; downstream geodata prep clips/joins.
-  bbox: [4.18, 51.95, 4.43, 52.14]
+# Active city (single). Its municipal boundary and bbox are fetched from PDOK by
+# name, so switching cities is just a name change (+ nearest KNMI station).
+city:
+  name: "'s-Gravenhage" # official municipality name (PDOK Bestuurlijke gebieden)
+  weather_station: 330 # nearest KNMI station (330 = Hoek van Holland, near The Hague)
+
+# Weather series window (the status-quo climate baseline).
+weather:
+  start_year: 2018
+  end_year: 2022
+
+pdok_boundary:
+  base_url: https://api.pdok.nl/kadaster/bestuurlijkegebieden/ogc/v1
+  collection: gemeentegebied
+  license: Public Domain Mark 1.0
 
 pdok_bag:
   base_url: https://api.pdok.nl/kadaster/bag/ogc/v2

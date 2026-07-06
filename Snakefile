@@ -1,22 +1,43 @@
+import re
+
 configfile: "config/sources.yaml"
 
 SCENARIOS = ["SQ", "2030", "2050_L", "2050_M", "2050_H"]
 SUBSET = "full"
 
 PARAMETER_DIR = "data/input/parameters"
+PARAMETERS_TOML = f"{PARAMETER_DIR}/parameters.toml"
+PARAMETER_GROUP_FILES = [
+    f"{PARAMETER_DIR}/parameters_building_type.csv",
+    f"{PARAMETER_DIR}/parameters_energy_class.csv",
+    f"{PARAMETER_DIR}/parameters_cooling_technology.csv",
+]
 RAW_DIR = "data/raw"
-RAW_GEODATA_DIR = f"{RAW_DIR}/geodata"
 
 # All pipeline products go under RESULTS_DIR, leaving the committed reference
 # outputs in data/output/ and docs/ untouched.
 RESULTS_DIR = config.get("results_dir", "results")
 RESULTS_GEODATA_DIR = f"{RESULTS_DIR}/geodata"
 INTERMEDIATE_DIR = f"{RESULTS_DIR}/intermediate"
+LOG_DIR = f"{RESULTS_DIR}/logs"
+BENCHMARK_DIR = f"{RESULTS_DIR}/benchmarks"
 
-PDOK_BBOX = ",".join(str(value) for value in config["area"]["bbox"])
-PDOK_BAG_BASE_URL = config["pdok_bag"]["base_url"]
+# Active city (name -> PDOK boundary -> bbox). CITY_SLUG namespaces the raw
+# fetches so switching cities never reuses another city's data.
+CITY_NAME = config["city"]["name"]
+CITY_SLUG = re.sub(r"[^a-z0-9]+", "-", CITY_NAME.lower()).strip("-")
+WEATHER_STATION = int(config["city"]["weather_station"])
+WEATHER_START = int(config["weather"]["start_year"])
+WEATHER_END = int(config["weather"]["end_year"])
+
+BOUNDARY_GEOJSON = f"{RAW_DIR}/pdok_boundary/{CITY_SLUG}_boundary.geojson"
+BBOX_FILE = f"{RAW_DIR}/pdok_boundary/{CITY_SLUG}_bbox.txt"
+BAG_RESIDENCES = f"{RAW_DIR}/pdok_bag/verblijfsobject_{CITY_SLUG}.geojson"
+WEATHER_CSV = f"{RESULTS_DIR}/weather/knmi_{WEATHER_STATION}_{WEATHER_START}_{WEATHER_END}.csv"
+
 PDOK_3D_BASE_URL = config["pdok_3d_basisvoorziening"]["base_url"]
 PDOK_3D_YEAR = int(config["pdok_3d_basisvoorziening"]["year"])
+PDOK_3D_DIR = f"{RAW_DIR}/pdok_3d_basisvoorziening/{CITY_SLUG}/{PDOK_3D_YEAR}"
 EP_ONLINE_LABELS = config["ep_online"]["energy_labels_csv"]
 
 # The stage scripts import the top-level ``functions`` package; running them by
@@ -24,124 +45,188 @@ EP_ONLINE_LABELS = config["ep_online"]["energy_labels_csv"]
 # importable for every rule.
 shell.prefix("export PYTHONPATH=$(pwd):${{PYTHONPATH:-}}; ")
 
-SCENARIO_PARAMETER_FILES = [
-    f"{PARAMETER_DIR}/parameters_{{scenario}}/parameters_global.csv",
-    f"{PARAMETER_DIR}/parameters_{{scenario}}/parameters_building_type.csv",
-    f"{PARAMETER_DIR}/parameters_{{scenario}}/parameters_energy_class.csv",
-    f"{PARAMETER_DIR}/parameters_{{scenario}}/parameters_cooling_technology.csv",
-]
-
 
 rule all:
     input:
         expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_" + SUBSET + ".csv", scenario=SCENARIOS),
-        f"{RESULTS_DIR}/cooling_mix_elasticities_table.csv",
         f"{RESULTS_DIR}/figures/scenario_overview.png",
 
 
-rule fetch_bag_residences:
+# Heavy opt-in target (30 tech pairs x 20 model runs); not part of `all`.
+rule cooling_mix:
+    input:
+        f"{RESULTS_DIR}/cooling_mix_elasticities_table.csv",
+
+
+rule fetch_city_boundary:
     output:
-        f"{RAW_DIR}/pdok_bag/verblijfsobject_the_hague.geojson",
+        boundary=BOUNDARY_GEOJSON,
+        bbox=BBOX_FILE,
     params:
-        base_url=PDOK_BAG_BASE_URL,
-        collection=config["pdok_bag"]["collections"]["residences"],
-        bbox=PDOK_BBOX,
+        base_url=config["pdok_boundary"]["base_url"],
+        collection=config["pdok_boundary"]["collection"],
+        name=CITY_NAME,
+    log:
+        f"{LOG_DIR}/fetch_city_boundary.log",
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
+    shell:
+        """
+        python scripts/gis/fetch_city_boundary.py \
+          --base-url {params.base_url} \
+          --collection {params.collection} \
+          --name "{params.name}" \
+          --output {output.boundary} \
+          --bbox-output {output.bbox} > {log} 2>&1
+        """
+
+
+rule fetch_bag_residences:
+    input:
+        bbox=BBOX_FILE,
+    output:
+        BAG_RESIDENCES,
+    params:
+        base_url=config["pdok_bag"]["base_url"],
+        collection=config["pdok_bag"]["collections"]["residences"],
+    log:
+        f"{LOG_DIR}/fetch_bag_residences.log",
+    conda:
+        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/fetch_ogc_features.py \
           --base-url {params.base_url} \
           --collection {params.collection} \
-          --bbox {params.bbox} \
-          --output {output}
+          --bbox $(cat {input.bbox}) \
+          --output {output} > {log} 2>&1
         """
 
 
 rule discover_pdok_3d_height_tiles:
+    input:
+        bbox=BBOX_FILE,
     output:
-        f"{RAW_DIR}/pdok_3d_basisvoorziening/{PDOK_3D_YEAR}/height_tiles_manifest.json",
+        f"{PDOK_3D_DIR}/height_tiles_manifest.json",
     params:
         base_url=PDOK_3D_BASE_URL,
         collection=config["pdok_3d_basisvoorziening"]["height_collection"],
-        bbox=PDOK_BBOX,
         year=PDOK_3D_YEAR,
+    log:
+        f"{LOG_DIR}/discover_pdok_3d_height_tiles.log",
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/discover_pdok_3d_height_tiles.py \
           --base-url {params.base_url} \
           --collection {params.collection} \
-          --bbox {params.bbox} \
+          --bbox $(cat {input.bbox}) \
           --year {params.year} \
-          --output {output}
+          --output {output} > {log} 2>&1
         """
 
 
 rule download_pdok_3d_height_tiles:
     input:
-        f"{RAW_DIR}/pdok_3d_basisvoorziening/{PDOK_3D_YEAR}/height_tiles_manifest.json",
+        f"{PDOK_3D_DIR}/height_tiles_manifest.json",
     output:
-        tiles=directory(f"{RAW_DIR}/pdok_3d_basisvoorziening/{PDOK_3D_YEAR}/height_tiles"),
-        manifest=f"{RAW_DIR}/pdok_3d_basisvoorziening/{PDOK_3D_YEAR}/height_tiles_local_manifest.json",
+        tiles=directory(f"{PDOK_3D_DIR}/height_tiles"),
+        manifest=f"{PDOK_3D_DIR}/height_tiles_local_manifest.json",
+    log:
+        f"{LOG_DIR}/download_pdok_3d_height_tiles.log",
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/download_manifest_files.py \
           --manifest {input} \
           --output-dir {output.tiles} \
-          --local-manifest {output.manifest}
+          --local-manifest {output.manifest} > {log} 2>&1
         """
 
 
 rule provide_ep_online_energy_labels:
     output:
         EP_ONLINE_LABELS,
+    log:
+        f"{LOG_DIR}/provide_ep_online_energy_labels.log",
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
     shell:
-        "python scripts/gis/ensure_energy_labels.py --labels {output}"
+        "python scripts/gis/ensure_energy_labels.py --labels {output} > {log} 2>&1"
+
+
+rule fetch_weather:
+    output:
+        WEATHER_CSV,
+    params:
+        station=WEATHER_STATION,
+        start_year=WEATHER_START,
+        end_year=WEATHER_END,
+    log:
+        f"{LOG_DIR}/fetch_weather.log",
+    conda:
+        "workflow/envs/cooling-demand.yml"
+    shell:
+        """
+        python scripts/gis/fetch_weather.py \
+          --station {params.station} \
+          --start-year {params.start_year} \
+          --end-year {params.end_year} \
+          --output {output} > {log} 2>&1
+        """
 
 
 rule prepare_bag_geodata:
     input:
-        height_manifest=f"{RAW_DIR}/pdok_3d_basisvoorziening/{PDOK_3D_YEAR}/height_tiles_local_manifest.json",
-        residences=f"{RAW_DIR}/pdok_bag/verblijfsobject_the_hague.geojson",
+        height_manifest=f"{PDOK_3D_DIR}/height_tiles_local_manifest.json",
+        residences=BAG_RESIDENCES,
         energy_labels=EP_ONLINE_LABELS,
+        boundary=BOUNDARY_GEOJSON,
         script="scripts/gis/prepare_pdok_model_geodata.py",
     output:
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
     params:
         layer=f"BAG_buildings_{SUBSET}",
+    log:
+        f"{LOG_DIR}/prepare_bag_geodata.log",
+    benchmark:
+        f"{BENCHMARK_DIR}/prepare_bag_geodata.tsv"
+    threads: 1
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/prepare_pdok_model_geodata.py \
           --height-manifest {input.height_manifest} \
           --bag-residences {input.residences} \
           --energy-labels {input.energy_labels} \
+          --boundary {input.boundary} \
           --output {output.buildings} \
-          --layer {params.layer}
+          --layer {params.layer} > {log} 2>&1
         """
 
 
 rule thermodynamic_model:
     input:
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
-        parameters=SCENARIO_PARAMETER_FILES,
+        parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
+        weather=WEATHER_CSV,
         solar_fractions=f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv",
         presence_load_factors=f"{PARAMETER_DIR}/presence_load_factors.csv",
-        weather_backup=f"{PARAMETER_DIR}/raw_weather_data_2018_2022_HvH.csv",
     output:
         cooling_demand=f"{INTERMEDIATE_DIR}/buildings_with_cooling_demand_{{scenario}}_{SUBSET}.gpkg",
     params:
         buildings_layer=f"BAG_buildings_{SUBSET}",
         output_layer=lambda wildcards: f"buildings_with_cooling_demand_{wildcards.scenario}_{SUBSET}",
+    log:
+        f"{LOG_DIR}/thermodynamic_model_{{scenario}}.log",
+    benchmark:
+        f"{BENCHMARK_DIR}/thermodynamic_model_{{scenario}}.tsv"
+    threads: 1
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/run_cdm_stage.py cooling-demand \
@@ -150,23 +235,29 @@ rule thermodynamic_model:
           --buildings-layer {params.buildings_layer} \
           --solar-fractions {input.solar_fractions} \
           --presence-load-factors {input.presence_load_factors} \
+          --weather-csv {input.weather} \
           --output {output.cooling_demand} \
-          --output-layer {params.output_layer}
+          --output-layer {params.output_layer} > {log} 2>&1
         """
 
 
 rule lca:
     input:
         cooling_demand=f"{INTERMEDIATE_DIR}/buildings_with_cooling_demand_{{scenario}}_{SUBSET}.gpkg",
-        parameters=f"{PARAMETER_DIR}/parameters_{{scenario}}/parameters_global.csv",
+        parameters=PARAMETERS_TOML,
     output:
         geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_{{scenario}}_{SUBSET}.gpkg",
         csv=f"{RESULTS_DIR}/CDM_results_{{scenario}}_" + SUBSET + ".csv",
     params:
         cooling_demand_layer=lambda wildcards: f"buildings_with_cooling_demand_{wildcards.scenario}_{SUBSET}",
         geodata_output_layer=lambda wildcards: f"buildings_with_CDM_results_{wildcards.scenario}_{SUBSET}",
+    log:
+        f"{LOG_DIR}/lca_{{scenario}}.log",
+    benchmark:
+        f"{BENCHMARK_DIR}/lca_{{scenario}}.tsv"
+    threads: 1
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/run_cdm_stage.py lca \
@@ -175,7 +266,7 @@ rule lca:
           --cooling-demand-layer {params.cooling_demand_layer} \
           --geodata-output {output.geodata} \
           --geodata-output-layer {params.geodata_output_layer} \
-          --csv-output {output.csv}
+          --csv-output {output.csv} > {log} 2>&1
         """
 
 
@@ -185,16 +276,19 @@ rule scenario_overview_figure:
         script="docs/make_overview_figure.py",
     output:
         f"{RESULTS_DIR}/figures/scenario_overview.png",
+    log:
+        f"{LOG_DIR}/scenario_overview_figure.log",
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
     shell:
-        "python docs/make_overview_figure.py --input-dir {RESULTS_DIR} --output {output}"
+        "python docs/make_overview_figure.py --input-dir {RESULTS_DIR} --output {output} > {log} 2>&1"
 
 
 rule cooling_mix_sensitivity:
     input:
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
-        parameters=[f"{PARAMETER_DIR}/parameters_SQ/parameters_{group}.csv" for group in ("global", "building_type", "energy_class", "cooling_technology")],
+        parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
+        weather=WEATHER_CSV,
         solar_fractions=f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv",
         presence_load_factors=f"{PARAMETER_DIR}/presence_load_factors.csv",
         script="scripts/run_cooling_mix_sensitivity.py",
@@ -202,8 +296,13 @@ rule cooling_mix_sensitivity:
         f"{RESULTS_DIR}/cooling_mix_elasticities_table.csv",
     params:
         buildings_layer=f"BAG_buildings_{SUBSET}",
+    log:
+        f"{LOG_DIR}/cooling_mix_sensitivity.log",
+    benchmark:
+        f"{BENCHMARK_DIR}/cooling_mix_sensitivity.tsv"
+    threads: 1
     conda:
-        "workflow/envs/cooling-demand.yml",
+        "workflow/envs/cooling-demand.yml"
     shell:
         """
         SA_IMAGE_DIR={RESULTS_DIR}/figures/SA \
@@ -213,82 +312,6 @@ rule cooling_mix_sensitivity:
           --buildings-layer {params.buildings_layer} \
           --solar-fractions {input.solar_fractions} \
           --presence-load-factors {input.presence_load_factors} \
-          --output {output}
+          --weather-csv {input.weather} \
+          --output {output} > {log} 2>&1
         """
-
-
-# --- Web dashboard data (optional target) -----------------------------------
-# Regenerate the interactive dashboard's JSON/GeoJSON from the pipeline outputs
-# in results/. Not part of `rule all` (the temporal + frames builds re-run the
-# hourly model and take ~1 min). Run explicitly:  snakemake dashboard_data
-#
-# Buurt boundaries are a static Zenodo input, not a pipeline product. The build
-# scripts take path arguments, so only these rules change if output paths shift.
-DASHBOARD_DATA_DIR = "dashboard/public/data"
-DIVISIONS_GPKG = "data/input/geodata/GeographicDivisions_TheHague.gpkg"
-SQ_PARAMS = [f"{PARAMETER_DIR}/parameters_SQ/parameters_{group}.csv" for group in ("global", "building_type", "energy_class")]
-SOLAR_FRACTIONS = f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv"
-PRESENCE_LOAD_FACTORS = f"{PARAMETER_DIR}/presence_load_factors.csv"
-WEATHER_BACKUP = f"{PARAMETER_DIR}/raw_weather_data_2018_2022_HvH.csv"
-
-
-rule dashboard_scenarios:
-    input:
-        expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_" + SUBSET + ".csv", scenario=SCENARIOS),
-    output:
-        f"{DASHBOARD_DATA_DIR}/scenarios.json",
-    conda:
-        "workflow/envs/cooling-demand.yml",
-    shell:
-        "python dashboard/scripts/build_scenarios.py --results-dir {RESULTS_DIR} --out {output}"
-
-
-rule dashboard_choropleth:
-    input:
-        gpkgs=expand(f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_{{scenario}}_" + SUBSET + ".gpkg", scenario=SCENARIOS),
-        divisions=DIVISIONS_GPKG,
-    output:
-        f"{DASHBOARD_DATA_DIR}/cooling_by_buurt.geojson",
-    conda:
-        "workflow/envs/cooling-demand.yml",
-    shell:
-        "python dashboard/scripts/build_choropleth.py --divisions {input.divisions} --geodata-dir {RESULTS_GEODATA_DIR} --out {output}"
-
-
-rule dashboard_temporal:
-    input:
-        buildings=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
-        parameters=SQ_PARAMS,
-        solar_fractions=SOLAR_FRACTIONS,
-        presence_load_factors=PRESENCE_LOAD_FACTORS,
-        weather_backup=WEATHER_BACKUP,
-    output:
-        f"{DASHBOARD_DATA_DIR}/temporal.json",
-    conda:
-        "workflow/envs/cooling-demand.yml",
-    shell:
-        "python dashboard/scripts/build_temporal.py --geodata-dir {RESULTS_GEODATA_DIR} --out {output}"
-
-
-rule dashboard_frames:
-    input:
-        buildings=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
-        divisions=DIVISIONS_GPKG,
-        parameters=SQ_PARAMS,
-        solar_fractions=SOLAR_FRACTIONS,
-        presence_load_factors=PRESENCE_LOAD_FACTORS,
-        weather_backup=WEATHER_BACKUP,
-    output:
-        f"{DASHBOARD_DATA_DIR}/cooling_frames.json",
-    conda:
-        "workflow/envs/cooling-demand.yml",
-    shell:
-        "python dashboard/scripts/build_hourly_frames.py --divisions {input.divisions} --geodata-dir {RESULTS_GEODATA_DIR} --out {output}"
-
-
-rule dashboard_data:
-    input:
-        f"{DASHBOARD_DATA_DIR}/scenarios.json",
-        f"{DASHBOARD_DATA_DIR}/cooling_by_buurt.geojson",
-        f"{DASHBOARD_DATA_DIR}/temporal.json",
-        f"{DASHBOARD_DATA_DIR}/cooling_frames.json",

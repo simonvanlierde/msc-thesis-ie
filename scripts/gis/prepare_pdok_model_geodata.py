@@ -208,12 +208,21 @@ def _join_buildings_residences(buildings: gpd.GeoDataFrame, residences: gpd.GeoD
     return buildings
 
 
+def _clip_to_boundary(buildings: gpd.GeoDataFrame, boundary_path: Path) -> gpd.GeoDataFrame:
+    """Keep only buildings whose footprint sits inside the municipal boundary polygon."""
+    boundary = gpd.read_file(boundary_path).to_crs(buildings.crs)
+    boundary_geom = boundary.union_all()
+    inside = buildings.geometry.representative_point().within(boundary_geom)
+    return buildings[inside].copy()
+
+
 def main() -> None:
     """Prepare model input geodata."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--height-manifest", required=True)
     parser.add_argument("--bag-residences", required=True)
     parser.add_argument("--energy-labels", required=True)
+    parser.add_argument("--boundary", help="City boundary GeoJSON; buildings outside it are dropped.")
     parser.add_argument("--output", required=True)
     parser.add_argument("--layer", required=True)
     args = parser.parse_args()
@@ -221,6 +230,8 @@ def main() -> None:
     buildings = _prepare_buildings(_read_height_tiles(Path(args.height_manifest)))
     residences = _prepare_residences(Path(args.bag_residences), Path(args.energy_labels))
     prepared = _join_buildings_residences(buildings, residences)
+    if args.boundary:
+        prepared = _clip_to_boundary(prepared, Path(args.boundary))
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

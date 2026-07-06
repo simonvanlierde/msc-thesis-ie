@@ -29,6 +29,9 @@ jobs:
       - name: Run tests (pytest)
         run: uv run pytest
 
+      - name: Validate Snakemake workflow (dry-run)
+        run: uv run --with snakemake snakemake --dry-run --forceall
+
   # Type checking with ty (Astral, pre-release). Informational for now: the
   # scientific code uses `np.array` as a type annotation in many places, which
   # ty flags. Kept visible in CI without blocking the build.

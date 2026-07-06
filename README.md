@@ -131,30 +131,71 @@ conda env create -f workflow/envs/cooling-demand.yml
 conda activate cooling-demand-model
 ```
 
-Then reproduce the declared outputs with one command:
+Then reproduce the declared outputs (scenario results + overview figure) with one command:
 
 ```bash
-snakemake --sdm conda --cores 1
+snakemake --sdm conda --cores 4
+```
+
+For a fast end-to-end check, run the smoke profile (a tiny municipality, one
+weather year — finishes in minutes):
+
+```bash
+snakemake --configfile config/smoke.yaml --cores 4
+```
+
+The heavy cooling-technology-mix sensitivity is **opt-in** (30 tech pairs × a
+20-step model sweep), kept out of the default target:
+
+```bash
+snakemake --cores 4 cooling_mix
+```
+
+Alternatively, a hermetic container bundles the pinned environment:
+
+```bash
+docker build -t cooling-demand .
+docker run --rm -e EP_ONLINE_API_KEY -v "$PWD:/work" cooling-demand snakemake --cores 4
 ```
 
 The pipeline stages are:
 
 | Rule | Existing analysis step | Main inputs | Main outputs |
 | --- | --- | --- | --- |
-| `fetch_bag_residences` | Official BAG residence/use acquisition | PDOK BAG OGC API `verblijfsobject` collection | `data/raw/pdok_bag/verblijfsobject_the_hague.geojson` |
-| `discover_pdok_3d_height_tiles` | Height-tile discovery | PDOK 3D Basisvoorziening OGC API `hoogtestatistieken_gebouwen` collection | height-tile manifest for The Hague |
+| `fetch_city_boundary` | Municipal extent by name | PDOK Bestuurlijke gebieden OGC API `gemeentegebied` | city boundary GeoJSON + CRS84 bbox |
+| `fetch_bag_residences` | Official BAG residence/use acquisition | PDOK BAG OGC API `verblijfsobject`, city bbox | `data/raw/pdok_bag/verblijfsobject_{city}.geojson` |
+| `discover_pdok_3d_height_tiles` | Height-tile discovery | PDOK 3D Basisvoorziening OGC API `hoogtestatistieken_gebouwen`, city bbox | height-tile manifest |
 | `download_pdok_3d_height_tiles` | Official height geodata acquisition | PDOK 3D Basisvoorziening tile download links | local GeoPackage ZIP tiles and manifest |
 | `provide_ep_online_energy_labels` | Credentialed energy-label source boundary | EP-Online public export | `data/raw/ep_online/current/energy_labels.csv` |
-| `prepare_bag_geodata` | Scripted replacement for the BAG/geodata joins in `gis.ipynb` | PDOK BAG residences, PDOK 3D height tiles, EP-Online labels | `results/geodata/BAG_buildings_with_residence_data_full.gpkg` |
-| `thermodynamic_model` | cooling-demand model from `main.ipynb` | processed BAG geodata, scenario parameters, KNMI/weather and load-factor inputs | `results/intermediate/buildings_with_cooling_demand_{scenario}_full.gpkg` |
+| `fetch_weather` | KNMI weather-series retrieval | KNMI hourly API (station + year window), committed backup fallback | `results/weather/knmi_{station}_{start}_{end}.csv` |
+| `prepare_bag_geodata` | Scripted replacement for the BAG/geodata joins in `gis.ipynb` | PDOK BAG residences, PDOK 3D height tiles, EP-Online labels, city boundary (clip) | `results/geodata/BAG_buildings_with_residence_data_full.gpkg` |
+| `thermodynamic_model` | cooling-demand model from `main.ipynb` | processed BAG geodata, `parameters.toml` (per scenario), weather CSV, load-factor inputs | `results/intermediate/buildings_with_cooling_demand_{scenario}_full.gpkg` |
 | `lca` | environmental-impact and aggregation steps from `main.ipynb` | cooling-demand geodata and scenario parameters | `results/CDM_results_{scenario}_full.csv` and CDM geodata |
-| `cooling_mix_sensitivity` | cooling-technology-mix sensitivity cells in `main.ipynb`, extracted to `scripts/run_cooling_mix_sensitivity.py` | processed BAG geodata and SQ scenario parameters | `results/cooling_mix_elasticities_table.csv` |
 | `scenario_overview_figure` | README headline figure script | scenario result CSVs | `results/figures/scenario_overview.png` |
+| `cooling_mix_sensitivity` (opt-in) | cooling-technology-mix sensitivity cells in `main.ipynb`, extracted to `scripts/run_cooling_mix_sensitivity.py` | processed BAG geodata, SQ parameters, weather CSV | `results/cooling_mix_elasticities_table.csv` |
 
-Large raw spatial inputs are not committed. PDOK BAG data is licensed under
-Public Domain Mark 1.0; PDOK 3D Basisvoorziening is licensed under CC BY 4.0.
-The source URLs, bbox and selected 3D Basisvoorziening year are declared in
-`config/sources.yaml`.
+Each rule writes a log under `results/logs/` and the model stages a runtime
+benchmark under `results/benchmarks/`. Large raw spatial inputs are not
+committed. PDOK data is licensed under Public Domain Mark 1.0 (BAG, boundaries)
+and CC BY 4.0 (3D Basisvoorziening).
+
+### Configuring the city and weather window
+
+The active city and weather window are declared in `config/sources.yaml`:
+
+```yaml
+city:
+  name: "'s-Gravenhage" # official municipality name (fetched from PDOK)
+  weather_station: 330 # nearest KNMI station
+weather:
+  start_year: 2018
+  end_year: 2022
+```
+
+The municipal boundary and bounding box are fetched from PDOK by name, so
+switching cities is just a name change (plus the nearest KNMI station). Buildings
+are clipped to the boundary, so results cover exactly that municipality. Override
+without editing the file, e.g. `snakemake --config city='{name: Rotterdam, weather_station: 344}' --cores 4`.
 
 ### Where outputs go
 

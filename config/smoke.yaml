@@ -1,0 +1,36 @@
+# Fast end-to-end smoke profile: a tiny municipality and a one-year weather
+# window so a real run (fetch -> prepare -> model -> LCA) finishes in minutes.
+#   snakemake --configfile config/smoke.yaml --cores 1
+results_dir: results
+
+city:
+  name: "Schiermonnikoog" # smallest Dutch municipality by population; few buildings
+  weather_station: 330
+
+weather:
+  start_year: 2020
+  end_year: 2020
+
+pdok_boundary:
+  base_url: https://api.pdok.nl/kadaster/bestuurlijkegebieden/ogc/v1
+  collection: gemeentegebied
+  license: Public Domain Mark 1.0
+
+pdok_bag:
+  base_url: https://api.pdok.nl/kadaster/bag/ogc/v2
+  collections:
+    buildings: pand
+    residences: verblijfsobject
+  license: Public Domain Mark 1.0
+  source_url: https://api.pdok.nl/kadaster/bag/ogc/v2/api
+
+pdok_3d_basisvoorziening:
+  base_url: https://api.pdok.nl/kadaster/3d-basisvoorziening/ogc/v1
+  height_collection: hoogtestatistieken_gebouwen
+  year: 2025
+  license: CC BY 4.0
+  source_url: https://api.pdok.nl/kadaster/3d-basisvoorziening/ogc/v1/api
+
+ep_online:
+  energy_labels_csv: data/raw/ep_online/current/energy_labels.csv
+  source_url: https://www.ep-online.nl/PublicData
