@@ -38,8 +38,8 @@ TOLERANCE = 0.05
 
 # Golden references: total annual cooling energy demand (kWh) under SQ, captured from
 # the pipeline. A refactor should not move either by more than TOLERANCE.
-REFERENCE_SYNTHETIC_TOTAL_E_COOLING_KWH = 188_308_699.08
-REFERENCE_REAL_BAG_TOTAL_E_COOLING_KWH = 33_712_532.52
+REFERENCE_SYNTHETIC_TOTAL_E_COOLING_KWH = 158_602_353.45
+REFERENCE_REAL_BAG_TOTAL_E_COOLING_KWH = 29_663_259.43
 
 # Skip cleanly if the real parameter / weather inputs are not checked out.
 REQUIRED_INPUTS = [
@@ -95,7 +95,8 @@ def _run_sq_total_cooling_demand(monkeypatch: pytest.MonkeyPatch, buildings: pd.
     building_type_parameters = read_parameter_specific_data(PARAMETER_DIR / "parameters_building_type.csv", SCENARIO)
     energy_class_parameters = read_parameter_specific_data(PARAMETER_DIR / "parameters_energy_class.csv", SCENARIO)
     cooling_technology_parameters = read_parameter_specific_data(
-        PARAMETER_DIR / "parameters_cooling_technology.csv", SCENARIO
+        PARAMETER_DIR / "parameters_cooling_technology.csv",
+        SCENARIO,
     )
 
     with pytest.warns(UserWarning, match="backup"):

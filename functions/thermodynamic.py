@@ -13,6 +13,9 @@ import numpy as np
 if TYPE_CHECKING:
     import pandas as pd
 
+# The eight window/facade compass directions, in the order used for both window areas and solar radiation
+SOLAR_DIRECTIONS = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
+
 # Parameter derivation functions
 
 
@@ -191,14 +194,17 @@ def calc_Q_solar_radiation(building: pd.Series, time_series: dict[str, np.ndarra
     ]  # The window area per compass direction (N, NE, ...) of the building in m2
     g_window = building["g_window"]  # The solar transmittance factor of the windows (ranging from 0 to 1)
 
-    # Solar radiation stacked per direction. Identical across buildings, so it is cached once per run by
-    # calc_cooling_demand_metrics_for_df; fall back to building it here when called standalone.
+    # Solar radiation stacked per direction (N, NE, ..., NW), aligned to the window-area orientations.
+    # Identical across buildings, so it is cached once per run by calc_cooling_demand_metrics_for_df;
+    # fall back to building it here when called standalone.
     solar_radiation_per_direction = time_series.get("_solar_stack_W_m2")
     if solar_radiation_per_direction is None:
-        solar_radiation_per_direction = np.array([time_series[key] for key in time_series if "P_sol_" in key])
+        solar_radiation_per_direction = np.array(
+            [time_series[f"P_sol_{direction}_W_m2"] for direction in SOLAR_DIRECTIONS],
+        )
 
-    # Sum the solar heat inflow over the first eight stacked series (matches the original range(8) pairing)
-    return g_window * (window_area_per_orientation[:, np.newaxis] * solar_radiation_per_direction[:8]).sum(axis=0)
+    # Sum the solar heat inflow over the eight window orientations in Wh
+    return g_window * (window_area_per_orientation[:, np.newaxis] * solar_radiation_per_direction).sum(axis=0)
 
 
 def calc_Q_internal_heat(
@@ -518,8 +524,10 @@ def calc_cooling_demand_metrics_for_df(
     # Set the percentile that the peak cooling power demand (kW) should be capped at, for column naming purposes
     peak_cooling_percentile_cap = int(global_parameters["peak_cooling_percentile_cap"])
 
-    # Cache the per-direction solar radiation stack once (identical across buildings) so each row reuses it
-    time_series["_solar_stack_W_m2"] = np.array([time_series[key] for key in time_series if "P_sol_" in key])
+    # Cache the per-direction solar radiation stack once (N, NE, ..., NW; identical across buildings) so each row reuses it
+    time_series["_solar_stack_W_m2"] = np.array(
+        [time_series[f"P_sol_{direction}_W_m2"] for direction in SOLAR_DIRECTIONS],
+    )
 
     apply_args = (time_series, global_parameters, include_time_series)
 
