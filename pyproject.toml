@@ -1,76 +1,94 @@
 [project]
-name = "cooling-demand-model"
-version = "1.0.0"
-description = "Cooling demand and environmental impact model for residential and office buildings in The Hague (MSc Industrial Ecology thesis)."
-readme = "README.md"
-requires-python = ">=3.11"
-license = { text = "GPL-3.0-or-later" }
-authors = [{ name = "Simon van Lierde" }]
-keywords = [
+  authors = [{ name = "Simon van Lierde" }]
+  description = "Cooling demand and environmental impact model for residential and office buildings in The Hague (MSc Industrial Ecology thesis)."
+  keywords = [
     "industrial-ecology",
     "cooling-demand",
     "energy-modelling",
     "life-cycle-assessment",
     "urban-heat",
     "geospatial",
-]
+  ]
+  license = { text = "GPL-3.0-or-later" }
+  name = "cooling-demand-model"
+  readme = "README.md"
+  requires-python = ">=3.14"
+  version = "1.1.0"
 
-dependencies = [
-    "geopandas==0.13.2",
-    "itables==1.5.4",
-    "jupyter==1.0.0",
-    "matplotlib==3.7.2",
-    "numpy==1.25.2",
-    "pandas==2.0.3",
-    "requests==2.31.0",
-    "rasterio==1.3.8",
-    "rasterstats==0.19.0",
-    "scipy==1.11.3",
-    "seaborn==0.12.2",
-    "tqdm==4.66.1",
-]
+  dependencies = [
+    "geopandas>=1.1",
+    "itables>=1.5.4",
+    "jupyter>=1.0.0",
+    "matplotlib>=3.9",
+    "numpy>=2.1",
+    "pandas>=2.2",
+    "pyogrio>=0.9",
+    "requests>=2.31.0",
+    "rasterio>=1.4",
+    "rasterstats>=0.20",
+    "scipy>=1.13",
+    "seaborn>=0.13",
+    "tqdm>=4.66.1",
+  ]
 
-[project.urls]
-Thesis = "https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a"
-Data = "https://doi.org/10.5281/zenodo.8344580"
+  [project.urls]
+    Data   = "https://doi.org/10.5281/zenodo.8344580"
+    Thesis = "https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a"
 
 [dependency-groups]
-dev = [
-    "pytest>=8.0",
-    "ruff>=0.6",
-    "ty>=0.0.1a1",
-]
+  dev  = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "ty>=0.0.1a1", "pre-commit>=3.7", "nbstripout>=0.7"]
+  docs = ["mkdocs>=1.6", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
 
-[tool.setuptools]
-packages = ["functions"]
-
-[build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
-
-# The model code uses long inline comments by design; keep a generous line length
-# rather than reformatting the scientific code.
 [tool.ruff]
-line-length = 250
-target-version = "py311"
-extend-exclude = ["*.ipynb"]
+  line-length    = 120
+  target-version = "py314"
 
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "D"]
-ignore = [
-    "D203", # one-blank-line-before-class (conflicts with D211)
-    "D213", # multi-line-summary-second-line (conflicts with D212)
-]
+  [tool.ruff.lint]
+    ignore = [
+      "D203", # one-blank-line-before-class (conflicts with D211)
+      "D213", # multi-line-summary-second-line (conflicts with D212)
 
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D"]      # don't require docstrings in tests
-"functions/__init__.py" = ["D104"]
+      # We sometimes use capital letters for physical quantities (e.g. UHI) in function and variable names, which is not PEP8-compliant.
+      "N802",
+      "N803",
+      "N806",
+      "N816",
 
-[tool.ruff.lint.pydocstyle]
-convention = "google"
+      # Line length is enforced by `ruff format`; the remaining long lines are verbose Google-style
+      # docstrings, unit-laden strings and comments that cannot be wrapped without hurting readability.
+      "E501",
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+      # The physical model functions legitimately take many parameters and boolean toggles
+      # (e.g. include_time_series, save_figure), and raise ValueErrors with inline messages.
+      "PLR0913", # too-many-arguments
+      "FBT001",  # boolean-type-hint-positional-argument
+      "FBT002",  # boolean-default-value-positional-argument
+      "TRY003",  # raise-vanilla-args (long messages passed to exception constructors)
+    ]
+    select = ["ALL"]
 
+    [tool.ruff.lint.per-file-ignores]
+      "functions/__init__.py" = ["D104"]
+      "tests/*"               = ["D", "PLR2004", "S101"] # don't require docstrings in tests
+
+    [tool.ruff.lint.pydocstyle]
+      convention = "google"
+
+[tool.coverage.run]
+  omit   = ["functions/figures.py"] # Plotting helpers are visual; not unit-tested
+  source = ["functions"]
+
+[tool.coverage.report]
+  # The computational core is unit-tested; the model-running wrappers in
+  # sensitivity_analysis.py and the create_time_series / aggregate_results
+  # orchestration are exercised via the notebooks against the full Zenodo dataset.
+  exclude_also = ["if __name__ == .__main__.:", "raise NotImplementedError"]
+  fail_under   = 50
+
+# Type checking with ty is informational: the scientific code stores heterogeneous
+# records in dicts and DataFrames that the pre-release type checker cannot fully model.
 [tool.ty.environment]
-python-version = "3.11"
+  python-version = "3.14"
+
+[tool.ty.src]
+  exclude = ["**/*.ipynb"]
