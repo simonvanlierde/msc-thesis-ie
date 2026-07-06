@@ -22,7 +22,7 @@ import pandas as pd
 import pytest
 import requests
 
-from functions.data_handling import read_buildings, read_global_parameters, read_parameter_specific_data
+from functions.readers import read_buildings, read_global_parameters, read_parameter_specific_data
 from functions.sensitivity_analysis import run_CDM_model_for_SA
 from functions.time_series import get_raw_weather_data
 
