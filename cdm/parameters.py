@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from functions.geometric import calc_window_and_wall_areas
+from cdm.geometric import calc_window_and_wall_areas
 
 
 def calculate_building_population(building: pd.Series, global_parameters: dict[str, float]) -> float:

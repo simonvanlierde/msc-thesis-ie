@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from functions.constants import HOURS_PER_YEAR, SOLAR_DIRECTIONS
+from cdm.constants import HOURS_PER_YEAR, SOLAR_DIRECTIONS
 
 if TYPE_CHECKING:
     import pandas as pd

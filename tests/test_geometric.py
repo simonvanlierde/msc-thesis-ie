@@ -5,10 +5,13 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
+from shapely.geometry import Polygon
 
-from functions.geometric import (
+from cdm.geometric import (
     azimuth_line,
+    azimuth_rectangle,
     calc_facade_area_per_orientation,
+    calc_window_and_wall_areas,
     determine_orientation_class,
     dist,
 )
@@ -71,3 +74,33 @@ def test_calc_facade_area_per_orientation_rejects_bad_class(bad_class: int) -> N
 
 def test_dist_matches_math_hypot() -> None:
     assert dist((2.0, -1.0), (-2.0, 2.0)) == pytest.approx(math.hypot(-4.0, 3.0))
+
+
+def test_azimuth_rectangle_for_axis_aligned_rectangle() -> None:
+    # A 20 (east-west) by 10 (north-south) axis-aligned rectangle.
+    rectangle = Polygon([(0.0, 0.0), (20.0, 0.0), (20.0, 10.0), (0.0, 10.0)])
+    azimuth, width, length = azimuth_rectangle(rectangle)
+
+    # The long axis runs due east, the short side is 10 m and the long side is 20 m.
+    assert azimuth == pytest.approx(90.0)
+    assert width == pytest.approx(10.0)
+    assert length == pytest.approx(20.0)
+
+
+def test_calc_window_and_wall_areas_splits_facade_by_factor() -> None:
+    building = pd.Series(
+        {
+            "MBR_azimuth": 30.0,  # -> orientation class 2 (NE-SW)
+            "MBR_width_m": 10.0,
+            "MBR_length_m": 20.0,
+            "height_m": 15.0,
+            "f_wall": 0.7,
+            "f_window": 0.3,
+        },
+    )
+    window_per_orientation, window_total, wall_total = calc_window_and_wall_areas(building)
+
+    total_facade = 2 * (10.0 + 20.0) * 15.0  # perimeter * height
+    assert window_total == pytest.approx(total_facade * 0.3)
+    assert wall_total == pytest.approx(total_facade * 0.7)
+    assert window_per_orientation.sum() == pytest.approx(window_total)

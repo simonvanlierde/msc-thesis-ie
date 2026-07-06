@@ -10,13 +10,13 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from functions.environmental import (
+from cdm.environmental import (
     calculate_environmental_impacts_from_cooling_demand,
     calculate_environmental_parameters_for_cooling_technologies,
 )
-from functions.parameters import add_cooling_technology_data_to_buildings, add_parameters_to_buildings
-from functions.thermodynamic import calc_cooling_demand_metrics_for_df
-from functions.time_series import create_time_series
+from cdm.parameters import add_cooling_technology_data_to_buildings, add_parameters_to_buildings
+from cdm.thermodynamic import calc_cooling_demand_metrics_for_df
+from cdm.time_series import create_time_series
 
 # Directory for sensitivity-analysis figures. Overridable via the SA_IMAGE_DIR
 # environment variable so the Snakemake pipeline can write under results/ while

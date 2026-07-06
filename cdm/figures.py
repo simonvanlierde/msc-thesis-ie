@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from functions.constants import HOURS_PER_YEAR, IMAGE_OUTPUT_DIR
+from cdm.constants import HOURS_PER_YEAR, IMAGE_OUTPUT_DIR
 
 if TYPE_CHECKING:
     from datetime import datetime
