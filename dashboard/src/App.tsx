@@ -1,14 +1,29 @@
-import { useEffect, useMemo, useState } from "react";
-import { HourlyMap } from "./components/HourlyMap";
-import { LcaView } from "./components/LcaView";
-import { MapView } from "./components/MapView";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ScenarioPicker } from "./components/ScenarioPicker";
 import { Summary } from "./components/Summary";
-import { TemporalView } from "./components/TemporalView";
 import { type Datasets, loadDatasets } from "./lib/data";
 import { getPalette } from "./lib/palette";
 import type { ScenarioKey } from "./lib/types";
 import { useTheme } from "./lib/useTheme";
+
+// Split the heavy views (MapLibre, nivo) into their own chunks so the summary and
+// controls paint immediately while the maps and charts stream in.
+const MapView = lazy(() => import("./components/MapView").then((m) => ({ default: m.MapView })));
+const HourlyMap = lazy(() =>
+  import("./components/HourlyMap").then((m) => ({ default: m.HourlyMap })),
+);
+const TemporalView = lazy(() =>
+  import("./components/TemporalView").then((m) => ({ default: m.TemporalView })),
+);
+const LcaView = lazy(() => import("./components/LcaView").then((m) => ({ default: m.LcaView })));
+
+function ViewFallback({ label }: { label: string }) {
+  return (
+    <p className="loading" role="status">
+      Loading {label}…
+    </p>
+  );
+}
 
 export function App() {
   const [data, setData] = useState<Datasets | null>(null);
@@ -69,10 +84,12 @@ export function App() {
               />
             </div>
 
-            <MapView buurten={data.buurten} scenario={scenario} palette={palette} />
-            <HourlyMap buurten={data.buurten} frames={data.frames} palette={palette} />
-            <TemporalView temporal={data.temporal} palette={palette} />
-            <LcaView data={data.scenarios} scenario={scenario} palette={palette} />
+            <Suspense fallback={<ViewFallback label="map" />}>
+              <MapView buurten={data.buurten} scenario={scenario} palette={palette} />
+              <HourlyMap buurten={data.buurten} frames={data.frames} palette={palette} />
+              <TemporalView temporal={data.temporal} palette={palette} />
+              <LcaView data={data.scenarios} scenario={scenario} palette={palette} />
+            </Suspense>
 
             <footer className="colophon">
               <p>

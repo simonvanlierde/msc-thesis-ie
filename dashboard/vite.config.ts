@@ -5,7 +5,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   base: "./",
   plugins: [react()],
-  build: { outDir: "dist", sourcemap: false },
+  // MapLibre is a single ~1 MB lib; it's isolated in its own chunk and lazy-loaded
+  // with the map views, so raise the warning threshold above it rather than chasing
+  // an un-splittable dependency.
+  build: { outDir: "dist", sourcemap: false, chunkSizeWarningLimit: 1100 },
   test: {
     globals: true,
     environment: "jsdom",
