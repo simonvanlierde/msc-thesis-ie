@@ -191,16 +191,14 @@ def calc_Q_solar_radiation(building: pd.Series, time_series: dict[str, np.ndarra
     ]  # The window area per compass direction (N, NE, ...) of the building in m2
     g_window = building["g_window"]  # The solar transmittance factor of the windows (ranging from 0 to 1)
 
-    # Load the solar radiation for each direction from the time series, unpacking any key with the word "P_sol_" in it
-    solar_radiation_per_direction = np.array([time_series[key] for key in time_series if "P_sol_" in key])
+    # Solar radiation stacked per direction. Identical across buildings, so it is cached once per run by
+    # calc_cooling_demand_metrics_for_df; fall back to building it here when called standalone.
+    solar_radiation_per_direction = time_series.get("_solar_stack_W_m2")
+    if solar_radiation_per_direction is None:
+        solar_radiation_per_direction = np.array([time_series[key] for key in time_series if "P_sol_" in key])
 
-    # Calculate the solar radiation heat inflow for each direction in Wh
-    Q_solar_radiation_per_direction = np.array(
-        [window_area_per_orientation[i] * g_window * solar_radiation_per_direction[i] for i in range(8)],
-    )
-
-    # Calculate the total solar radiation heat inflow in Wh
-    return np.sum(Q_solar_radiation_per_direction, axis=0)
+    # Sum the solar heat inflow over the first eight stacked series (matches the original range(8) pairing)
+    return g_window * (window_area_per_orientation[:, np.newaxis] * solar_radiation_per_direction[:8]).sum(axis=0)
 
 
 def calc_Q_internal_heat(
@@ -343,49 +341,23 @@ def calc_cooling_demand_percentile(
         E_cooling_capped_at_percentile_kWh (float): The total cooling energy demand (kWh), when capped at the peak percentile of the cooling power demand.
 
     """
-    # Determine amount of years in the hourly time series
+    # Split the hourly demand into full years (rows of 8760 hours)
     years = len(Q_cooling_demand_Wh) // 8760
+    Q_cooling_demand_years = Q_cooling_demand_Wh.reshape(years, 8760)
 
-    # Split the cooling demand series into years
-    Q_cooling_demand_years = Q_cooling_demand_Wh.reshape(years, -1)
+    # Peak percentile of the cooling power demand per year (Wh), then averaged across years (kW)
+    P_cooling_peak_percentile_per_year_Wh = np.percentile(Q_cooling_demand_years, n_percentile, axis=1)
+    P_cooling_peak_percentile_kW = np.mean(P_cooling_peak_percentile_per_year_Wh) / 1000
 
-    # Create empty arrays to store the sorted metrics of each year
-    Q_cooling_sorted_Wh = np.array([])
-    P_cooling_peak_percentile_kW = np.array([])
-    Q_cooling_capped_at_percentile_Wh = np.array([])
-    E_cooling_capped_at_percentile_kWh = np.array([])
+    # Cap each year at its own peak percentile, then average the annual capped energy totals (kWh)
+    Q_cooling_capped_years = np.minimum(Q_cooling_demand_years, P_cooling_peak_percentile_per_year_Wh[:, np.newaxis])
+    E_cooling_capped_at_percentile_kWh = np.mean(Q_cooling_capped_years.sum(axis=1)) / 1000
 
-    for year in range(years):
-        (
-            Q_cooling_sorted_of_year,
-            P_cooling_peak_percentile_of_year,
-            Q_cooling_capped_at_percentile_of_year,
-            E_cooling_capped_at_percentile_of_year,
-        ) = calc_cooling_demand_percentile_per_year(Q_cooling_demand_years[year], n_percentile)
-
-        # Add the sorted cooling demand series of the year to the total sorted cooling demand series
-        Q_cooling_sorted_Wh = np.concatenate((Q_cooling_sorted_Wh, Q_cooling_sorted_of_year))
-
-        # Add the peak percentile of cooling power demand of the year to the total peak percentile of cooling power demand
-        P_cooling_peak_percentile_kW = np.append(P_cooling_peak_percentile_kW, P_cooling_peak_percentile_of_year)
-
-        # Add the capped cooling demand series of the year to the total sorted capped cooling demand series
-        Q_cooling_capped_at_percentile_Wh = np.concatenate(
-            (Q_cooling_capped_at_percentile_Wh, Q_cooling_capped_at_percentile_of_year),
-        )
-
-        # Add the total cooling energy demand of the year to the total total cooling energy demand
-        E_cooling_capped_at_percentile_kWh = np.append(
-            E_cooling_capped_at_percentile_kWh,
-            E_cooling_capped_at_percentile_of_year,
-        )
-
-    # Average the annual peak cooling power and energy demands capped at the nth percentile
-    P_cooling_peak_percentile_kW = np.mean(P_cooling_peak_percentile_kW)
-    E_cooling_capped_at_percentile_kWh = np.mean(E_cooling_capped_at_percentile_kWh)
-
-    # If include_time_series is false, set the time series to None for memory efficiency
-    if not include_time_series:
+    # The full hourly series are only sorted/materialized when explicitly requested (memory + speed)
+    if include_time_series:
+        Q_cooling_sorted_Wh = np.concatenate([np.sort(year)[::-1] for year in Q_cooling_demand_years])
+        Q_cooling_capped_at_percentile_Wh = Q_cooling_capped_years.reshape(-1)
+    else:
         Q_cooling_sorted_Wh = None
         Q_cooling_capped_at_percentile_Wh = None
 
@@ -545,6 +517,10 @@ def calc_cooling_demand_metrics_for_df(
     """
     # Set the percentile that the peak cooling power demand (kW) should be capped at, for column naming purposes
     peak_cooling_percentile_cap = int(global_parameters["peak_cooling_percentile_cap"])
+
+    # Cache the per-direction solar radiation stack once (identical across buildings) so each row reuses it
+    time_series["_solar_stack_W_m2"] = np.array([time_series[key] for key in time_series if "P_sol_" in key])
+
     apply_args = (time_series, global_parameters, include_time_series)
 
     def apply_calc_cooling_demand_metrics(row: pd.Series) -> tuple:
