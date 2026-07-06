@@ -5,6 +5,7 @@
 
 import io
 import warnings
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +13,9 @@ import pandas as pd
 import requests
 
 MIN_RESPONSE_LINES_FOR_DATA = 15  # Below this line count, the KNMI API returned only header info and no data
+
+# 6-hourly soil temperature for De Bilt (station 260), the nearest station with ground-temperature records
+KNMI_SUBSURFACE_URL = "https://cdn.knmi.nl/knmi/map/page/klimatologie/gegevens/bodemtemps/bodemtemps_260.zip"
 
 
 def _parse_knmi_response(text: str) -> pd.DataFrame:
@@ -341,6 +345,25 @@ def create_time_series(
     return {column: time_series_df[column].to_numpy() for column in time_series_df.columns}
 
 
+def _parse_knmi_subsurface(text: str) -> pd.DataFrame:
+    """Parse KNMI 6-hourly soil-temperature text, locating the header row (the line naming YYYYMMDD) dynamically."""
+    lines = text.splitlines()
+    # The real column row lists both STN and YYYYMMDD; this avoids the prose "YYYYMMDD = datum" metadata line
+    header_index = next(index for index, line in enumerate(lines) if "STN" in line and "YYYYMMDD" in line)
+    columns = [name.strip() for name in lines[header_index].lstrip("# ").split(",")]
+    data = "\n".join(line for line in lines[header_index + 1 :] if line.strip())
+    subsurface = pd.read_csv(io.StringIO(data), names=columns, skipinitialspace=True)
+    return subsurface.loc[:, [column for column in subsurface.columns if column]]  # drop the empty trailing column
+
+
+def _download_knmi_subsurface(url: str, timeout: int = 30) -> str:
+    """Download the KNMI soil-temperature zip and return the ASCII contents of its single data file."""
+    response = requests.get(url, timeout=timeout)
+    response.raise_for_status()
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        return archive.read(archive.namelist()[0]).decode("utf-8", errors="replace")
+
+
 def read_dynamic_subsurface_temperature(
     subsurface_temperature_path: str,
     start_year: int,
@@ -366,37 +389,52 @@ def read_dynamic_subsurface_temperature(
         msg = "Invalid measurement_depth. Choose from 5, 10, 20, 50, or 100 cm."
         raise ValueError(msg)
 
-    # Read in the dynamic (in blocks of 6 hours) subsurface temperature data of De Bilt (Closest available weather station with ground temperature records)
-    subsurface_temperature_df = pd.read_csv(subsurface_temperature_path, skiprows=16)
+    # Fetch the De Bilt soil temperatures from KNMI, falling back to the committed backup file
+    # if the download fails or can't be parsed (no network, bad zip, or the format drifting).
+    used_backup = False
+    try:
+        subsurface_temperature_df = _parse_knmi_subsurface(_download_knmi_subsurface(KNMI_SUBSURFACE_URL))
+    except (
+        requests.exceptions.RequestException,
+        zipfile.BadZipFile,
+        pd.errors.ParserError,
+        ValueError,
+        StopIteration,
+    ) as error:
+        warnings.warn(
+            f"KNMI subsurface temperature download unavailable or unparseable ({error}); using local backup file.",
+            stacklevel=2,
+        )
+        subsurface_temperature_df = _parse_knmi_subsurface(Path(subsurface_temperature_path).read_text())
+        used_backup = True
 
-    # Strip all columns names from extraneous whitespace
-    subsurface_temperature_df.columns = subsurface_temperature_df.columns.str.strip()
-
-    # Read in string as datetime
+    # Read in string as datetime, then restrict to the requested years and drop leap days
     subsurface_temperature_df["date"] = pd.to_datetime(
         subsurface_temperature_df["YYYYMMDD"].astype(str),
         format="%Y%m%d",
         errors="coerce",
     )
-
-    # Extract the data between the indicated start and end year. The full file contains data from 1981 to 2022.
     subsurface_temperature_df = subsurface_temperature_df[
         (subsurface_temperature_df["date"].dt.year >= start_year)
         & (subsurface_temperature_df["date"].dt.year <= end_year)
     ]
-
-    # Remove leap days to prevent errors
     subsurface_temperature_df = subsurface_temperature_df[
         subsurface_temperature_df["date"].dt.strftime("%m-%d") != "02-29"
     ].reset_index(drop=True)
 
-    # Repeat the subsurface temperature data to go from 6-hourly to hourly time-steps
+    # Never silently model the wrong period: refuse a backup that does not cover the requested years
+    if used_backup:
+        available_years = {int(year) for year in subsurface_temperature_df["date"].dt.year.unique()}
+        requested_years = set(range(start_year, end_year + 1))
+        if not requested_years <= available_years:
+            msg = (
+                f"The local backup subsurface file covers years {sorted(available_years)}, but the model requested "
+                f"{start_year}-{end_year}. Download the matching KNMI data or adjust the requested years."
+            )
+            raise ValueError(msg)
+
+    # Repeat the 6-hourly values to hourly time-steps and convert from 0.1 °C to °C
     ground_temperature_series = (
         subsurface_temperature_df[f"TB{depth_mapping[measurement_depth_cm]}"].repeat(6).reset_index(drop=True)
     )
-
-    # Convert the subsurface temperature data to numeric and divide by 10 to get °C
-    ground_temperature_series = ground_temperature_series.astype("float") / 10
-
-    # Convert the series to a numpy array for faster calculations
-    return ground_temperature_series.to_numpy()
+    return (ground_temperature_series.astype("float") / 10).to_numpy()
