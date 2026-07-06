@@ -52,7 +52,7 @@ SEASON_OF_MONTH = {
 }
 
 
-def main() -> int:
+def main(geodata_dir: Path, out_path: Path) -> int:
     os.chdir(REPO)
     sys.path.insert(0, str(REPO))
     import geopandas as gpd
@@ -76,9 +76,9 @@ def main() -> int:
     )
     from functions.time_series import create_time_series, get_raw_weather_data
 
-    gpkg = REPO / f"data/output/geodata/buildings_with_CDM_results_{SCEN}_full.gpkg"
+    gpkg = geodata_dir / f"buildings_with_CDM_results_{SCEN}_full.gpkg"
     if not gpkg.exists():
-        print(f"missing {gpkg.relative_to(REPO)} — skipping temporal build.")
+        print(f"missing {gpkg} — skipping temporal build.")
         return 0
 
     par = REPO / f"data/input/parameters/parameters_{SCEN}"
@@ -204,14 +204,25 @@ def main() -> int:
         "diurnal_by_season": diurnal,
         "monthly": monthly,
     }
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(data, separators=(",", ":")))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(data, separators=(",", ":")))
     ann = sum(sum(monthly[u]) for u in uses)
     print(
-        f"wrote {OUT.relative_to(REPO)}  (sample {len(sample)}, annual {ann:.0f} GWh, {OUT.stat().st_size / 1024:.1f} kB)",
+        f"wrote {out_path}  (sample {len(sample)}, annual {ann:.0f} GWh, {out_path.stat().st_size / 1024:.1f} kB)",
     )
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Reconstruct the diurnal/seasonal cooling profile.")
+    ap.add_argument(
+        "--geodata-dir",
+        type=Path,
+        default=REPO / "data" / "output" / "geodata",
+        help="dir with buildings_with_CDM_results_SQ_full.gpkg",
+    )
+    ap.add_argument("--out", type=Path, default=OUT, help="output JSON path")
+    args = ap.parse_args()
+    raise SystemExit(main(args.geodata_dir, args.out))

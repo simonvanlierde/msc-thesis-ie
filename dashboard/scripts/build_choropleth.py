@@ -42,23 +42,23 @@ SUM_COLS = {
 }
 
 
-def main() -> int:
+def main(divisions: Path, buildings_dir: Path, out_path: Path) -> int:
     import geopandas as gpd
     from shapely.geometry import mapping
 
-    if not DIVISIONS.exists():
-        print(f"missing {DIVISIONS.relative_to(REPO)} — skipping choropleth build.")
+    if not divisions.exists():
+        print(f"missing {divisions} — skipping choropleth build.")
         return 0
 
     # --- load buurten (the aggregation units) ---
-    buurten = gpd.read_file(DIVISIONS, layer="Neighbourhoods_TheHague")[["buurtcode", "buurtnaam", "geometry"]]
+    buurten = gpd.read_file(divisions, layer="Neighbourhoods_TheHague")[["buurtcode", "buurtnaam", "geometry"]]
     values: dict[str, dict] = {
         r.buurtcode: {"buurtcode": r.buurtcode, "buurtnaam": r.buurtnaam} for r in buurten.itertuples()
     }
 
     # --- sum building results into buurten, per scenario (centroid within buurt) ---
     for scen in SCENARIOS:
-        gpkg = BUILDINGS / f"buildings_with_CDM_results_{scen}_full.gpkg"
+        gpkg = buildings_dir / f"buildings_with_CDM_results_{scen}_full.gpkg"
         if not gpkg.exists():
             print(f"  {scen}: no GPKG, skipping this scenario")
             continue
@@ -96,10 +96,9 @@ def main() -> int:
         },
         "features": features,
     }
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(fc, separators=(",", ":")))
-    kb = OUT.stat().st_size / 1024
-    print(f"wrote {OUT.relative_to(REPO)}  ({len(features)} buurten, {kb:.0f} kB)")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(fc, separators=(",", ":")))
+    print(f"wrote {out_path}  ({len(features)} buurten, {out_path.stat().st_size / 1024:.0f} kB)")
     return 0
 
 
@@ -114,4 +113,11 @@ def _round_coords(geom: dict, dp: int) -> dict:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Aggregate per-building cooling results to buurt GeoJSON.")
+    ap.add_argument("--divisions", type=Path, default=DIVISIONS, help="GeographicDivisions GPKG")
+    ap.add_argument("--geodata-dir", type=Path, default=BUILDINGS, help="dir with buildings_with_CDM_results_*.gpkg")
+    ap.add_argument("--out", type=Path, default=OUT, help="output GeoJSON path")
+    args = ap.parse_args()
+    raise SystemExit(main(args.divisions, args.geodata_dir, args.out))

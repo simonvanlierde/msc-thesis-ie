@@ -63,8 +63,8 @@ def classify(building_type: str) -> dict[str, str]:
     }
 
 
-def read_scenario(key: str) -> list[dict]:
-    path = SRC / f"CDM_results_{key}_full.csv"
+def read_scenario(key: str, src_dir: Path) -> list[dict]:
+    path = src_dir / f"CDM_results_{key}_full.csv"
     rows: list[dict] = []
     with path.open() as fh:
         for r in csv.DictReader(fh):
@@ -108,10 +108,10 @@ def summarise(rows: list[dict]) -> dict:
     return {"totals": totals, "lca_by_stage": lca_by_stage}
 
 
-def build() -> dict:
+def build(src_dir: Path) -> dict:
     scenarios = {}
     for key, label in SCENARIOS.items():
-        rows = read_scenario(key)
+        rows = read_scenario(key, src_dir)
         scenarios[key] = {"label": label, **summarise(rows), "archetypes": rows}
     return {
         "meta": {
@@ -148,9 +148,15 @@ def self_check(data: dict) -> None:
 
 
 if __name__ == "__main__":
-    data = build()
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Build scenarios.json from the CDM result CSVs.")
+    ap.add_argument("--results-dir", type=Path, default=SRC, help="directory holding CDM_results_*.csv")
+    ap.add_argument("--out", type=Path, default=OUT, help="output JSON path")
+    args = ap.parse_args()
+
+    data = build(args.results_dir)
     self_check(data)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(data, separators=(",", ":")))
-    kb = OUT.stat().st_size / 1024
-    print(f"wrote {OUT.relative_to(REPO)}  ({kb:.1f} kB)")
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(data, separators=(",", ":")))
+    print(f"wrote {args.out}  ({args.out.stat().st_size / 1024:.1f} kB)")

@@ -52,7 +52,7 @@ def mbr_sides(geom) -> tuple[float, float]:
     return max(maxx - minx, 0.1), max(maxy - miny, 0.1)
 
 
-def main() -> int:
+def main(divisions: Path, geodata_dir: Path, out_path: Path) -> int:
     os.chdir(REPO)
     sys.path.insert(0, str(REPO))
     import geopandas as gpd
@@ -76,8 +76,8 @@ def main() -> int:
     )
     from functions.time_series import create_time_series, get_raw_weather_data
 
-    gpkg = REPO / f"data/output/geodata/buildings_with_CDM_results_{SCEN}_full.gpkg"
-    if not (gpkg.exists() and DIVISIONS.exists()):
+    gpkg = geodata_dir / f"buildings_with_CDM_results_{SCEN}_full.gpkg"
+    if not (gpkg.exists() and divisions.exists()):
         print("missing geodata — skipping hourly-frames build.")
         return 0
 
@@ -87,7 +87,7 @@ def main() -> int:
     ec = read_parameter_specific_data(par / "parameters_energy_class.csv")
 
     # --- buildings + buurt assignment (centroid within buurt) ---
-    buurten = gpd.read_file(DIVISIONS, layer="Neighbourhoods_TheHague")[["buurtcode", "geometry"]]
+    buurten = gpd.read_file(divisions, layer="Neighbourhoods_TheHague")[["buurtcode", "geometry"]]
     buildings = gpd.read_file(gpkg)
     pts = buildings.copy()
     pts["geometry"] = buildings.geometry.representative_point()
@@ -167,14 +167,26 @@ def main() -> int:
         "buurtcodes": active,
         "frames": frames,
     }
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(data, separators=(",", ":")))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(data, separators=(",", ":")))
     print(
-        f"wrote {OUT.relative_to(REPO)}  ({len(active)} buurten x 288 frames, "
-        f"vmax {vmax} W/m², {OUT.stat().st_size / 1024:.0f} kB)"
+        f"wrote {out_path}  ({len(active)} buurten x 288 frames, "
+        f"vmax {vmax} W/m², {out_path.stat().st_size / 1024:.0f} kB)"
     )
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Build the per-buurt hourly time-lapse frames.")
+    ap.add_argument("--divisions", type=Path, default=DIVISIONS, help="GeographicDivisions GPKG")
+    ap.add_argument(
+        "--geodata-dir",
+        type=Path,
+        default=REPO / "data" / "output" / "geodata",
+        help="dir with buildings_with_CDM_results_SQ_full.gpkg",
+    )
+    ap.add_argument("--out", type=Path, default=OUT, help="output JSON path")
+    args = ap.parse_args()
+    raise SystemExit(main(args.divisions, args.geodata_dir, args.out))

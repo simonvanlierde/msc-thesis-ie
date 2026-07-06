@@ -67,7 +67,16 @@ pnpm data         # runs the three build_*.py scripts
 ```
 
 `build_scenarios.py` alone has no heavy dependencies (stdlib only) and always works;
-the other two skip cleanly if the geodata is absent.
+the others skip cleanly if the geodata is absent.
+
+Each script takes `--results-dir` / `--geodata-dir` / `--divisions` / `--out` path
+arguments (defaulting to the committed `data/output/` reference results), so they can
+read from wherever the model writes. The Snakemake pipeline wires them in as a target:
+
+```bash
+# regenerate all four datasets from the pipeline's results/ outputs
+snakemake dashboard_data
+```
 
 ## Deploy to Cloudflare Pages
 

@@ -215,3 +215,80 @@ rule cooling_mix_sensitivity:
           --presence-load-factors {input.presence_load_factors} \
           --output {output}
         """
+
+
+# --- Web dashboard data (optional target) -----------------------------------
+# Regenerate the interactive dashboard's JSON/GeoJSON from the pipeline outputs
+# in results/. Not part of `rule all` (the temporal + frames builds re-run the
+# hourly model and take ~1 min). Run explicitly:  snakemake dashboard_data
+#
+# Buurt boundaries are a static Zenodo input, not a pipeline product. The build
+# scripts take path arguments, so only these rules change if output paths shift.
+DASHBOARD_DATA_DIR = "dashboard/public/data"
+DIVISIONS_GPKG = "data/input/geodata/GeographicDivisions_TheHague.gpkg"
+SQ_PARAMS = [f"{PARAMETER_DIR}/parameters_SQ/parameters_{group}.csv" for group in ("global", "building_type", "energy_class")]
+SOLAR_FRACTIONS = f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv"
+PRESENCE_LOAD_FACTORS = f"{PARAMETER_DIR}/presence_load_factors.csv"
+WEATHER_BACKUP = f"{PARAMETER_DIR}/raw_weather_data_2018_2022_HvH.csv"
+
+
+rule dashboard_scenarios:
+    input:
+        expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_" + SUBSET + ".csv", scenario=SCENARIOS),
+    output:
+        f"{DASHBOARD_DATA_DIR}/scenarios.json",
+    conda:
+        "workflow/envs/cooling-demand.yml",
+    shell:
+        "python dashboard/scripts/build_scenarios.py --results-dir {RESULTS_DIR} --out {output}"
+
+
+rule dashboard_choropleth:
+    input:
+        gpkgs=expand(f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_{{scenario}}_" + SUBSET + ".gpkg", scenario=SCENARIOS),
+        divisions=DIVISIONS_GPKG,
+    output:
+        f"{DASHBOARD_DATA_DIR}/cooling_by_buurt.geojson",
+    conda:
+        "workflow/envs/cooling-demand.yml",
+    shell:
+        "python dashboard/scripts/build_choropleth.py --divisions {input.divisions} --geodata-dir {RESULTS_GEODATA_DIR} --out {output}"
+
+
+rule dashboard_temporal:
+    input:
+        buildings=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
+        parameters=SQ_PARAMS,
+        solar_fractions=SOLAR_FRACTIONS,
+        presence_load_factors=PRESENCE_LOAD_FACTORS,
+        weather_backup=WEATHER_BACKUP,
+    output:
+        f"{DASHBOARD_DATA_DIR}/temporal.json",
+    conda:
+        "workflow/envs/cooling-demand.yml",
+    shell:
+        "python dashboard/scripts/build_temporal.py --geodata-dir {RESULTS_GEODATA_DIR} --out {output}"
+
+
+rule dashboard_frames:
+    input:
+        buildings=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
+        divisions=DIVISIONS_GPKG,
+        parameters=SQ_PARAMS,
+        solar_fractions=SOLAR_FRACTIONS,
+        presence_load_factors=PRESENCE_LOAD_FACTORS,
+        weather_backup=WEATHER_BACKUP,
+    output:
+        f"{DASHBOARD_DATA_DIR}/cooling_frames.json",
+    conda:
+        "workflow/envs/cooling-demand.yml",
+    shell:
+        "python dashboard/scripts/build_hourly_frames.py --divisions {input.divisions} --geodata-dir {RESULTS_GEODATA_DIR} --out {output}"
+
+
+rule dashboard_data:
+    input:
+        f"{DASHBOARD_DATA_DIR}/scenarios.json",
+        f"{DASHBOARD_DATA_DIR}/cooling_by_buurt.geojson",
+        f"{DASHBOARD_DATA_DIR}/temporal.json",
+        f"{DASHBOARD_DATA_DIR}/cooling_frames.json",
