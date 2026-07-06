@@ -50,45 +50,32 @@ def read_buildings(buildings_path: Path, layer_name: str = "BAG_buildings") -> g
 
 
 def read_global_parameters(global_parameters_path: Path, scenario: str | None = None) -> dict[str, float]:
-    """Reads the global parameters for the cooling demand model.
+    """Reads the global parameters for the cooling demand model from the consolidated parameters.toml.
 
-    Supports two formats:
-    - the consolidated ``parameters.toml`` (``.toml`` suffix), where ``scenario`` selects the
-      ``[base]`` values merged with the ``[scenario.<scenario>]`` overrides;
-    - a legacy per-scenario ``parameters_global.csv`` (``parameter,value,unit``), where ``scenario`` is ignored.
+    ``scenario`` selects the ``[base]`` values merged with the ``[scenario.<scenario>]`` overrides.
 
     Args:
-        global_parameters_path (Path): The path to the parameters.toml or legacy csv file.
-        scenario (str, optional): The scenario to select when reading the consolidated TOML. Defaults to None.
+        global_parameters_path (Path): The path to the parameters.toml file.
+        scenario (str, optional): The scenario whose overrides to merge onto ``[base]``. Defaults to None.
 
     Returns:
         dict[str, float]: The dictionary containing the global parameters for the cooling demand model.
     """
-    if global_parameters_path.suffix == ".toml":
-        with global_parameters_path.open("rb") as toml_file:
-            config = tomllib.load(toml_file)
-        merged = {**config.get("base", {}), **config.get("scenario", {}).get(scenario, {})}
-        # Keep list-valued parameters (e.g. energy_class_ranges) as lists; coerce the rest to float
-        return {key: value if isinstance(value, list) else float(value) for key, value in merged.items()}
-
-    with global_parameters_path.open() as csv_file:
-        reader = csv.DictReader(csv_file)
-        return {
-            row["parameter"]: json.loads(row["value"])
-            if row["parameter"] == "energy_class_ranges"
-            else float(row["value"])
-            for row in reader
-        }  # Convert the string value to a list of lists for the energy label class ranges and to a float for the other parameters
+    with global_parameters_path.open("rb") as toml_file:
+        config = tomllib.load(toml_file)
+    merged = {**config.get("base", {}), **config.get("scenario", {}).get(scenario, {})}
+    # Keep list-valued parameters (e.g. energy_class_ranges) as lists; coerce the rest to float
+    return {key: value if isinstance(value, list) else float(value) for key, value in merged.items()}
 
 
 def read_parameter_specific_data(parameters_path: Path, scenario: str | None = None) -> list[dict]:
     """Reads the building, energy label or cooling technology parameters for the cooling demand model from a csv file.
 
-    Each record mixes value types (an integer id, a string name, optional list-valued columns and float parameters), so the dictionaries are intentionally left untyped at the value level. A consolidated tidy csv carrying a ``scenario`` column is filtered to ``scenario``; a legacy per-scenario csv (no such column) is read as-is.
+    Each record mixes value types (an integer id, a string name, optional list-valued columns and float parameters), so the dictionaries are intentionally left untyped at the value level. The consolidated tidy csv carries a ``scenario`` column; rows are filtered to ``scenario`` and the marker column is dropped.
 
     Args:
         parameters_path (Path): The path to the csv file containing the parameters for the cooling demand model.
-        scenario (str, optional): The scenario to keep when reading a consolidated tidy csv. Defaults to None.
+        scenario (str, optional): The scenario to keep. Defaults to None.
 
     Returns:
         list[dict]: The list of dictionaries containing the parameters for the cooling demand model.
@@ -97,12 +84,9 @@ def read_parameter_specific_data(parameters_path: Path, scenario: str | None = N
         reader = csv.DictReader(csv_file)
         parameter_specific_data = []
         for row in reader:
-            if (
-                "scenario" in row
-            ):  # Consolidated tidy csv: keep only the requested scenario, then drop the marker column
-                if row["scenario"] != scenario:
-                    continue
-                del row["scenario"]
+            if row["scenario"] != scenario:  # keep only the requested scenario, then drop the marker column
+                continue
+            del row["scenario"]
             parameter_specific_data.append(
                 {
                     key: int(value)
