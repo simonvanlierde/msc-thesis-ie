@@ -29,6 +29,9 @@ from functions.time_series import get_raw_weather_data
 PARAMETER_DIR = Path("data/input/parameters")
 PARAMETERS_TOML = PARAMETER_DIR / "parameters.toml"
 SCENARIO = "SQ"
+# The committed backup weather file covers these years. The test pins the weather window to it so it stays
+# reproducible (and the goldens valid) even when the SQ scenario's production weather years change.
+BACKUP_WEATHER_YEARS = (2018, 2022)
 REAL_BAG_GPKG = Path("data/output/geodata/BAG_buildings_with_residence_data_full.gpkg")
 REAL_BAG_LAYER = "BAG_buildings_full"
 
@@ -92,6 +95,7 @@ def _run_sq_total_cooling_demand(monkeypatch: pytest.MonkeyPatch, buildings: pd.
     monkeypatch.setattr(requests, "post", fake_post)
 
     global_parameters = read_global_parameters(PARAMETERS_TOML, SCENARIO)
+    global_parameters["weather_data_start_year"], global_parameters["weather_data_end_year"] = BACKUP_WEATHER_YEARS
     building_type_parameters = read_parameter_specific_data(PARAMETER_DIR / "parameters_building_type.csv", SCENARIO)
     energy_class_parameters = read_parameter_specific_data(PARAMETER_DIR / "parameters_energy_class.csv", SCENARIO)
     cooling_technology_parameters = read_parameter_specific_data(

@@ -5,6 +5,7 @@
 
 import io
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -22,7 +23,9 @@ def _parse_knmi_response(text: str) -> pd.DataFrame:
     model, which insulates against the KNMI format drifting.
     """
     lines = text.splitlines()
-    first_data_row = next(index for index, line in enumerate(lines) if line.strip() and not line.lstrip().startswith("#"))
+    first_data_row = next(
+        index for index, line in enumerate(lines) if line.strip() and not line.lstrip().startswith("#")
+    )
     weather = pd.read_csv(io.StringIO(text), header=first_data_row - 1, skipinitialspace=True)
     weather.columns = weather.columns.str.lstrip("# ").str.strip()
     weather = weather.rename(columns={"HH": "H"})
@@ -69,6 +72,7 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     # Fetch from the KNMI API, falling back to the committed backup file if the
     # request fails or the response can't be parsed (timeout, empty body, or the
     # API format drifting from what the parser expects).
+    used_backup = False
     try:
         response = requests.post(knmi_url, data=knmi_params, timeout=10)  # Send request to KNMI API
         response.raise_for_status()
@@ -78,7 +82,8 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
             f"KNMI API unavailable or unparseable ({error}); using local backup weather data.",
             stacklevel=2,
         )
-        weather_series_df = pd.read_csv(backup_local_weather_data_path, header=6)
+        weather_series_df = _parse_knmi_response(Path(backup_local_weather_data_path).read_text())
+        used_backup = True
 
     weather_series_df.columns = (
         weather_series_df.columns.str.strip()
@@ -99,8 +104,23 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
         drop=True,
     )
 
-    # For some reason the API returns the first day of the year after the end_year, so we manually cut that out
-    return weather_series_df[weather_series_df["date"].dt.year <= end_year].reset_index(drop=True)
+    # The API sometimes returns the first day of the year after end_year, so cut anything past end_year
+    weather_series_df = weather_series_df[weather_series_df["date"].dt.year <= end_year].reset_index(drop=True)
+
+    # Never silently model the wrong period: the backup only covers a fixed set of years, so refuse it
+    # (rather than returning stale data) when it does not cover the requested weather years.
+    if used_backup:
+        available_years = {int(year) for year in weather_series_df["date"].dt.year.unique()}
+        requested_years = set(range(start_year, end_year + 1))
+        if not requested_years <= available_years:
+            msg = (
+                f"The local backup weather file covers years {sorted(available_years)}, but the model requested "
+                f"{start_year}-{end_year}. Download the matching KNMI data or adjust weather_data_start_year / "
+                f"weather_data_end_year."
+            )
+            raise ValueError(msg)
+
+    return weather_series_df
 
 
 def add_UHI_effect(weather_series_df: pd.DataFrame, UHI_effect_day_C: float, UHI_effect_night_C: float) -> pd.DataFrame:
