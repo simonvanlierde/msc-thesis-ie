@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1820" height="570" viewBox="0 0 1820 570">
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#555"/></marker></defs>
+<rect width="100%" height="100%" fill="white"/>
+<line x1="1260" y1="95" x2="1600" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="190" x2="1600" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="285" x2="1600" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="380" x2="1600" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="475" x2="1600" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1000" y1="81" x2="1600" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1520" y1="285" x2="1600" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1000" y1="486" x2="1080" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="740" y1="285" x2="820" y2="486" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="480" y1="285" x2="560" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="220" y1="284" x2="560" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="220" y1="426" x2="560" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="220" y1="142" x2="300" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1000" y1="162" x2="1080" y2="190" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="740" y1="285" x2="820" y2="162" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1000" y1="324" x2="1080" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="740" y1="285" x2="820" y2="324" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1000" y1="405" x2="1080" y2="380" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="740" y1="285" x2="820" y2="405" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1000" y1="243" x2="1080" y2="475" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="740" y1="285" x2="820" y2="243" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="740" y1="285" x2="820" y2="81" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="95" x2="1340" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="190" x2="1340" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="285" x2="1340" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="380" x2="1340" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="1260" y1="475" x2="1340" y2="285" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="1600" y="261" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="1690" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="1690" dy="0">all</tspan>
+</text>
+<rect x="1080" y="71" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="1170" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="1170" dy="0">lca</tspan>
+</text>
+<rect x="820" y="462" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="910" y="481" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="910" dy="0">thermodynamic_model</tspan>
+<tspan x="910" dy="16">scenario: SQ</tspan>
+</text>
+<rect x="560" y="261" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="650" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="650" dy="0">prepare_bag_geodata</tspan>
+</text>
+<rect x="300" y="261" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="390" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="390" dy="0">download_pdok_3d_height_tiles</tspan>
+</text>
+<rect x="40" y="118" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="130" y="147" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="130" dy="0">discover_pdok_3d_height_tiles</tspan>
+</text>
+<rect x="40" y="260" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="130" y="289" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="130" dy="0">fetch_bag_residences</tspan>
+</text>
+<rect x="40" y="402" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="130" y="431" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="130" dy="0">provide_ep_online_energy_labels</tspan>
+</text>
+<rect x="1080" y="166" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="1170" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="1170" dy="0">lca</tspan>
+</text>
+<rect x="820" y="138" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="910" y="157" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="910" dy="0">thermodynamic_model</tspan>
+<tspan x="910" dy="16">scenario: 2030</tspan>
+</text>
+<rect x="1080" y="261" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="1170" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="1170" dy="0">lca</tspan>
+</text>
+<rect x="820" y="300" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="910" y="319" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="910" dy="0">thermodynamic_model</tspan>
+<tspan x="910" dy="16">scenario: 2050_L</tspan>
+</text>
+<rect x="1080" y="356" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="1170" y="385" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="1170" dy="0">lca</tspan>
+</text>
+<rect x="820" y="381" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="910" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="910" dy="0">thermodynamic_model</tspan>
+<tspan x="910" dy="16">scenario: 2050_M</tspan>
+</text>
+<rect x="1080" y="451" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="1170" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="1170" dy="0">lca</tspan>
+</text>
+<rect x="820" y="219" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="910" y="238" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="910" dy="0">thermodynamic_model</tspan>
+<tspan x="910" dy="16">scenario: 2050_H</tspan>
+</text>
+<rect x="820" y="57" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="910" y="86" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="910" dy="0">cooling_mix_sensitivity</tspan>
+</text>
+<rect x="1340" y="261" width="180" height="48" rx="6" fill="#f7fafc" stroke="#2b6cb0" stroke-width="1.5"/>
+<text x="1430" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1a202c">
+<tspan x="1430" dy="0">scenario_overview_figure</tspan>
+</text>
+</svg>

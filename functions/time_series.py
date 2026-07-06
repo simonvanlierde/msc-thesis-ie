@@ -13,6 +13,25 @@ import requests
 MIN_RESPONSE_LINES_FOR_DATA = 15  # Below this line count, the KNMI API returned only header info and no data
 
 
+def _parse_knmi_response(text: str) -> pd.DataFrame:
+    """Parse a KNMI hourly-data response, locating the header row dynamically.
+
+    The export prefixes the data with a variable number of ``#`` comment lines;
+    the column header is the last comment line before the first data row. Column
+    names are normalised (leading ``# `` stripped, ``HH`` -> ``H``) to match the
+    model, which insulates against the KNMI format drifting.
+    """
+    lines = text.splitlines()
+    first_data_row = next(index for index, line in enumerate(lines) if line.strip() and not line.lstrip().startswith("#"))
+    weather = pd.read_csv(io.StringIO(text), header=first_data_row - 1, skipinitialspace=True)
+    weather.columns = weather.columns.str.lstrip("# ").str.strip()
+    weather = weather.rename(columns={"HH": "H"})
+    if len(weather) <= MIN_RESPONSE_LINES_FOR_DATA:
+        msg = "KNMI API returned no data rows."
+        raise ValueError(msg)
+    return weather
+
+
 def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     """Get raw weather data from KNMI API and convert to DataFrame.
 
@@ -47,17 +66,19 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
         "data/input/parameters/raw_weather_data_2018_2022_HvH.csv"  # Local backup used when the API is unavailable
     )
 
-    # Request the data from the KNMI API, falling back to the local backup file if the API times out
+    # Fetch from the KNMI API, falling back to the committed backup file if the
+    # request fails or the response can't be parsed (timeout, empty body, or the
+    # API format drifting from what the parser expects).
     try:
         response = requests.post(knmi_url, data=knmi_params, timeout=10)  # Send request to KNMI API
-    except requests.exceptions.Timeout, requests.exceptions.ReadTimeout:
-        warnings.warn("The KNMI API request timed out. Backup weather data file will be used instead.", stacklevel=2)
+        response.raise_for_status()
+        weather_series_df = _parse_knmi_response(response.text)
+    except (requests.exceptions.RequestException, pd.errors.ParserError, ValueError, StopIteration) as error:
+        warnings.warn(
+            f"KNMI API unavailable or unparseable ({error}); using local backup weather data.",
+            stacklevel=2,
+        )
         weather_series_df = pd.read_csv(backup_local_weather_data_path, header=6)
-    else:
-        if len(response.text.splitlines()) > MIN_RESPONSE_LINES_FOR_DATA:
-            weather_series_df = pd.read_csv(io.StringIO(response.text), header=9)  # Read data into DataFrame
-        else:  # Sometimes the API returns an empty response with just the header information, in which case we use a backup file
-            weather_series_df = pd.read_csv(backup_local_weather_data_path, header=6)
 
     weather_series_df.columns = (
         weather_series_df.columns.str.strip()

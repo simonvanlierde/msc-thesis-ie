@@ -40,6 +40,23 @@ The pipeline combines three layers:
 The full method and discussion are in the
 [thesis](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a).
 
+## Interactive dashboard
+
+An interactive web dashboard presents these results — a choropleth of cooling demand across
+The Hague, the diurnal/seasonal demand profile, and the life-cycle impact breakdown, with a
+plain-language summary for non-experts. It runs entirely on real model output.
+
+<!-- Live demo: add the Cloudflare Pages URL here once deployed. -->
+
+![Dashboard](dashboard/docs/screenshot.png)
+
+```bash
+cd dashboard && pnpm install && pnpm dev
+```
+
+See [`dashboard/README.md`](dashboard/README.md) for the data-build steps, accessibility
+notes and the Cloudflare Pages deployment.
+
 ## Repository structure
 
 | Path | Description |
@@ -51,6 +68,7 @@ The full method and discussion are in the
 | `data/output/` | Aggregated model results per building type and energy label. |
 | `docs/` | The headline figure and the script that regenerates it. |
 | `tests/` | Unit tests for the geometric, thermodynamic and environmental functions. |
+| `dashboard/` | Interactive web dashboard communicating the results (see below). |
 
 Inside `functions/`:
 
@@ -87,13 +105,107 @@ pip install .
 jupyter lab
 ```
 
-Then download the spatial datasets from Zenodo into `data/input/geodata/` before running
-`gis.ipynb`.
+The Snakemake workflow below acquires the spatial inputs from official PDOK APIs and
+the EP-Online energy-label export (the latter needs a free API key, see below).
 
 ### Regenerating the headline figure
 
 ```bash
 uv run python docs/make_overview_figure.py
+```
+
+## Reproducible Snakemake Pipeline
+
+The existing notebook analysis is also declared as a Snakemake workflow. The
+workflow wraps the same `functions/` model code and notebook outputs; it does
+not replace the scientific calculations with new implementations.
+
+![Snakemake workflow DAG](docs/pipeline_dag.svg)
+
+Create the runner environment once. The workflow still supports `uv` for normal
+development, but the Snakemake runner uses conda-forge packages because the GIS
+stack depends on native GDAL/PROJ/GEOS libraries.
+
+```bash
+conda env create -f workflow/envs/cooling-demand.yml
+conda activate cooling-demand-model
+```
+
+Then reproduce the declared outputs with one command:
+
+```bash
+snakemake --sdm conda --cores 1
+```
+
+The pipeline stages are:
+
+| Rule | Existing analysis step | Main inputs | Main outputs |
+| --- | --- | --- | --- |
+| `fetch_bag_residences` | Official BAG residence/use acquisition | PDOK BAG OGC API `verblijfsobject` collection | `data/raw/pdok_bag/verblijfsobject_the_hague.geojson` |
+| `discover_pdok_3d_height_tiles` | Height-tile discovery | PDOK 3D Basisvoorziening OGC API `hoogtestatistieken_gebouwen` collection | height-tile manifest for The Hague |
+| `download_pdok_3d_height_tiles` | Official height geodata acquisition | PDOK 3D Basisvoorziening tile download links | local GeoPackage ZIP tiles and manifest |
+| `provide_ep_online_energy_labels` | Credentialed energy-label source boundary | EP-Online public export | `data/raw/ep_online/current/energy_labels.csv` |
+| `prepare_bag_geodata` | Scripted replacement for the BAG/geodata joins in `gis.ipynb` | PDOK BAG residences, PDOK 3D height tiles, EP-Online labels | `results/geodata/BAG_buildings_with_residence_data_full.gpkg` |
+| `thermodynamic_model` | cooling-demand model from `main.ipynb` | processed BAG geodata, scenario parameters, KNMI/weather and load-factor inputs | `results/intermediate/buildings_with_cooling_demand_{scenario}_full.gpkg` |
+| `lca` | environmental-impact and aggregation steps from `main.ipynb` | cooling-demand geodata and scenario parameters | `results/CDM_results_{scenario}_full.csv` and CDM geodata |
+| `cooling_mix_sensitivity` | cooling-technology-mix sensitivity cells in `main.ipynb`, extracted to `scripts/run_cooling_mix_sensitivity.py` | processed BAG geodata and SQ scenario parameters | `results/cooling_mix_elasticities_table.csv` |
+| `scenario_overview_figure` | README headline figure script | scenario result CSVs | `results/figures/scenario_overview.png` |
+
+Large raw spatial inputs are not committed. PDOK BAG data is licensed under
+Public Domain Mark 1.0; PDOK 3D Basisvoorziening is licensed under CC BY 4.0.
+The source URLs, bbox and selected 3D Basisvoorziening year are declared in
+`config/sources.yaml`.
+
+### Where outputs go
+
+The pipeline writes everything it generates under `results/` (configurable via
+`results_dir` in `config/sources.yaml`), leaving the committed reference results
+in `data/output/` and `docs/` untouched. This makes a pipeline run safe to
+repeat and lets you check reproduction directly:
+
+```bash
+diff results/CDM_results_SQ_full.csv data/output/CDM_results_SQ_full.csv
+```
+
+`results/` and the fetched `data/raw/` inputs are git-ignored. To refresh the
+committed README figure from the reference results, run the figure script with
+its defaults: `uv run python docs/make_overview_figure.py`.
+
+### EP-Online energy labels
+
+`provide_ep_online_energy_labels` downloads the full public label export via the
+EP-Online v5 API. Put your key in a `.env` file at the repo root:
+
+```bash
+EP_ONLINE_API_KEY=your-key-here
+```
+
+The rule resolves the signed download URL, streams the ZIP, and extracts the CSV
+to `data/raw/ep_online/current/energy_labels.csv` (~1.5 GB uncompressed). It
+skips the download when a valid file is already present. The key is read from the
+environment or `.env` and is never committed. Request a key at
+<https://www.ep-online.nl/PublicData>.
+
+Notes:
+
+- PDOK 3D height-attribute column names were verified against a 2025
+  `hoogtestatistieken_gebouwen` tile (`identificatie`, `status`,
+  `oorspronkelijkbouwjaar`, `rf_h_ground`, `rf_h_roof_70p`). If a future
+  vintage changes the schema, `scripts/gis/prepare_pdok_model_geodata.py` fails
+  loudly listing the available columns instead of guessing.
+- The cooling-technology-mix sensitivity is a heavy stage: 30 ordered
+  technology pairs, each a 20-step mix sweep running the full model over the
+  building stock. Lower `--calculation-steps` in the rule for a faster,
+  coarser table.
+
+To refresh the committed DAG after editing `Snakefile`, run:
+
+```bash
+# Reproduces the committed SVG (no Graphviz binary required)
+snakemake --dag | python scripts/dot_to_simple_svg.py > docs/pipeline_dag.svg
+
+# Alternative, if Graphviz `dot` is installed (styled differently)
+snakemake --dag | dot -Tsvg > docs/pipeline_dag.svg
 ```
 
 ## Development

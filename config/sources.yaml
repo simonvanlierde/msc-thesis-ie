@@ -1,0 +1,32 @@
+# Root for all pipeline-generated outputs. Kept separate from the committed
+# reference results in data/output/ so a pipeline run never overwrites the
+# originals (diff results/ against data/output/ to check reproduction).
+results_dir: results
+
+area:
+  name: The Hague
+  # CRS84 lon/lat bbox used for OGC API discovery. Keep deliberately a little
+  # wider than the municipal outline; downstream geodata prep clips/joins.
+  bbox: [4.18, 51.95, 4.43, 52.14]
+
+pdok_bag:
+  base_url: https://api.pdok.nl/kadaster/bag/ogc/v2
+  collections:
+    buildings: pand
+    residences: verblijfsobject
+  license: Public Domain Mark 1.0
+  source_url: https://api.pdok.nl/kadaster/bag/ogc/v2/api
+
+pdok_3d_basisvoorziening:
+  base_url: https://api.pdok.nl/kadaster/3d-basisvoorziening/ogc/v1
+  height_collection: hoogtestatistieken_gebouwen
+  year: 2025
+  license: CC BY 4.0
+  source_url: https://api.pdok.nl/kadaster/3d-basisvoorziening/ogc/v1/api
+
+ep_online:
+  # EP-Online public files require an API key/export. The pipeline validates and
+  # consumes this file once supplied; it does not commit credentials or mirror
+  # the national label export.
+  energy_labels_csv: data/raw/ep_online/current/energy_labels.csv
+  source_url: https://www.ep-online.nl/PublicData

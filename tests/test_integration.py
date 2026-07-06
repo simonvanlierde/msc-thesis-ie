@@ -98,7 +98,7 @@ def _run_sq_total_cooling_demand(monkeypatch: pytest.MonkeyPatch, buildings: pd.
         PARAMETER_DIR / "parameters_cooling_technology.csv", SCENARIO
     )
 
-    with pytest.warns(UserWarning, match="timed out"):
+    with pytest.warns(UserWarning, match="backup"):
         raw_weather_data = get_raw_weather_data(global_parameters)
 
     result, _impact_summary = run_CDM_model_for_SA(
