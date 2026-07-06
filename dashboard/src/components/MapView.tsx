@@ -8,6 +8,7 @@ import {
   quantileBreaks,
 } from "../lib/choropleth";
 import { num } from "../lib/format";
+import { bbox } from "../lib/geo";
 import type { Palette } from "../lib/palette";
 import type { BuurtCollection, ScenarioKey } from "../lib/types";
 import { Legend } from "./Legend";
@@ -26,26 +27,6 @@ const fmt: Record<MapMetric, (n: number) => string> = {
   intensity: (n) => num(n, 1),
   total: (n) => num(n, 1),
 };
-
-function bbox(fc: BuurtCollection): [number, number, number, number] {
-  let minX = 180;
-  let minY = 90;
-  let maxX = -180;
-  let maxY = -90;
-  const scan = (c: unknown): void => {
-    if (typeof c === "number") return;
-    const arr = c as unknown[];
-    if (typeof arr[0] === "number") {
-      const [x, y] = arr as number[];
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    } else for (const p of arr) scan(p);
-  };
-  for (const f of fc.features) scan((f.geometry as { coordinates: unknown }).coordinates);
-  return [minX, minY, maxX, maxY];
-}
 
 export function MapView({ buurten, scenario, palette }: Props) {
   const container = useRef<HTMLDivElement>(null);

@@ -19,7 +19,7 @@
     "test:coverage": "vitest --run --coverage",
     "test:e2e": "playwright test",
     "check": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build",
-    "data": "python scripts/build_scenarios.py && python scripts/build_choropleth.py && python scripts/build_temporal.py",
+    "data": "python scripts/build_scenarios.py && python scripts/build_choropleth.py && python scripts/build_temporal.py && python scripts/build_hourly_frames.py",
     "prepare": "lefthook install || true"
   },
   "dependencies": {

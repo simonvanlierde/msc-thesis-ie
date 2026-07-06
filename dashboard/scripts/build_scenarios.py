@@ -11,6 +11,8 @@ Out:  dashboard/public/data/scenarios.json
 No third-party deps (stdlib csv/json) so it runs anywhere without the model env.
 """
 
+# CLI build script (not the linted scientific package): prints, asserts, deferred imports are intentional.
+# ruff: noqa: D103, E741, EXE001, PLR2004, S101, T201
 from __future__ import annotations
 
 import csv
@@ -130,7 +132,9 @@ def self_check(data: dict) -> None:
     demand = sum(r["E_cooling_kWh"] for r in sq)
     ghg = sum(r["GHG_emissions_total_kgCO2eq"] for r in sq)
     off = [r for r in sq if r["use"] == "Office"]
-    share = lambda sub, tot: sum(sub) / tot  # noqa: E731
+
+    def share(sub: list[float], tot: float) -> float:
+        return sum(sub) / tot
 
     office_area = share([r["floor_area_m2"] for r in off], area)
     office_demand = share([r["E_cooling_kWh"] for r in off], demand)

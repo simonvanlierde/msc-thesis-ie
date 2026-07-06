@@ -13,11 +13,12 @@ Each building is assigned to the buurt containing its centroid (buurten partitio
 city, so no double counting). We ship buurt geometry once with per-scenario values, not
 raw building polygons — 114 simplified polygons instead of 59k, keeping the map fast.
 
-Uses fiona + shapely + pyproj directly (the pinned geopandas 0.13 is incompatible with
-the installed fiona 1.10). Run:  python dashboard/scripts/build_choropleth.py
+Run:  python dashboard/scripts/build_choropleth.py
 If the geodata isn't present it exits cleanly so the JSON build still works without it.
 """
 
+# CLI build script (not the linted scientific package): prints, asserts, deferred imports are intentional.
+# ruff: noqa: ANN001, ANN202, D103, EXE001, PLC0415, T201
 from __future__ import annotations
 
 import json
@@ -42,70 +43,47 @@ SUM_COLS = {
 
 
 def main() -> int:
-    import fiona
-    from shapely.geometry import mapping, shape
-    from shapely.ops import transform as shp_transform
-    from shapely.strtree import STRtree
+    import geopandas as gpd
+    from shapely.geometry import mapping
 
     if not DIVISIONS.exists():
         print(f"missing {DIVISIONS.relative_to(REPO)} — skipping choropleth build.")
         return 0
 
-    # --- load buurten, build a spatial index for point-in-polygon assignment ---
-    codes: list[str] = []
-    names: list[str] = []
-    geoms = []
-    with fiona.open(DIVISIONS, layer="Neighbourhoods_TheHague") as src:
-        src_crs = src.crs
-        for feat in src:
-            p = feat["properties"]
-            codes.append(p["buurtcode"])
-            names.append(p["buurtnaam"])
-            geoms.append(shape(feat["geometry"]))
-    tree = STRtree(geoms)
-    values: dict[str, dict] = {c: {"buurtcode": c, "buurtnaam": n} for c, n in zip(codes, names)}
+    # --- load buurten (the aggregation units) ---
+    buurten = gpd.read_file(DIVISIONS, layer="Neighbourhoods_TheHague")[["buurtcode", "buurtnaam", "geometry"]]
+    values: dict[str, dict] = {
+        r.buurtcode: {"buurtcode": r.buurtcode, "buurtnaam": r.buurtnaam} for r in buurten.itertuples()
+    }
 
-    # --- sum building results into buurten, per scenario ---
+    # --- sum building results into buurten, per scenario (centroid within buurt) ---
     for scen in SCENARIOS:
         gpkg = BUILDINGS / f"buildings_with_CDM_results_{scen}_full.gpkg"
         if not gpkg.exists():
             print(f"  {scen}: no GPKG, skipping this scenario")
             continue
-        acc: dict[str, dict] = {}
-        assigned = 0
-        with fiona.open(gpkg) as src:
-            for feat in src:
-                pt = shape(feat["geometry"]).representative_point()
-                hits = tree.query(pt, predicate="within")
-                if len(hits) == 0:
-                    continue
-                code = codes[int(hits[0])]
-                p = feat["properties"]
-                rec = acc.setdefault(code, {"n": 0})
-                rec["n"] += 1
-                for col in SUM_COLS:
-                    rec[col] = rec.get(col, 0.0) + float(p.get(col) or 0.0)
-                assigned += 1
-        for code, rec in acc.items():
+        b = gpd.read_file(gpkg)[[*SUM_COLS, "geometry"]]
+        b["geometry"] = b.geometry.representative_point()
+        joined = gpd.sjoin(b, buurten[["buurtcode", "geometry"]], predicate="within")
+        agg = joined.groupby("buurtcode")[list(SUM_COLS)].sum()
+        n = joined.groupby("buurtcode").size()
+        for code, row in agg.iterrows():
             out = values[code]
             for col, dst in SUM_COLS.items():
-                out[f"{scen}__{dst}"] = round(rec[col], 1)
-            out[f"{scen}__n_buildings"] = rec["n"]
-        print(f"  {scen}: {assigned} buildings across {len(acc)} buurten")
+                out[f"{scen}__{dst}"] = round(float(row[col]), 1)
+            out[f"{scen}__n_buildings"] = int(n[code])
+        print(f"  {scen}: {int(n.sum())} buildings across {len(agg)} buurten")
 
     # --- simplify + reproject to WGS84, emit rounded GeoJSON ---
-    import pyproj
-
-    to_wgs84 = pyproj.Transformer.from_crs(src_crs, "EPSG:4326", always_xy=True).transform
+    buurten["geometry"] = buurten.geometry.simplify(SIMPLIFY_M, preserve_topology=True)
+    buurten = buurten.to_crs("EPSG:4326")
 
     features = []
-    for code, name, geom in zip(codes, names, geoms):
-        props = values[code]
+    for r in buurten.itertuples():
+        props = values[r.buurtcode]
         if not any(k.endswith("__E_cooling_kWh") for k in props):
             continue  # buurt with no buildings (e.g. water) — drop it
-        simplified = geom.simplify(SIMPLIFY_M, preserve_topology=True)
-        wgs = shp_transform(to_wgs84, simplified)
-        gj = _round_coords(mapping(wgs), COORD_DP)
+        gj = _round_coords(mapping(r.geometry), COORD_DP)
         features.append({"type": "Feature", "properties": props, "geometry": gj})
 
     fc = {

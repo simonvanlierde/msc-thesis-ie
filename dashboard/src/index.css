@@ -268,6 +268,33 @@ fieldset.segmented > legend {
   outline: 3px solid var(--focus);
 }
 
+/* Time-lapse player */
+.player {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+.player__play {
+  min-width: 5.5rem;
+}
+.player__label {
+  font-size: 1rem;
+}
+.player__label strong {
+  font-variant-numeric: tabular-nums;
+}
+.player__slider {
+  flex: 1 1 240px;
+  accent-color: #e31a1c;
+  height: 1.5rem;
+}
+.player__slider:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 /* Legend */
 .legend {
   display: flex;

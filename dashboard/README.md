@@ -5,6 +5,8 @@ life-cycle environmental impact in The Hague. It turns the thesis result files i
 views for a mixed audience (researchers, policymakers, general public):
 
 - **Where** — a choropleth of cooling demand across the city's 112 neighbourhoods (buurten).
+- **Year** — a scrubbable hour-by-hour time-lapse: watch the city flush from pale (winter nights)
+  to deep red (summer afternoons).
 - **When** — diurnal and seasonal cooling-demand profiles.
 - **Impact** — the life-cycle greenhouse-gas breakdown and how impacts split across building use.
 
@@ -25,6 +27,7 @@ Every number traces to the thesis model — nothing is invented. Three small bui
 | `build_scenarios.py` | `public/data/scenarios.json` (~47 kB) | `data/output/CDM_results_*.csv` (committed) | Per-archetype cooling + LCA totals for all 5 scenarios. A self-check reproduces the README headline (offices: 13% area, 34% demand, 65% GHG) from the built data. |
 | `build_choropleth.py` | `public/data/cooling_by_buurt.geojson` (~127 kB) | per-building GPKG + CBS buurt boundaries (git-ignored, from Zenodo) | 59,381 buildings aggregated to 112 buurten by centroid, geometry simplified and reprojected to WGS84. Buurt sums match the archetype totals to 0.00% for the present-day (SQ) scenario. |
 | `build_temporal.py` | `public/data/temporal.json` (~3 kB) | per-building GPKG + committed weather/parameter CSVs | Re-runs the thesis heat-balance model on a stratified building sample, averages 2018–2022 weather into a typical year, calibrated to the published annual totals. Validated: per-building annual `E_cooling` reproduces the published value to **~0.03% median error**. |
+| `build_hourly_frames.py` | `public/data/cooling_frames.json` (~186 kB) | per-building GPKG + committed weather/parameter CSVs | Runs the heat-balance model over *all* 59k buildings, aggregates hourly cooling per buurt, and reduces a typical year to a 12×24 (month×hour) grid of cooling intensity (W/m²) for the "Year" time-lapse. ~40 s. |
 
 The spatial and temporal builds need the Zenodo geodata
 ([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)); the GeoPackages are

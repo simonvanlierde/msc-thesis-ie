@@ -5,3 +5,8 @@ playwright-report/
 test-results/
 .wrangler/
 *.local
+
+# The repo-root .gitignore ignores any `lib/` (for the Python build); re-include
+# our TypeScript source lib, which is real tracked code.
+!src/lib/
+!src/lib/**

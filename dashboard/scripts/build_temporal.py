@@ -19,6 +19,8 @@ Output: dashboard/public/data/temporal.json
 Run:    python dashboard/scripts/build_temporal.py   (needs the model env / .venv)
 """
 
+# CLI build script (not the linted scientific package): prints, asserts, deferred imports are intentional.
+# ruff: noqa: ANN002, ANN003, ANN202, B007, C901, D103, EXE001, PLC0415, PLR0915, PLR2004, RSE102, T201
 from __future__ import annotations
 
 import json
@@ -53,11 +55,10 @@ SEASON_OF_MONTH = {
 def main() -> int:
     os.chdir(REPO)
     sys.path.insert(0, str(REPO))
-    import fiona
+    import geopandas as gpd
     import numpy as np
     import pandas as pd
     import requests
-    from shapely.geometry import shape
 
     from functions.data_handling import (
         add_derived_parameters_to_buildings,
@@ -86,12 +87,9 @@ def main() -> int:
     ec = read_parameter_specific_data(par / "parameters_energy_class.csv")
 
     # --- read every building's use + published E_cooling, keep a stratified sample ---
-    rows, geoms = [], []
-    with fiona.open(gpkg) as src:
-        for feat in src:
-            rows.append(dict(feat["properties"]))
-            geoms.append(feat["geometry"])
-    allb = pd.DataFrame(rows)
+    gdf = gpd.read_file(gpkg).reset_index(drop=True)
+    geoms = list(gdf.geometry)  # shapely geometries, positionally aligned to allb
+    allb = pd.DataFrame(gdf.drop(columns="geometry"))
     published_by_use = allb.groupby("end_use")["E_cooling_kWh"].sum().to_dict()
 
     rng = np.random.default_rng(42)  # fixed seed → reproducible build
@@ -106,7 +104,7 @@ def main() -> int:
     # recompute MBR width/length from the footprint (GPKG omits them)
     w, ln = [], []
     for i in keep:
-        geom = shape(geoms[i])
+        geom = geoms[i]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             rect = geom.minimum_rotated_rectangle

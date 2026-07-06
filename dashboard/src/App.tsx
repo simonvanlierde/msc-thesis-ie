@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { HourlyMap } from "./components/HourlyMap";
 import { LcaView } from "./components/LcaView";
 import { MapView } from "./components/MapView";
 import { ScenarioPicker } from "./components/ScenarioPicker";
@@ -32,6 +33,7 @@ export function App() {
           <h1>Cooling for Comfort · The Hague</h1>
           <nav aria-label="Sections">
             <a href="#map">Where</a>
+            <a href="#year">Year</a>
             <a href="#when">When</a>
             <a href="#impact">Impact</a>
           </nav>
@@ -68,6 +70,7 @@ export function App() {
             </div>
 
             <MapView buurten={data.buurten} scenario={scenario} palette={palette} />
+            <HourlyMap buurten={data.buurten} frames={data.frames} palette={palette} />
             <TemporalView temporal={data.temporal} palette={palette} />
             <LcaView data={data.scenarios} scenario={scenario} palette={palette} />
 
