@@ -27,7 +27,8 @@ from functions.sensitivity_analysis import run_CDM_model_for_SA
 from functions.time_series import get_raw_weather_data
 
 PARAMETER_DIR = Path("data/input/parameters")
-SQ_DIR = PARAMETER_DIR / "parameters_SQ"
+PARAMETERS_TOML = PARAMETER_DIR / "parameters.toml"
+SCENARIO = "SQ"
 REAL_BAG_GPKG = Path("data/output/geodata/BAG_buildings_with_residence_data_full.gpkg")
 REAL_BAG_LAYER = "BAG_buildings_full"
 
@@ -42,10 +43,10 @@ REFERENCE_REAL_BAG_TOTAL_E_COOLING_KWH = 33_712_532.52
 
 # Skip cleanly if the real parameter / weather inputs are not checked out.
 REQUIRED_INPUTS = [
-    SQ_DIR / "parameters_global.csv",
-    SQ_DIR / "parameters_building_type.csv",
-    SQ_DIR / "parameters_energy_class.csv",
-    SQ_DIR / "parameters_cooling_technology.csv",
+    PARAMETERS_TOML,
+    PARAMETER_DIR / "parameters_building_type.csv",
+    PARAMETER_DIR / "parameters_energy_class.csv",
+    PARAMETER_DIR / "parameters_cooling_technology.csv",
     PARAMETER_DIR / "multidirectional_solar_radiation_fractions.csv",
     PARAMETER_DIR / "presence_load_factors.csv",
     PARAMETER_DIR / "raw_weather_data_2018_2022_HvH.csv",
@@ -90,10 +91,12 @@ def _run_sq_total_cooling_demand(monkeypatch: pytest.MonkeyPatch, buildings: pd.
 
     monkeypatch.setattr(requests, "post", fake_post)
 
-    global_parameters = read_global_parameters(SQ_DIR / "parameters_global.csv")
-    building_type_parameters = read_parameter_specific_data(SQ_DIR / "parameters_building_type.csv")
-    energy_class_parameters = read_parameter_specific_data(SQ_DIR / "parameters_energy_class.csv")
-    cooling_technology_parameters = read_parameter_specific_data(SQ_DIR / "parameters_cooling_technology.csv")
+    global_parameters = read_global_parameters(PARAMETERS_TOML, SCENARIO)
+    building_type_parameters = read_parameter_specific_data(PARAMETER_DIR / "parameters_building_type.csv", SCENARIO)
+    energy_class_parameters = read_parameter_specific_data(PARAMETER_DIR / "parameters_energy_class.csv", SCENARIO)
+    cooling_technology_parameters = read_parameter_specific_data(
+        PARAMETER_DIR / "parameters_cooling_technology.csv", SCENARIO
+    )
 
     with pytest.warns(UserWarning, match="timed out"):
         raw_weather_data = get_raw_weather_data(global_parameters)

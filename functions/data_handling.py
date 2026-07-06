@@ -8,6 +8,7 @@ from __future__ import annotations
 # Import packages
 import csv
 import json
+import tomllib
 from typing import TYPE_CHECKING
 
 import geopandas as gpd
@@ -48,15 +49,28 @@ def read_buildings(buildings_path: Path, layer_name: str = "BAG_buildings") -> g
     )
 
 
-def read_global_parameters(global_parameters_path: Path) -> dict[str, float]:
-    """Reads the global parameters for the cooling demand model from a csv file.
+def read_global_parameters(global_parameters_path: Path, scenario: str | None = None) -> dict[str, float]:
+    """Reads the global parameters for the cooling demand model.
+
+    Supports two formats:
+    - the consolidated ``parameters.toml`` (``.toml`` suffix), where ``scenario`` selects the
+      ``[base]`` values merged with the ``[scenario.<scenario>]`` overrides;
+    - a legacy per-scenario ``parameters_global.csv`` (``parameter,value,unit``), where ``scenario`` is ignored.
 
     Args:
-        global_parameters_path (Path): The path to the csv file containing the global parameters for the cooling demand model.
+        global_parameters_path (Path): The path to the parameters.toml or legacy csv file.
+        scenario (str, optional): The scenario to select when reading the consolidated TOML. Defaults to None.
 
     Returns:
         dict[str, float]: The dictionary containing the global parameters for the cooling demand model.
     """
+    if global_parameters_path.suffix == ".toml":
+        with global_parameters_path.open("rb") as toml_file:
+            config = tomllib.load(toml_file)
+        merged = {**config.get("base", {}), **config.get("scenario", {}).get(scenario, {})}
+        # Keep list-valued parameters (e.g. energy_class_ranges) as lists; coerce the rest to float
+        return {key: value if isinstance(value, list) else float(value) for key, value in merged.items()}
+
     with global_parameters_path.open() as csv_file:
         reader = csv.DictReader(csv_file)
         return {
@@ -67,34 +81,41 @@ def read_global_parameters(global_parameters_path: Path) -> dict[str, float]:
         }  # Convert the string value to a list of lists for the energy label class ranges and to a float for the other parameters
 
 
-def read_parameter_specific_data(parameters_path: Path) -> list[dict]:
+def read_parameter_specific_data(parameters_path: Path, scenario: str | None = None) -> list[dict]:
     """Reads the building, energy label or cooling technology parameters for the cooling demand model from a csv file.
 
-    Each record mixes value types (an integer id, a string name, optional list-valued columns and float parameters), so the dictionaries are intentionally left untyped at the value level.
+    Each record mixes value types (an integer id, a string name, optional list-valued columns and float parameters), so the dictionaries are intentionally left untyped at the value level. A consolidated tidy csv carrying a ``scenario`` column is filtered to ``scenario``; a legacy per-scenario csv (no such column) is read as-is.
 
     Args:
         parameters_path (Path): The path to the csv file containing the parameters for the cooling demand model.
+        scenario (str, optional): The scenario to keep when reading a consolidated tidy csv. Defaults to None.
 
     Returns:
         list[dict]: The list of dictionaries containing the parameters for the cooling demand model.
     """
     with parameters_path.open() as csv_file:
         reader = csv.DictReader(csv_file)
-        return [
-            {
-                key: int(value)
-                if i
-                == 0  # Convert the value of the first parameter (which contains the building type, energy class or cooling technology in integer representation) to integer
-                else str(value)
-                if i
-                == 1  # Convert the value of the second parameter (which contains the building type, energy class or cooling technology name) to string
-                else json.loads(value)
-                if key.startswith("energy_labels_included_")  #  Convert energy label lists to a list
-                else float(value)  # Convert all other parameter values to float
-                for i, (key, value) in enumerate(row.items())
-            }
-            for row in reader
-        ]  # Add the parameter and value to the dictionary for each row
+        parameter_specific_data = []
+        for row in reader:
+            if (
+                "scenario" in row
+            ):  # Consolidated tidy csv: keep only the requested scenario, then drop the marker column
+                if row["scenario"] != scenario:
+                    continue
+                del row["scenario"]
+            parameter_specific_data.append(
+                {
+                    key: int(value)
+                    if i == 0  # First parameter (building type, energy class or cooling technology as an integer)
+                    else str(value)
+                    if i == 1  # Second parameter (building type, energy class or cooling technology name)
+                    else json.loads(value)
+                    if key.startswith("energy_labels_included_")  # Energy label lists
+                    else float(value)  # All other parameter values
+                    for i, (key, value) in enumerate(row.items())
+                },
+            )
+        return parameter_specific_data
 
 
 # NOTE: The following function is not used in the current version of the model, but is kept for archival sake
