@@ -126,52 +126,6 @@ def run_CDM_model_for_SA(
     return buildings, impact_summary
 
 
-def run_CDM_model_for_SA_for_indirect_parameter(
-    variable_name_to_report: str,
-    aggregation_type: str,
-    parameters: dict,
-) -> tuple[pd.DataFrame, dict[str, dict[str, float]], float]:
-    """A wrapper function that runs the cooling demand model for a sensitivity analysis and reports back the value of an indirect parameter.
-
-    Args:
-        variable_name_to_report (str): The column name of the variable to report the value of.
-        aggregation_type (str): The type of aggregation to use for the results. Either "sum" or "mean".
-        parameters (dict): A dictionary containing the parameters for the cooling demand model.
-
-    Returns:
-        tuple[pd.DataFrame, dict[str, dict[str, float]], float]: The buildings DataFrame with cooling demand metrics and environmental impacts added, the impact summary, and the aggregated value of the requested indirect variable.
-    """
-    # Run the cooling demand model, reusing the shared SA runner
-    buildings, impact_summary = run_CDM_model_for_SA(
-        parameters["buildings"],
-        parameters["raw_weather_data"],
-        parameters["global_parameters"],
-        parameters["building_type_parameters"],
-        parameters["energy_class_parameters"],
-        parameters["cooling_technology_parameters"],
-        parameters["multi_directional_solar_radiation_fractions_path"],
-        parameters["presence_load_factors_path"],
-    )
-
-    # Calculate the total floor area of the buildings
-    total_floor_area_m2 = buildings["floor_area_total_m2"].sum()
-
-    # Calculate the weighted value of the variable
-    if aggregation_type == "sum":
-        value_of_variable = (
-            buildings[variable_name_to_report] * buildings["floor_area_total_m2"]
-        ).sum() / total_floor_area_m2
-    elif aggregation_type == "mean":
-        value_of_variable = (
-            buildings[variable_name_to_report] * buildings["floor_area_total_m2"]
-        ).mean() / total_floor_area_m2
-    else:
-        msg = "The aggregation type must be either 'sum' or 'mean'."
-        raise ValueError(msg)
-
-    return buildings, impact_summary, value_of_variable
-
-
 def run_SA_for_variable_in_global_parameters(
     variable_name: str,
     variable_start: float,

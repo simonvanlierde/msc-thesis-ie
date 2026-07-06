@@ -118,29 +118,6 @@ def read_parameter_specific_data(parameters_path: Path, scenario: str | None = N
         return parameter_specific_data
 
 
-# NOTE: The following function is not used in the current version of the model, but is kept for archival sake
-def read_time_series_from_csv(time_series_path: Path, global_parameters: dict[str, float]) -> dict[str, np.ndarray]:
-    """Reads the time series data from a csv file and converts it to a dictionary of numpy arrays.
-
-    Args:
-        time_series_path (Path): The path to the csv file containing the time series data.
-        global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
-
-    Returns:
-        dict[str, np.ndarray]: The dictionary containing the time series data.
-    """
-    # Read the time series data
-    time_series_df = pd.read_csv(time_series_path)
-
-    # Convert each column of the time series DataFrame to a numpy array and store them in a dictionary
-    time_series = {col: time_series_df[col].to_numpy() for col in time_series_df.columns}
-
-    # Add a key to the time series dictionary with the difference between the inside cooling threshold temperature and the outside air temperature in °C
-    time_series["T_outdoor_minus_indoor_C"] = time_series["T_outdoor_C"] - global_parameters["T_thresh_C"]
-
-    return time_series
-
-
 # Building type parameter assignment functions
 
 
