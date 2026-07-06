@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from functions.constants import HOURS_PER_YEAR
+from functions.constants import HOURS_PER_YEAR, IMAGE_OUTPUT_DIR
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -105,7 +105,7 @@ def _plot_thermal_flows(
 
     if save_figure:
         plt.savefig(
-            f"data/output/images/thermal_flows/thermal_components_{'sorted' if sort_hours else ''}_{filename_group}_{filename_id}_{start_date}_to_{end_date}_{scenario}_{building_subset_name}.png",
+            f"{IMAGE_OUTPUT_DIR}/thermal_flows/thermal_components_{'sorted' if sort_hours else ''}_{filename_group}_{filename_id}_{start_date}_to_{end_date}_{scenario}_{building_subset_name}.png",
             dpi=300,
         )
     plt.show()
@@ -268,7 +268,7 @@ def _plot_cooling_loads(
 
     if save_figure:
         plt.savefig(
-            f"data/output/images/thermal_flows/cooling_load_{filename_group}_{filename_id}_{scenario}_{building_subset_name}.png",
+            f"{IMAGE_OUTPUT_DIR}/thermal_flows/cooling_load_{filename_group}_{filename_id}_{scenario}_{building_subset_name}.png",
             dpi=300,
         )
     plt.show()
