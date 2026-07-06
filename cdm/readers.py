@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 
 import geopandas as gpd
 
+from cdm.constants import REQUIRED_GLOBAL_PARAMETERS
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -56,6 +58,14 @@ def read_global_parameters(global_parameters_path: Path, scenario: str | None = 
     with global_parameters_path.open("rb") as toml_file:
         config = tomllib.load(toml_file)
     merged = {**config.get("base", {}), **config.get("scenario", {}).get(scenario, {})}
+
+    # Fail loudly at load if the config is missing a parameter the model needs, rather than
+    # deep inside the model with a cryptic KeyError.
+    missing = REQUIRED_GLOBAL_PARAMETERS - merged.keys()
+    if missing:
+        msg = f"parameters.toml (scenario {scenario!r}) is missing required global parameters: {sorted(missing)}"
+        raise ValueError(msg)
+
     # Keep list-valued parameters (e.g. energy_class_ranges) as lists; coerce the rest to float
     return {key: value if isinstance(value, list) else float(value) for key, value in merged.items()}
 
