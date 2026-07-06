@@ -1,0 +1,6 @@
+{
+  // Cloudflare Pages: build output is a static SPA in ./dist (same pattern as tide).
+  "name": "cooling-dashboard",
+  "compatibility_date": "2026-07-06",
+  "pages_build_output_dir": "./dist"
+}
