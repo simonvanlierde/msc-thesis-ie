@@ -58,6 +58,8 @@ building_stock_growth_residential_new = "-"
 building_stock_growth_office_old = "-"
 
 [scenario."SQ"]
+# 2025 grid carbon intensity (262.2 g CO2/kWh, electricitymaps.com) — Simon to confirm/verify, see TODOS.md
+carbon_intensity_electric_grid_kgCO2eq_kWh = 0.2622
 UHI_effect_day_C = 8.3
 UHI_effect_night_C = 2.1
 delta_T_winter_C = 0.0
@@ -70,7 +72,6 @@ delta_P_solar_RoY = 0.0
 T_thresh_C = 25.0
 people_density_office = 0.07
 T_sub_C = 11.8
-carbon_intensity_electric_grid_kgCO2eq_kWh = 0.427
 gwp_refrigerant_kgCO2eq_kg = 1603.0
 building_stock_growth_residential_new = 0.0
 building_stock_growth_office_old = 0.0
