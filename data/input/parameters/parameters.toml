@@ -2,8 +2,8 @@
 # [base] holds values shared by all scenarios; [scenario.*] holds only the per-scenario overrides.
 
 [base]
-weather_data_start_year = 2018.0
-weather_data_end_year = 2022.0
+weather_data_start_year = 2021.0
+weather_data_end_year = 2025.0
 weather_station = 330.0
 people_per_hh = 2.01
 air_heat_capacity = 1006.0
