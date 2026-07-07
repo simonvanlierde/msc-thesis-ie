@@ -34,7 +34,7 @@ export function HourlyMap({ buurten, frames, palette }: Props) {
 
   // geometry for buurten that have frame data, as a mutable working collection
   const work = useMemo(() => {
-    if (!buurten || !frames) return null;
+    if (!(buurten && frames)) return null;
     const features = buurten.features
       .filter((f) => codeIndex.has(f.properties.buurtcode))
       .map((f) => ({ ...f, properties: { ...f.properties, __c: palette.grid, __v: 0 } }));
@@ -49,7 +49,7 @@ export function HourlyMap({ buurten, frames, palette }: Props) {
   const paint = useCallback(
     (idx: number) => {
       const m = map.current;
-      if (!m || !ready || !work || !frames) return;
+      if (!(m && ready && work && frames)) return;
       const row = frames.frames[idx];
       for (const f of work.features) {
         const v = row[codeIndex.get(f.properties.buurtcode) ?? -1] ?? 0;
@@ -64,7 +64,7 @@ export function HourlyMap({ buurten, frames, palette }: Props) {
   // init map once
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only setup
   useEffect(() => {
-    if (!container.current || !buurten || !frames) return;
+    if (!(container.current && buurten && frames)) return;
     const m = new maplibregl.Map({
       container: container.current,
       style: {
@@ -141,7 +141,7 @@ export function HourlyMap({ buurten, frames, palette }: Props) {
     ? frames.frames[frame].reduce((s, v) => s + v, 0) / frames.frames[frame].length
     : 0;
 
-  if (!buurten || !frames) {
+  if (!(buurten && frames)) {
     return (
       <section id="year" aria-labelledby="year-h">
         <h2 id="year-h">A year of cooling</h2>

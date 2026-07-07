@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 // The dashboard is one page; wait until the async data has rendered all three views.
 async function ready(page: import("@playwright/test").Page) {
   await page.goto("/");
+  // biome-ignore lint/performance/useTopLevelRegex: The regex is only used for a single string match, so it doesn't need to be top-level.
   await expect(page.getByRole("heading", { name: /life-cycle environmental impact/i })).toBeVisible(
     { timeout: 20_000 },
   );

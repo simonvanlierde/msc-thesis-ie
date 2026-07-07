@@ -39,11 +39,11 @@ export function MapView({ buurten, scenario, palette }: Props) {
     if (!buurten) return null;
     const values = buurten.features
       .map((f) => metricValue(f.properties, scenario, metric))
-      .filter((v): v is number => v != null);
+      .filter((v): v is number => v !== null);
     const breaks = quantileBreaks(values, palette.sequential.length);
     const features = buurten.features.map((f) => {
       const v = metricValue(f.properties, scenario, metric);
-      const color = v == null ? palette.grid : palette.sequential[binIndex(v, breaks)];
+      const color = v === null ? palette.grid : palette.sequential[binIndex(v, breaks)];
       return { ...f, properties: { ...f.properties, __v: v ?? -1, __c: color } };
     });
     const fc = { ...buurten, features } as unknown as GeoJSON.FeatureCollection;
@@ -54,7 +54,7 @@ export function MapView({ buurten, scenario, palette }: Props) {
   // Init the map once.
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount only
   useEffect(() => {
-    if (!container.current || !buurten) return;
+    if (!(container.current && buurten)) return;
     const m = new maplibregl.Map({
       container: container.current,
       style: {
@@ -117,7 +117,7 @@ export function MapView({ buurten, scenario, palette }: Props) {
   // Push new data / colours whenever the view changes.
   useEffect(() => {
     const m = map.current;
-    if (!m || !ready || !view) return;
+    if (!(m && ready && view)) return;
     (m.getSource("buurten") as maplibregl.GeoJSONSource | undefined)?.setData(view.fc);
     m.setPaintProperty("bg", "background-color", palette.page);
     m.setPaintProperty("outline", "line-color", palette.baseline);
@@ -184,7 +184,7 @@ function BuurtTable({
 }) {
   const rows = fc.features
     .map((f) => ({ name: f.properties.buurtnaam, v: metricValue(f.properties, scenario, metric) }))
-    .filter((r) => r.v != null)
+    .filter((r) => r.v !== null)
     .sort((a, b) => (b.v as number) - (a.v as number))
     .slice(0, 15);
   return (

@@ -14,7 +14,7 @@ export function metricValue(
   metric: MapMetric,
 ): number | null {
   const e = p[`${scenario}__E_cooling_kWh`] as number | undefined;
-  if (e == null) return null;
+  if (e === null) return null;
   if (metric === "total") return e / 1e6; // GWh
   const area = p[`${scenario}__floor_area_m2`] as number | undefined;
   if (!area) return null;
@@ -53,9 +53,9 @@ export function legendRows(
     const lo = i === 0 ? null : breaks[i - 1];
     const hi = i < breaks.length ? breaks[i] : null;
     const label =
-      lo == null
+      lo === null
         ? `< ${fmt(hi as number)}`
-        : hi == null
+        : hi === null
           ? `≥ ${fmt(lo)}`
           : `${fmt(lo)} – ${fmt(hi)}`;
     rows.push({ color: ramp[i], label });

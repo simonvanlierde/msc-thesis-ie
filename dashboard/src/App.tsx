@@ -69,7 +69,7 @@ export function App() {
             Could not load the data: {error}
           </p>
         )}
-        {!data && !error && <p className="loading">Loading thesis results…</p>}
+        {!(data || error) && <p className="loading">Loading thesis results…</p>}
 
         {data && (
           <>

@@ -38,6 +38,6 @@ export function heatLegend(
   return ramp.map((color, i) => {
     const lo = step * i;
     const hi = i === ramp.length - 1 ? null : step * (i + 1);
-    return { color, label: hi == null ? `≥ ${fmt(lo)}` : `${fmt(lo)}–${fmt(hi)}` };
+    return { color, label: hi === null ? `≥ ${fmt(lo)}` : `${fmt(lo)}–${fmt(hi)}` };
   });
 }
