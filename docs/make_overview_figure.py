@@ -47,7 +47,12 @@ def load_scenario_totals(input_dir: Path) -> pd.DataFrame:
 def main() -> None:
     """Build the two-panel scenario-overview figure and save it as a PNG."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR, help="Directory holding the CDM_results_*.csv files.")
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=DEFAULT_INPUT_DIR,
+        help="Directory holding the CDM_results_*.csv files.",
+    )
     parser.add_argument("--output", type=Path, default=DEFAULT_FIGURE_PATH, help="Output PNG path.")
     args = parser.parse_args()
 

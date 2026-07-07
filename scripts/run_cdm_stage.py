@@ -76,7 +76,8 @@ def _load_parameters(scenario: str) -> dict:
         "building_type": read_parameter_specific_data(PARAMETER_DIR / "parameters_building_type.csv", scenario),
         "energy_class": read_parameter_specific_data(PARAMETER_DIR / "parameters_energy_class.csv", scenario),
         "cooling_technology": read_parameter_specific_data(
-            PARAMETER_DIR / "parameters_cooling_technology.csv", scenario,
+            PARAMETER_DIR / "parameters_cooling_technology.csv",
+            scenario,
         ),
     }
 

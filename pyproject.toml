@@ -70,6 +70,12 @@
     [tool.ruff.lint.per-file-ignores]
       "cdm/__init__.py" = ["D104"]
       "tests/*"               = ["D", "PLR2004", "S101"] # don't require docstrings in tests
+      # Notebooks are exploratory: allow prints, commented-out code, magic values, °C/× unicode,
+      # pandas .at/.values style, TODO/hack markers and formatter-conflicting trailing commas.
+      "*.ipynb" = ["T20", "ERA001", "PLR2004", "RUF001", "PD", "FIX", "COM812", "E721", "PLW2901"]
+      # CLI / build scripts legitimately print progress and can carry a bit more branching.
+      "docs/*" = ["T201", "INP001"]
+      "scripts/dot_to_simple_svg.py" = ["C901", "PLR0912"]
 
     [tool.ruff.lint.pydocstyle]
       convention = "google"
