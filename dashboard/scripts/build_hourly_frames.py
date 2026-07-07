@@ -60,13 +60,9 @@ def main(divisions: Path, geodata_dir: Path, out_path: Path) -> int:
     import pandas as pd
     import requests
 
-    from functions.data_handling import (
-        add_derived_parameters_to_buildings,
-        add_parameters_to_buildings,
-        read_global_parameters,
-        read_parameter_specific_data,
-    )
-    from functions.thermodynamic import (
+    from cdm.parameters import add_derived_parameters_to_buildings, add_parameters_to_buildings
+    from cdm.readers import read_global_parameters, read_parameter_specific_data
+    from cdm.thermodynamic import (
         calc_cooling_demand_from_thermal_flows,
         calc_Q_infiltration,
         calc_Q_internal_heat,
@@ -74,7 +70,7 @@ def main(divisions: Path, geodata_dir: Path, out_path: Path) -> int:
         calc_Q_transmission,
         calc_Q_ventilation,
     )
-    from functions.time_series import create_time_series, get_raw_weather_data
+    from cdm.time_series import create_time_series, get_raw_weather_data
 
     gpkg = geodata_dir / f"buildings_with_CDM_results_{SCEN}_full.gpkg"
     if not (gpkg.exists() and divisions.exists()):
