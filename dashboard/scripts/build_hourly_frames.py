@@ -17,7 +17,7 @@ Slow-ish (~1-2 min for 59k buildings); skips cleanly if the geodata is absent.
 """
 
 # CLI build script (not the linted scientific package): prints, asserts, deferred imports are intentional.
-# ruff: noqa: ANN001, ARG005, COM812, D103, EXE001, PLC0415, PLR0915, PLR2004, T201
+# ruff: noqa: ANN001, COM812, D103, EXE001, PLC0415, PLR0915, PLR2004, T201
 from __future__ import annotations
 
 import json
@@ -58,7 +58,6 @@ def main(divisions: Path, geodata_dir: Path, out_path: Path) -> int:
     import geopandas as gpd
     import numpy as np
     import pandas as pd
-    import requests
 
     from cdm.parameters import add_derived_parameters_to_buildings, add_parameters_to_buildings
     from cdm.readers import read_global_parameters, read_parameter_specific_data
@@ -77,10 +76,10 @@ def main(divisions: Path, geodata_dir: Path, out_path: Path) -> int:
         print("missing geodata — skipping hourly-frames build.")
         return 0
 
-    par = REPO / f"data/input/parameters/parameters_{SCEN}"
-    gp = read_global_parameters(par / "parameters_global.csv")
-    bt = read_parameter_specific_data(par / "parameters_building_type.csv")
-    ec = read_parameter_specific_data(par / "parameters_energy_class.csv")
+    pdir = REPO / "data/input/parameters"
+    gp = read_global_parameters(pdir / "parameters.toml", SCEN)
+    bt = read_parameter_specific_data(pdir / "parameters_building_type.csv", SCEN)
+    ec = read_parameter_specific_data(pdir / "parameters_energy_class.csv", SCEN)
 
     # --- buildings + buurt assignment (centroid within buurt) ---
     buurten = gpd.read_file(divisions, layer="Neighbourhoods_TheHague")[["buurtcode", "geometry"]]
@@ -97,13 +96,10 @@ def main(divisions: Path, geodata_dir: Path, out_path: Path) -> int:
     df = add_parameters_to_buildings(df, gp, bt, ec)
     df = add_derived_parameters_to_buildings(df, gp)
 
-    # --- hourly weather/time series (offline, committed backup) ---
-    orig = requests.post
-    requests.post = lambda *a, **k: (_ for _ in ()).throw(requests.exceptions.Timeout())
+    # --- hourly weather/time series (live KNMI; no committed backup for 2021-2025) ---
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         raw = get_raw_weather_data(gp)
-    requests.post = orig
     ts = create_time_series(
         gp,
         raw,
@@ -180,7 +176,7 @@ if __name__ == "__main__":
     ap.add_argument(
         "--geodata-dir",
         type=Path,
-        default=REPO / "data" / "output" / "geodata",
+        default=REPO / "results" / "geodata",
         help="dir with buildings_with_CDM_results_SQ_full.gpkg",
     )
     ap.add_argument("--out", type=Path, default=OUT, help="output JSON path")

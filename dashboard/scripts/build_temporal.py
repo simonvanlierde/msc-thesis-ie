@@ -20,7 +20,7 @@ Run:    python dashboard/scripts/build_temporal.py   (needs the model env / .ven
 """
 
 # CLI build script (not the linted scientific package): prints, asserts, deferred imports are intentional.
-# ruff: noqa: ANN002, ANN003, ANN202, B007, C901, D103, EXE001, PLC0415, PLR0915, PLR2004, RSE102, T201
+# ruff: noqa: B007, C901, D103, EXE001, PLC0415, PLR0915, PLR2004, T201
 from __future__ import annotations
 
 import json
@@ -58,7 +58,6 @@ def main(geodata_dir: Path, out_path: Path) -> int:
     import geopandas as gpd
     import numpy as np
     import pandas as pd
-    import requests
 
     from cdm.parameters import add_derived_parameters_to_buildings, add_parameters_to_buildings
     from cdm.readers import read_global_parameters, read_parameter_specific_data
@@ -77,10 +76,10 @@ def main(geodata_dir: Path, out_path: Path) -> int:
         print(f"missing {gpkg} — skipping temporal build.")
         return 0
 
-    par = REPO / f"data/input/parameters/parameters_{SCEN}"
-    gp = read_global_parameters(par / "parameters_global.csv")
-    bt = read_parameter_specific_data(par / "parameters_building_type.csv")
-    ec = read_parameter_specific_data(par / "parameters_energy_class.csv")
+    pdir = REPO / "data/input/parameters"
+    gp = read_global_parameters(pdir / "parameters.toml", SCEN)
+    bt = read_parameter_specific_data(pdir / "parameters_building_type.csv", SCEN)
+    ec = read_parameter_specific_data(pdir / "parameters_energy_class.csv", SCEN)
 
     # --- read every building's use + published E_cooling, keep a stratified sample ---
     gdf = gpd.read_file(gpkg).reset_index(drop=True)
@@ -117,17 +116,10 @@ def main(geodata_dir: Path, out_path: Path) -> int:
     sample = add_parameters_to_buildings(sample, gp, bt, ec)
     sample = add_derived_parameters_to_buildings(sample, gp)
 
-    # --- weather/time series: force the committed backup (offline, deterministic) ---
-    orig_post = requests.post
-
-    def _fail(*_a, **_k):
-        raise requests.exceptions.Timeout()
-
-    requests.post = _fail
+    # --- weather/time series (live KNMI; no committed backup for 2021-2025) ---
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         raw = get_raw_weather_data(gp)
-    requests.post = orig_post
     ts = create_time_series(
         gp,
         raw,
@@ -216,7 +208,7 @@ if __name__ == "__main__":
     ap.add_argument(
         "--geodata-dir",
         type=Path,
-        default=REPO / "data" / "output" / "geodata",
+        default=REPO / "results" / "geodata",
         help="dir with buildings_with_CDM_results_SQ_full.gpkg",
     )
     ap.add_argument("--out", type=Path, default=OUT, help="output JSON path")
