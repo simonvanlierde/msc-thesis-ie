@@ -1,0 +1,56 @@
+site_name: Cooling for Comfort, Warming the World
+site_description: Cooling demand and environmental impact model for The Hague (MSc Industrial Ecology thesis)
+site_author: Simon van Lierde
+repo_url: https://github.com/simonvanlierde/msc-thesis-ie
+repo_name: simonvanlierde/msc-thesis-ie
+
+docs_dir: docs
+
+# The figure-regeneration script lives alongside the docs but is not a docs page.
+exclude_docs: |
+  make_overview_figure.py
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_source: true
+            members_order: source
+            separate_signature: true
+
+nav:
+  - Home: index.md
+  - API reference:
+      - data_handling: api/data_handling.md
+      - geometric: api/geometric.md
+      - thermodynamic: api/thermodynamic.md
+      - environmental: api/environmental.md
+      - time_series: api/time_series.md
+      - sensitivity_analysis: api/sensitivity_analysis.md
+      - figures: api/figures.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
