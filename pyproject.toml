@@ -28,6 +28,7 @@
     "rasterstats>=0.20",
     "scipy>=1.13",
     "seaborn>=0.13",
+    "snakemake>=8",
     "tqdm>=4.66.1",
   ]
 
