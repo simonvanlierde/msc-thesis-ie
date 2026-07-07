@@ -11,7 +11,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-from functions.geometric import azimuth_rectangle
+from cdm.geometric import azimuth_rectangle
 
 ENERGY_LABEL_TO_INT = {
     "A+++++": 1,

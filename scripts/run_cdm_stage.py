@@ -13,20 +13,15 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-from functions.data_handling import (
-    add_cooling_technology_data_to_buildings,
-    add_parameters_to_buildings,
-    aggregate_results,
-    read_buildings,
-    read_global_parameters,
-    read_parameter_specific_data,
-)
-from functions.environmental import (
+from cdm.aggregation import aggregate_results
+from cdm.environmental import (
     calculate_environmental_impacts_from_cooling_demand,
     calculate_environmental_parameters_for_cooling_technologies,
 )
-from functions.thermodynamic import calc_cooling_demand_metrics_for_df
-from functions.time_series import create_time_series
+from cdm.parameters import add_cooling_technology_data_to_buildings, add_parameters_to_buildings
+from cdm.readers import read_buildings, read_global_parameters, read_parameter_specific_data
+from cdm.thermodynamic import calc_cooling_demand_metrics_for_df
+from cdm.time_series import create_time_series
 
 PARAMETER_COLUMNS_TO_DROP_AFTER_CALCULATIONS = [
     "avg_ADP_kgSbeq_kW",

@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from functions.time_series import get_raw_weather_data
+from cdm.time_series import get_raw_weather_data
 
 
 def main() -> None:

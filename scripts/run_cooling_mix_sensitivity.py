@@ -22,16 +22,13 @@ mpl.use("Agg")  # post_process_SA_cooling_tech_mix always writes figures; run he
 
 import pandas as pd
 
-from functions.data_handling import (
+from cdm.figures_sensitivity import SA_IMAGE_DIR, post_process_SA_cooling_tech_mix
+from cdm.readers import (
     read_buildings,
     read_global_parameters,
     read_parameter_specific_data,
 )
-from functions.sensitivity_analysis import (
-    SA_IMAGE_DIR,
-    post_process_SA_cooling_tech_mix,
-    run_SA_for_cooling_technology_mix,
-)
+from cdm.sensitivity_analysis import run_SA_for_cooling_technology_mix
 
 COOLING_TECHS = ["ASHP", "GSHP", "WSHP", "chiller", "AC_split", "AC_mobile"]
 PARAMETER_DIR = Path("data/input/parameters")
