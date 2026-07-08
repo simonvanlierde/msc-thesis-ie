@@ -312,8 +312,16 @@ def calc_cooling_demand_percentile(
     years = Q_cooling_demand_Wh.shape[-1] // HOURS_PER_YEAR
     Q_cooling_demand_years = Q_cooling_demand_Wh.reshape(*Q_cooling_demand_Wh.shape[:-1], years, HOURS_PER_YEAR)
 
-    # Peak percentile of the cooling power demand per year (Wh), then averaged across years (kW)
-    P_cooling_peak_percentile_per_year_Wh = np.percentile(Q_cooling_demand_years, n_percentile, axis=-1)
+    # Peak percentile of the cooling power demand per year (Wh), then averaged across years (kW).
+    # When the hourly series are not returned, np.percentile is allowed to partition the block in place
+    # instead of copying it (one full (n_buildings, n_hours) array per chunk). That permutes the hours
+    # within each year, which the only later reader -- the capped sum along that same axis -- ignores.
+    P_cooling_peak_percentile_per_year_Wh = np.percentile(
+        Q_cooling_demand_years,
+        n_percentile,
+        axis=-1,
+        overwrite_input=not include_time_series,
+    )
     P_cooling_peak_percentile_kW = P_cooling_peak_percentile_per_year_Wh.mean(axis=-1) / 1000
 
     # Cap each year at its own peak percentile, then average the annual capped energy totals (kWh)
