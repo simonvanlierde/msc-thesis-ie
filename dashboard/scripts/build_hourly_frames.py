@@ -3,7 +3,7 @@
 
 Runs the thesis heat-balance model over *every* building (SQ scenario), assigns
 each to its buurt, and accumulates hourly cooling into per-buurt streams. The 5
-weather years (2018-2022) are averaged into a typical year, then reduced to a
+weather years (2021-2025) are averaged into a typical year, then reduced to a
 compact month x hour grid (12 x 24 = 288 frames) of cooling *intensity*
 (W per m² of floor area). A fixed colour scale over these frames makes winter
 read pale and summer afternoons saturate — the "city turns red" effect.
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     ap.add_argument(
         "--geodata-dir",
         type=Path,
-        default=REPO / "results" / "geodata",
+        default=REPO / "data" / "output" / "geodata",
         help="dir with buildings_with_CDM_results_SQ_full.gpkg",
     )
     ap.add_argument("--out", type=Path, default=OUT, help="output JSON path")

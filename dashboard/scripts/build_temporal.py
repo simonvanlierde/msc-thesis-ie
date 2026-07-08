@@ -4,7 +4,7 @@
 The thesis model computes hourly cooling per building but only exports annual
 aggregates. This step re-runs the model's *own* heat-balance functions on a
 stratified sample of the real buildings (from the dropped-in GPKG), sums the
-hourly cooling, averages the 5 weather years (2018-2022) into a typical year,
+hourly cooling, averages the 5 weather years (2021-2025) into a typical year,
 and calibrates the annual total per building use to the published citywide
 E_cooling. Physics is the thesis code untouched; only the building MBR
 (width/length) is recomputed from the footprint because the results GPKG omits
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     ap.add_argument(
         "--geodata-dir",
         type=Path,
-        default=REPO / "results" / "geodata",
+        default=REPO / "data" / "output" / "geodata",
         help="dir with buildings_with_CDM_results_SQ_full.gpkg",
     )
     ap.add_argument("--out", type=Path, default=OUT, help="output JSON path")
