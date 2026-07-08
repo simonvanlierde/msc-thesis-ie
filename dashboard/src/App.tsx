@@ -6,8 +6,9 @@ import { getPalette } from "./lib/palette";
 import type { ScenarioKey } from "./lib/types";
 import { useTheme } from "./lib/useTheme";
 
-// Split the heavy views (MapLibre, nivo) into their own chunks so the summary and
-// controls paint immediately while the maps and charts stream in.
+// Split the heavy views (MapLibre, nivo) into their own chunks so the summary and controls
+// paint immediately while the maps and charts stream in. Each gets its own Suspense
+// boundary: one shared boundary would hold the charts hostage to MapLibre's 1 MB.
 const MapView = lazy(() => import("./components/MapView").then((m) => ({ default: m.MapView })));
 const HourlyMap = lazy(() =>
   import("./components/HourlyMap").then((m) => ({ default: m.HourlyMap })),
@@ -27,7 +28,7 @@ function ViewFallback({ label }: { label: string }) {
 
 export function App() {
   const [data, setData] = useState<Datasets | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const [scenario, setScenario] = useState<ScenarioKey>("SQ");
   const [mode, toggleTheme] = useTheme();
   const palette = useMemo(() => getPalette(mode), [mode]);
@@ -35,7 +36,11 @@ export function App() {
   useEffect(() => {
     loadDatasets()
       .then(setData)
-      .catch((e) => setError(String(e)));
+      .catch((e: unknown) => {
+        // biome-ignore lint/suspicious/noConsole: the only place a load failure surfaces for debugging
+        console.error("Could not load the thesis data", e);
+        setFailed(true);
+      });
   }, []);
 
   return (
@@ -47,29 +52,24 @@ export function App() {
         <div className="wrap masthead__row">
           <h1>Cooling for Comfort · The Hague</h1>
           <nav aria-label="Sections">
-            <a href="#map">Where</a>
-            <a href="#year">Year</a>
-            <a href="#when">When</a>
+            <a href="#map">Map</a>
+            <a href="#year">Time-lapse</a>
+            <a href="#when">Profiles</a>
             <a href="#impact">Impact</a>
           </nav>
-          <button
-            type="button"
-            className="iconbtn"
-            onClick={toggleTheme}
-            aria-pressed={mode === "dark"}
-          >
+          <button type="button" className="iconbtn" onClick={toggleTheme}>
             {mode === "dark" ? "☀ Light" : "☾ Dark"}
           </button>
         </div>
       </header>
 
       <main id="main" className="wrap">
-        {error && (
+        {failed && (
           <p className="errbox" role="alert">
-            Could not load the data: {error}
+            The thesis data didn't load. Check your connection and reload the page.
           </p>
         )}
-        {!(data || error) && <p className="loading">Loading thesis results…</p>}
+        {!(data || failed) && <p className="loading">Loading thesis results…</p>}
 
         {data && (
           <>
@@ -82,12 +82,22 @@ export function App() {
                 value={scenario}
                 onChange={setScenario}
               />
+              <p className="scope-note">
+                Changes the map and the impact charts. The time-lapse and the daily profiles always
+                show the present-day building stock.
+              </p>
             </div>
 
-            <Suspense fallback={<ViewFallback label="map" />}>
+            <Suspense fallback={<ViewFallback label="the map" />}>
               <MapView buurten={data.buurten} scenario={scenario} palette={palette} />
-              <HourlyMap buurten={data.buurten} frames={data.frames} palette={palette} />
+            </Suspense>
+            <Suspense fallback={<ViewFallback label="the time-lapse" />}>
+              <HourlyMap buurten={data.buurten} palette={palette} />
+            </Suspense>
+            <Suspense fallback={<ViewFallback label="the profiles" />}>
               <TemporalView temporal={data.temporal} palette={palette} />
+            </Suspense>
+            <Suspense fallback={<ViewFallback label="the impact charts" />}>
               <LcaView data={data.scenarios} scenario={scenario} palette={palette} />
             </Suspense>
 

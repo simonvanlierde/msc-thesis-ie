@@ -14,7 +14,7 @@ export function Summary({ data, scenario }: Props) {
 
   return (
     <section id="overview" className="summary" aria-labelledby="overview-h">
-      <h2 id="overview-h" style={{ position: "absolute", left: "-999px" }}>
+      <h2 id="overview-h" className="visually-hidden">
         Overview
       </h2>
       <p className="note">{s.label}</p>

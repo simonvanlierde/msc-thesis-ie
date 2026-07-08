@@ -30,9 +30,10 @@ for (const colorScheme of ["light", "dark"] as const) {
 test("captures a screenshot for the README", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await ready(page);
-  // Un-stick the header so it doesn't overlap content in the full-page capture,
-  // and give the WebGL map a moment to paint its polygons.
+  // Un-stick the header so it doesn't overlap content in the full-page capture.
   await page.addStyleTag({ content: ".masthead{position:static !important}" });
-  await page.waitForTimeout(1200);
+  // Wait for the CARTO basemap tiles and both maps' polygons to settle before capture.
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(2500);
   await page.screenshot({ path: "docs/screenshot.png", fullPage: true });
 });

@@ -14,7 +14,9 @@ export function metricValue(
   metric: MapMetric,
 ): number | null {
   const e = p[`${scenario}__E_cooling_kWh`] as number | undefined;
-  if (e === null) return null;
+  // The old guard was `e === null`, which let a missing key through as undefined and on
+  // into NaN. A buurt outside a scenario has no key at all.
+  if (typeof e !== "number" || !Number.isFinite(e)) return null;
   if (metric === "total") return e / 1e6; // GWh
   const area = p[`${scenario}__floor_area_m2`] as number | undefined;
   if (!area) return null;

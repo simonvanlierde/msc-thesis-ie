@@ -1,43 +1,57 @@
-/* Design tokens mirror src/lib/palette.ts. Light is the default; dark applies via
-   prefers-color-scheme unless the user overrode it, and data-theme always wins. */
+/* Design tokens. One declaration per token via light-dark(); src/lib/palette.ts mirrors
+   the hexes for MapLibre and nivo, which need concrete colours in JavaScript.
+
+   Colour rule, and it holds everywhere:
+     magenta  — keyboard focus. Appears nowhere in the data, ever.
+     blue     — ink, links, anything interactive.
+     warm     — the data's own heat: the year map's ramp, and the office series
+                against its residential blue (Okabe-Ito, kept for colourblind safety).
+   Before adding a colour, decide which of those three it is. */
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("/fonts/fraunces-latin-opsz-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2212;
+}
+@font-face {
+  font-family: "Public Sans";
+  src: url("/fonts/public-sans-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2212;
+}
+
 :root {
-  --surface: #fcfcfb;
-  --page: #f9f9f7;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --muted: #898781;
-  --grid: #e1e0d9;
-  --baseline: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
-  --accent: #256abf;
-  --focus: #eb6834;
+  /* color-scheme drives light-dark(); the inline script in index.html stamps
+     data-theme before first paint, so this pair is only the no-JS fallback. */
+  color-scheme: light dark;
+
+  --surface: light-dark(#fcfcfb, #1a1a19);
+  --page: light-dark(#f9f9f7, #0d0d0d);
+  /* pre-mixed rather than color-mix(): light-dark() nested in color-mix() is fragile */
+  --page-veil: light-dark(rgba(249, 249, 247, 0.86), rgba(13, 13, 13, 0.86));
+  --text-primary: light-dark(#0b0b0b, #ffffff);
+  --text-secondary: light-dark(#52514e, #c3c2b7);
+  --muted: light-dark(#6f6d68, #9b998f);
+  --grid: light-dark(#e1e0d9, #2c2c2a);
+  --baseline: light-dark(#c3c2b7, #383835);
+  --border: light-dark(rgba(11, 11, 11, 0.1), rgba(255, 255, 255, 0.1));
+  --accent: light-dark(#256abf, #86b6ef);
+  --accent-wash: light-dark(rgba(37, 106, 191, 0.13), rgba(134, 182, 239, 0.16));
+  /* Reserved for focus. 5.5:1 on light paper, 6.8:1 on dark. Never a data colour. */
+  --focus: light-dark(#c4007a, #ff6bc4);
+
+  --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --body: "Public Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+}
+:root[data-theme="light"] {
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --surface: #1a1a19;
-    --page: #0d0d0d;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --muted: #898781;
-    --grid: #2c2c2a;
-    --baseline: #383835;
-    --border: rgba(255, 255, 255, 0.1);
-    --accent: #86b6ef;
-    color-scheme: dark;
-  }
-}
 :root[data-theme="dark"] {
-  --surface: #1a1a19;
-  --page: #0d0d0d;
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --muted: #898781;
-  --grid: #2c2c2a;
-  --baseline: #383835;
-  --border: rgba(255, 255, 255, 0.1);
-  --accent: #86b6ef;
   color-scheme: dark;
+  --ctrl-icon-filter: invert(1);
 }
 
 * {
@@ -47,10 +61,14 @@ html,
 body {
   margin: 0;
 }
+html {
+  scroll-behavior: smooth;
+}
 body {
   background: var(--page);
   color: var(--text-primary);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--body);
+  font-synthesis: none;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
@@ -58,7 +76,18 @@ a {
   color: var(--accent);
 }
 
-/* Visible keyboard focus everywhere — accessibility baseline. */
+/* Display face, used with restraint: the wordmark, section titles, the headline, and
+   the four hero numbers. Nothing else. */
+.masthead h1,
+section > h2,
+.summary__headline,
+.tile__value {
+  font-family: var(--display);
+  letter-spacing: -0.012em;
+}
+
+/* Visible keyboard focus everywhere — accessibility baseline. Always drawn outside the
+   element, so it never lands on a filled control and disappears. */
 :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -80,6 +109,15 @@ a {
   top: 0.5rem;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .wrap {
   max-width: 1080px;
   margin: 0 auto;
@@ -91,7 +129,7 @@ a {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--page) 92%, transparent);
+  background: var(--page-veil);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
 }
@@ -103,9 +141,10 @@ a {
   padding: 0.7rem 0;
 }
 .masthead h1 {
-  font-size: 1.05rem;
+  font-size: 1.0625rem;
   margin: 0;
-  font-weight: 650;
+  font-weight: 600;
+  font-variation-settings: "opsz" 20;
 }
 .masthead nav {
   display: flex;
@@ -120,7 +159,7 @@ a {
   font-size: 0.9rem;
 }
 .masthead nav a:hover {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--accent-wash);
   color: var(--text-primary);
 }
 
@@ -140,16 +179,19 @@ a {
 
 /* Sections & cards */
 section {
-  padding: 2.25rem 0 0.5rem;
-  scroll-margin-top: 4rem;
+  padding: 2.5rem 0 0.5rem;
+  scroll-margin-top: 4.5rem;
 }
 section > h2 {
-  font-size: 1.5rem;
+  font-size: clamp(1.5rem, 2.6vw, 1.95rem);
+  font-weight: 600;
+  font-variation-settings: "opsz" 60;
+  line-height: 1.15;
   margin: 0 0 0.35rem;
 }
 .lede {
   color: var(--text-secondary);
-  max-width: 60ch;
+  max-width: 62ch;
   margin: 0 0 1.25rem;
 }
 .card {
@@ -161,13 +203,16 @@ section > h2 {
 
 /* Hero / summary stat tiles */
 .summary {
-  padding-top: 1.5rem;
+  padding-top: 1.75rem;
 }
 .summary__headline {
-  font-size: clamp(1.4rem, 2.4vw, 2rem);
-  font-weight: 600;
-  line-height: 1.25;
-  max-width: 26ch;
+  font-size: clamp(1.85rem, 4.2vw, 3.1rem);
+  font-weight: 500;
+  font-variation-settings: "opsz" 144;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  max-width: 20ch;
   margin: 0.5rem 0 1.25rem;
 }
 .summary__headline em {
@@ -186,8 +231,10 @@ section > h2 {
   padding: 0.9rem 1rem;
 }
 .tile__value {
-  font-size: 1.6rem;
-  font-weight: 650;
+  font-size: 1.7rem;
+  font-weight: 500;
+  font-variation-settings: "opsz" 72;
+  font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 .tile__label {
@@ -197,15 +244,9 @@ section > h2 {
 }
 
 /* Controls */
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-  align-items: flex-end;
-}
 fieldset.segmented {
   border: 0;
-  margin: 0;
+  margin: 0 0 0.9rem;
   padding: 0;
 }
 fieldset.segmented > legend {
@@ -218,17 +259,21 @@ fieldset.segmented > legend {
   display: inline-flex;
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
   background: var(--surface);
 }
 .segmented__row label {
+  position: relative;
   padding: 0.4rem 0.8rem;
   font-size: 0.9rem;
   cursor: pointer;
   border-left: 1px solid var(--border);
 }
-.segmented__row label:first-child {
+.segmented__row label:first-of-type {
   border-left: 0;
+  border-radius: 7px 0 0 7px;
+}
+.segmented__row label:last-of-type {
+  border-radius: 0 7px 7px 0;
 }
 .segmented__row label:has(input:checked) {
   /* Fixed mid-blue (not the theme accent) so white text clears 4.5:1 in both modes. */
@@ -241,9 +286,18 @@ fieldset.segmented > legend {
   width: 1px;
   height: 1px;
 }
+/* Ring on the outside, so it survives being drawn against the selected blue fill. */
 .segmented__row label:has(input:focus-visible) {
   outline: 3px solid var(--focus);
-  outline-offset: -3px;
+  outline-offset: 2px;
+  border-radius: 8px;
+  z-index: 1;
+}
+
+.scope-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.55rem 0 0;
 }
 
 /* Chart + map frames */
@@ -255,6 +309,9 @@ fieldset.segmented > legend {
   font-size: 0.85rem;
   margin-top: 0.6rem;
 }
+.figure + .figure {
+  margin-top: 1.75rem;
+}
 .chart {
   height: 360px;
 }
@@ -264,8 +321,31 @@ fieldset.segmented > legend {
   overflow: hidden;
   border: 1px solid var(--border);
 }
-.map:focus-visible {
+/* MapLibre puts tabindex on the inner <canvas>, so the container never matches
+   :focus-visible on its own. */
+.map:has(canvas:focus-visible) {
   outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* MapLibre chrome, themed. */
+.maplibregl-ctrl-group {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--border);
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: var(--ctrl-icon-filter, none);
+}
+.maplibregl-ctrl-attrib {
+  background: var(--page-veil);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--text-secondary);
 }
 
 /* Time-lapse player */
@@ -287,12 +367,38 @@ fieldset.segmented > legend {
 }
 .player__slider {
   flex: 1 1 240px;
-  accent-color: #e31a1c;
+  /* interactive, therefore blue — the heat reds belong to the data */
+  accent-color: var(--accent);
   height: 1.5rem;
 }
-.player__slider:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
+
+/* Carpet plot — the whole year as 12 months x 24 hours. Doubles as the scrubber. */
+.carpet {
+  margin: 0 0 1.1rem;
+}
+.carpet svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.carpet__cell {
+  cursor: pointer;
+}
+.carpet__cell:hover {
+  stroke: var(--text-primary);
+  stroke-width: 1.2;
+}
+.carpet__cursor {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 1.6;
+  pointer-events: none;
+}
+.carpet__axis {
+  fill: var(--muted);
+  font-family: var(--body);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Legend */
@@ -300,7 +406,9 @@ fieldset.segmented > legend {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 0.9rem;
-  margin-top: 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
@@ -315,6 +423,66 @@ fieldset.segmented > legend {
   border-radius: 3px;
   border: 1px solid var(--border);
   flex: 0 0 auto;
+}
+
+/* Value strip: one tick per neighbourhood, so the reader sees the distribution the
+   quantile bins were cut from — not only the bins. */
+.valuestrip {
+  margin-top: 0.5rem;
+}
+.valuestrip svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.valuestrip__tick {
+  stroke: var(--text-primary);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+}
+.valuestrip__break {
+  stroke: var(--baseline);
+  stroke-width: 1;
+}
+.valuestrip__axis {
+  fill: var(--muted);
+  font-family: var(--body);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dot plot: three impact categories, one office share each, against a 50% reference. */
+.dotplot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.dotplot__rule {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+.dotplot__ref {
+  stroke: var(--baseline);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.dotplot__label {
+  fill: var(--text-primary);
+  font-family: var(--body);
+  font-size: 14px;
+}
+.dotplot__value {
+  fill: var(--text-primary);
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.dotplot__axis {
+  fill: var(--muted);
+  font-family: var(--body);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Data table (screen-reader + everyone fallback) */
@@ -377,15 +545,21 @@ footer.colophon {
   font-size: 0.88rem;
 }
 
-.loading,
-.errbox {
+.loading {
   padding: 4rem 0;
   color: var(--text-secondary);
 }
+.errbox {
+  padding: 4rem 0;
+  color: var(--text-primary);
+}
 
+/* The only motion on this page is the smooth scroll below, the map's own easing (off:
+   fitBounds animate:false) and the time-lapse (user-initiated, so it stays). This
+   stylesheet declares no animation or transition, so the usual blanket `*` override
+   would be overriding nothing. */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none;
-    transition: none;
+  html {
+    scroll-behavior: auto;
   }
 }

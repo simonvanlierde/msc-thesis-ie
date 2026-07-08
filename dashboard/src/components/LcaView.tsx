@@ -47,21 +47,22 @@ export function LcaView({ data, scenario, palette }: Props) {
     );
     return { use, ...sums };
   });
+  const barTotal = new Map(
+    stageData.map((d) => [d.use as string, STAGE_ORDER.reduce((t, st) => t + d[st], 0)]),
+  );
 
-  // Each impact category split into office vs residential share (%), 100%-stacked.
+  // Office's share of each impact category.
   const byUse = rollup(s.archetypes, "use");
-  const catData = CATEGORIES.map((c) => {
+  const shares = CATEGORIES.map((c) => {
     const res = byUse.find((r) => r.key === "Residential")?.[c.key] ?? 0;
     const off = byUse.find((r) => r.key === "Office")?.[c.key] ?? 0;
-    const tot = res + off || 1;
-    return { category: c.label, Residential: (res / tot) * 100, Office: (off / tot) * 100 };
+    return { label: c.label, share: (off / (res + off || 1)) * 100 };
   });
 
   const stageLegend = STAGE_ORDER.map((st) => ({
     color: palette.stage[st],
     label: stageLabels[st],
   }));
-  const useLegend = uses.map((u) => ({ color: palette.use[u], label: u }));
 
   return (
     <section id="impact" aria-labelledby="impact-h">
@@ -72,77 +73,60 @@ export function LcaView({ data, scenario, palette }: Props) {
         dominates, and offices carry most of it.
       </p>
 
-      <div style={{ display: "grid", gap: "1.5rem", gridTemplateColumns: "1fr" }}>
-        <figure className="figure">
-          <div className="chart">
-            <ResponsiveBar
-              role="img"
-              ariaLabel="Greenhouse-gas emissions by life-cycle stage, stacked, for residential versus office buildings, in kilotonnes CO2-equivalent."
-              data={stageData}
-              theme={theme}
-              keys={STAGE_ORDER as unknown as string[]}
-              indexBy="use"
-              margin={{ top: 10, right: 20, bottom: 50, left: 60 }}
-              padding={0.35}
-              colors={(d) => palette.stage[d.id as keyof GhgStages]}
-              innerPadding={2}
-              borderRadius={2}
-              enableLabel={false}
-              axisBottom={{ legend: "Building use", legendOffset: 40, legendPosition: "middle" }}
-              axisLeft={{
-                legend: "Emissions (kt CO₂-eq)",
-                legendOffset: -50,
-                legendPosition: "middle",
-              }}
-              animate={false}
-              tooltip={({ id, value }) => (
-                <div className="tooltip">
-                  <strong>{stageLabels[id as keyof GhgStages]}</strong>
-                  {num(value, 1)} kt CO₂-eq
-                </div>
-              )}
-            />
-          </div>
-          <Legend items={stageLegend} title="Life-cycle stage" />
-          <figcaption>GHG emissions by life-cycle stage · scenario {scenario}.</figcaption>
-        </figure>
+      <figure className="figure">
+        <div className="chart">
+          <ResponsiveBar
+            role="img"
+            ariaLabel="Greenhouse-gas emissions by life-cycle stage, stacked, for residential versus office buildings, in kilotonnes CO2-equivalent."
+            data={stageData}
+            theme={theme}
+            keys={STAGE_ORDER as unknown as string[]}
+            indexBy="use"
+            margin={{ top: 10, right: 20, bottom: 50, left: 60 }}
+            padding={0.35}
+            colors={(d) => palette.stage[d.id as keyof GhgStages]}
+            innerPadding={2}
+            // Only the dominant stage is tall enough to carry a label — which is the point
+            // of the chart, so the reader gets it without decoding the stack.
+            label={(d) => pct(d.value ?? 0, barTotal.get(String(d.indexValue)) ?? 1, 0)}
+            labelSkipHeight={36}
+            labelTextColor="#fff"
+            borderRadius={2}
+            axisBottom={{ legend: "Building use", legendOffset: 40, legendPosition: "middle" }}
+            axisLeft={{
+              legend: "Emissions (kt CO₂-eq)",
+              legendOffset: -50,
+              legendPosition: "middle",
+            }}
+            animate={false}
+            tooltip={({ id, value, indexValue }) => (
+              <div className="tooltip">
+                <strong>{stageLabels[id as keyof GhgStages]}</strong>
+                {num(value, 1)} kt CO₂-eq · {pct(value, barTotal.get(String(indexValue)) ?? 1, 0)}{" "}
+                of {indexValue}
+              </div>
+            )}
+          />
+        </div>
+        <Legend items={stageLegend} title="Life-cycle stage" />
+        <figcaption>
+          GHG emissions by life-cycle stage · scenario {scenario}. Labels show each stage's share of
+          its own bar.
+        </figcaption>
+      </figure>
 
-        <figure className="figure">
-          <div className="chart">
-            <ResponsiveBar
-              role="img"
-              ariaLabel="Share of each environmental impact category attributable to residential versus office buildings, as a percentage."
-              data={catData}
-              theme={theme}
-              keys={["Residential", "Office"]}
-              indexBy="category"
-              layout="horizontal"
-              margin={{ top: 10, right: 20, bottom: 50, left: 130 }}
-              padding={0.4}
-              colors={(d) => palette.use[d.id as "Residential" | "Office"]}
-              innerPadding={2}
-              valueScale={{ type: "linear", min: 0, max: 100 }}
-              enableLabel={false}
-              axisBottom={{
-                legend: "Share of impact (%)",
-                legendOffset: 40,
-                legendPosition: "middle",
-              }}
-              animate={false}
-              tooltip={({ id, value, indexValue }) => (
-                <div className="tooltip">
-                  <strong>{indexValue}</strong>
-                  {id}: {value.toFixed(0)}%
-                </div>
-              )}
-            />
-          </div>
-          <Legend items={useLegend} title="Building use" />
-          <figcaption>
-            Share of each impact category by building use · scenario {scenario}.
-          </figcaption>
-        </figure>
-      </div>
+      <figure className="figure">
+        <OfficeShareDots rows={shares} color={palette.use.Office} />
+        <figcaption>
+          Office share of each impact category · scenario {scenario}. Offices hold{" "}
+          {pct(
+            byUse.find((r) => r.key === "Office")?.floor_area_m2 ?? 0,
+            byUse.reduce((t, r) => t + r.floor_area_m2, 0),
+            0,
+          )}{" "}
+          of the floor area; the dashed rule is an even split.
+        </figcaption>
+      </figure>
 
       <details className="datatable">
         <summary>Data table — impact totals by building use</summary>
@@ -175,5 +159,74 @@ export function LcaView({ data, scenario, palette }: Props) {
         </table>
       </details>
     </section>
+  );
+}
+
+const W = 1000;
+const ROW_H = 52;
+const TOP = 14;
+const AXIS_H = 30;
+const GUTTER_L = 210;
+const PLOT_R = 60; // room for the value label right of the dot
+const TICKS = [0, 25, 50, 75, 100];
+
+/**
+ * Three shares, three dots. As 100%-stacked bars these read as three near-identical
+ * blocks; on a common axis against an even-split rule, the 10-point spread between them is
+ * the first thing you see. The bar from parity to the dot is the excess.
+ */
+function OfficeShareDots({
+  rows,
+  color,
+}: {
+  rows: { label: string; share: number }[];
+  color: string;
+}) {
+  const H = TOP + rows.length * ROW_H + AXIS_H;
+  const x = (p: number) => GUTTER_L + (p / 100) * (W - GUTTER_L - PLOT_R);
+  const rowY = (i: number) => TOP + i * ROW_H + ROW_H / 2;
+
+  return (
+    <div className="dotplot">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`Office share of each impact category: ${rows.map((r) => `${r.label} ${r.share.toFixed(0)} percent`).join(", ")}. An even split would be 50 percent.`}
+      >
+        {TICKS.map((t) => (
+          <text
+            className="dotplot__axis"
+            key={t}
+            x={x(t)}
+            y={H - 8}
+            textAnchor={t === 0 ? "start" : t === 100 ? "end" : "middle"}
+          >
+            {t}%
+          </text>
+        ))}
+        <line className="dotplot__ref" x1={x(50)} x2={x(50)} y1={TOP} y2={H - AXIS_H} />
+
+        {rows.map((r, i) => (
+          <g key={r.label}>
+            <line className="dotplot__rule" x1={x(0)} x2={x(100)} y1={rowY(i)} y2={rowY(i)} />
+            <text className="dotplot__label" x={GUTTER_L - 16} y={rowY(i) + 5} textAnchor="end">
+              {r.label}
+            </text>
+            <line
+              x1={x(50)}
+              x2={x(r.share)}
+              y1={rowY(i)}
+              y2={rowY(i)}
+              stroke={color}
+              strokeWidth={4}
+            />
+            <circle cx={x(r.share)} cy={rowY(i)} r={8} fill={color} />
+            <text className="dotplot__value" x={x(r.share) + 16} y={rowY(i) + 5}>
+              {r.share.toFixed(0)}%
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 }

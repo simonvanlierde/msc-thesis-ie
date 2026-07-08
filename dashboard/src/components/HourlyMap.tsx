@@ -1,145 +1,50 @@
 import maplibregl from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { attachTooltip, firstSymbolId, loadStyle } from "../lib/basemap";
+import { loadFrames } from "../lib/data";
 import { num } from "../lib/format";
-import { FRAME_COUNT, frameLabel, heatColor, heatLegend } from "../lib/frames";
+import { FRAME_COUNT, frameLabel, heatLegend } from "../lib/frames";
 import { bbox } from "../lib/geo";
 import { HEAT_RAMP, type Palette } from "../lib/palette";
 import type { BuurtCollection, HourlyFrames } from "../lib/types";
 import { Legend } from "./Legend";
+import { YearCarpet } from "./YearCarpet";
 
 interface Props {
   buurten: BuurtCollection | null;
-  frames: HourlyFrames | null;
   palette: Palette;
 }
 
-const STEP_MS = 150; // ~6.7 frames/second when playing
-const fmt1 = (n: number) => num(n, 1);
+/**
+ * The time-lapse grid is the page's biggest payload and nothing above it needs the data,
+ * so it is fetched here, after first paint. Splitting the fetch out also lets the map
+ * below assume its data exists for the whole of its life, which its mount-only MapLibre
+ * setup depends on.
+ */
+export function HourlyMap({ buurten, palette }: Props) {
+  const [frames, setFrames] = useState<HourlyFrames | null | undefined>(undefined);
 
-export function HourlyMap({ buurten, frames, palette }: Props) {
-  const container = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const [ready, setReady] = useState(false);
-  const [frame, setFrame] = useState(6 * 24 + 15); // open on a July afternoon
-  const [playing, setPlaying] = useState(false);
-
-  // buurtcode -> index into a frame's value array
-  const codeIndex = useMemo(() => {
-    const m = new Map<string, number>();
-    frames?.buurtcodes.forEach((c, i) => {
-      m.set(c, i);
-    });
-    return m;
-  }, [frames]);
-
-  // geometry for buurten that have frame data, as a mutable working collection
-  const work = useMemo(() => {
-    if (!(buurten && frames)) return null;
-    const features = buurten.features
-      .filter((f) => codeIndex.has(f.properties.buurtcode))
-      .map((f) => ({ ...f, properties: { ...f.properties, __c: palette.grid, __v: 0 } }));
-    return { type: "FeatureCollection", features } as unknown as GeoJSON.FeatureCollection & {
-      features: Array<{ properties: { buurtcode: string; __c: string; __v: number } }>;
-    };
-  }, [buurten, frames, codeIndex, palette.grid]);
-
-  const vmax = frames?.meta.vmax ?? 1;
-
-  // paint one frame: recolour every buurt from its cooling intensity, push to the map
-  const paint = useCallback(
-    (idx: number) => {
-      const m = map.current;
-      if (!(m && ready && work && frames)) return;
-      const row = frames.frames[idx];
-      for (const f of work.features) {
-        const v = row[codeIndex.get(f.properties.buurtcode) ?? -1] ?? 0;
-        f.properties.__v = v;
-        f.properties.__c = heatColor(v, vmax, HEAT_RAMP);
-      }
-      (m.getSource("frames") as maplibregl.GeoJSONSource | undefined)?.setData(work);
-    },
-    [ready, work, frames, codeIndex, vmax],
-  );
-
-  // init map once
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only setup
   useEffect(() => {
-    if (!(container.current && buurten && frames)) return;
-    const m = new maplibregl.Map({
-      container: container.current,
-      style: {
-        version: 8,
-        sources: {},
-        layers: [{ id: "bg", type: "background", paint: { "background-color": palette.page } }],
-      },
-      attributionControl: false,
-      dragRotate: false,
-      canvasContextAttributes: { preserveDrawingBuffer: true },
+    let cancelled = false;
+    loadFrames().then((f) => {
+      if (!cancelled) setFrames(f);
     });
-    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    m.on("load", () => {
-      m.addSource("frames", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-      m.addLayer({
-        id: "fill",
-        type: "fill",
-        source: "frames",
-        paint: { "fill-color": ["get", "__c"], "fill-opacity": 0.92 },
-      });
-      m.addLayer({
-        id: "outline",
-        type: "line",
-        source: "frames",
-        paint: { "line-color": palette.baseline, "line-width": 0.4 },
-      });
-      m.fitBounds(bbox(buurten), { padding: 20, animate: false });
-      setReady(true);
-    });
-
-    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
-    m.on("mousemove", "fill", (e) => {
-      const f = e.features?.[0];
-      if (!f) return;
-      m.getCanvas().style.cursor = "pointer";
-      const p = f.properties as { buurtnaam: string; __v: number };
-      popup
-        .setLngLat(e.lngLat)
-        .setHTML(`<div class="tooltip"><strong>${p.buurtnaam}</strong>${num(p.__v, 1)} W/m²</div>`)
-        .addTo(m);
-    });
-    m.on("mouseleave", "fill", () => {
-      m.getCanvas().style.cursor = "";
-      popup.remove();
-    });
-
-    map.current = m;
     return () => {
-      m.remove();
-      map.current = null;
+      cancelled = true;
     };
   }, []);
 
-  // repaint on frame change (and once ready) and keep chrome colours in sync
-  useEffect(() => {
-    const m = map.current;
-    if (m && ready) {
-      m.setPaintProperty("bg", "background-color", palette.page);
-      m.setPaintProperty("outline", "line-color", palette.baseline);
-    }
-    paint(frame);
-  }, [frame, paint, ready, palette]);
-
-  // playback: advance frames on a timer (user-initiated, so reduced-motion still allows it)
-  useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => setFrame((f) => (f + 1) % FRAME_COUNT), STEP_MS);
-    return () => clearInterval(id);
-  }, [playing]);
-
-  const months = frames?.months ?? [];
-  const label = frames ? frameLabel(frame, months) : "";
-  const cityMean = frames
-    ? frames.frames[frame].reduce((s, v) => s + v, 0) / frames.frames[frame].length
-    : 0;
+  if (frames === undefined) {
+    return (
+      <section id="year" aria-labelledby="year-h">
+        <h2 id="year-h">A year of cooling, hour by hour</h2>
+        <p className="loading" role="status">
+          Loading the year…
+        </p>
+      </section>
+    );
+  }
 
   if (!(buurten && frames)) {
     return (
@@ -153,16 +58,190 @@ export function HourlyMap({ buurten, frames, palette }: Props) {
     );
   }
 
+  return <YearMap buurten={buurten} frames={frames} palette={palette} />;
+}
+
+interface YearMapProps {
+  buurten: BuurtCollection;
+  frames: HourlyFrames;
+  palette: Palette;
+}
+
+const STEP_MS = 150; // ~6.7 frames/second when playing
+const fmt1 = (n: number) => num(n, 1);
+
+/** Data-driven fill: the same equal-width bins as heatBin(), evaluated on the GPU from
+ *  feature state, so a frame change pushes 112 numbers instead of 112 polygons. */
+function heatExpression(vmax: number): maplibregl.ExpressionSpecification {
+  const step: unknown[] = ["step", ["coalesce", ["feature-state", "v"], 0], HEAT_RAMP[0]];
+  for (let i = 1; i < HEAT_RAMP.length; i++) step.push((vmax * i) / HEAT_RAMP.length, HEAT_RAMP[i]);
+  return step as unknown as maplibregl.ExpressionSpecification;
+}
+
+function YearMap({ buurten, frames, palette }: YearMapProps) {
+  const container = useRef<HTMLDivElement>(null);
+  const map = useRef<maplibregl.Map | null>(null);
+  const [ready, setReady] = useState(false);
+  const [frame, setFrame] = useState(6 * 24 + 15); // open on a July afternoon
+  const [playing, setPlaying] = useState(false);
+
+  const pal = useRef(palette);
+  pal.current = palette;
+  const hasBasemap = useRef(false);
+
+  const vmax = frames.meta.vmax;
+
+  // Geometry for the buurten that have frame data, keyed by buurtcode so feature state
+  // can address them. Uploaded to the GPU once; only the state changes per frame.
+  const work = useMemo(() => {
+    const codes = new Set(frames.buurtcodes);
+    return {
+      type: "FeatureCollection",
+      features: buurten.features.filter((f) => codes.has(f.properties.buurtcode)),
+    } as unknown as GeoJSON.FeatureCollection;
+  }, [buurten, frames]);
+
+  // City average per frame — the carpet plot's 288 cells.
+  const cityMean = useMemo(
+    () => frames.frames.map((row) => row.reduce((s, v) => s + v, 0) / row.length),
+    [frames],
+  );
+
+  const paint = useCallback(
+    (idx: number) => {
+      const m = map.current;
+      if (!(m && ready)) return;
+      const row = frames.frames[idx];
+      frames.buurtcodes.forEach((code, i) => {
+        m.setFeatureState({ source: "frames", id: code }, { v: row[i] });
+      });
+    },
+    [ready, frames],
+  );
+
+  // Init the map once; style loads async (CARTO, with an offline fallback).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only setup
+  useEffect(() => {
+    if (!container.current) return;
+    let cancelled = false;
+
+    loadStyle(pal.current).then(({ style, basemap }) => {
+      if (cancelled || !container.current) return;
+      hasBasemap.current = basemap;
+      const m = new maplibregl.Map({
+        container: container.current,
+        style,
+        attributionControl: basemap && { compact: true },
+        dragRotate: false,
+        canvasContextAttributes: { preserveDrawingBuffer: true },
+      });
+      m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+      m.fitBounds(bbox(buurten), { padding: 20, animate: false });
+
+      m.on("style.load", () => {
+        m.addSource("frames", { type: "geojson", data: work, promoteId: "buurtcode" });
+        m.addLayer(
+          {
+            id: "fill",
+            type: "fill",
+            source: "frames",
+            paint: {
+              "fill-color": heatExpression(frames.meta.vmax),
+              "fill-opacity": hasBasemap.current ? 0.78 : 0.92,
+            },
+          },
+          firstSymbolId(m),
+        );
+        m.addLayer(
+          {
+            id: "outline",
+            type: "line",
+            source: "frames",
+            paint: { "line-color": pal.current.baseline, "line-width": 0.4 },
+          },
+          firstSymbolId(m),
+        );
+        setReady(true);
+      });
+
+      attachTooltip(m, "fill", (f) => [
+        String(f.properties.buurtnaam),
+        `${fmt1(Number(f.state.v ?? 0))} W/m²`,
+      ]);
+
+      map.current = m;
+    });
+
+    return () => {
+      cancelled = true;
+      map.current?.remove();
+      map.current = null;
+    };
+  }, []);
+
+  // Theme change → new basemap style. Skipped on mount, when the map does not exist yet.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    let cancelled = false;
+    setReady(false);
+    loadStyle(palette).then(({ style, basemap }) => {
+      if (cancelled || map.current !== m) return;
+      hasBasemap.current = basemap;
+      m.setStyle(style); // style.load re-adds the source and layers
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [palette]);
+
+  // Repaint on frame change and after the style reloads (which drops feature state).
+  useEffect(() => {
+    paint(frame);
+  }, [frame, paint]);
+
+  // Playback on rAF: no drift, and the browser stops it in a background tab.
+  // User-initiated, so reduced-motion still allows it.
+  useEffect(() => {
+    if (!playing) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (t: number) => {
+      if (t - last >= STEP_MS) {
+        last = t;
+        setFrame((f) => (f + 1) % FRAME_COUNT);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing]);
+
+  const label = frameLabel(frame, frames.months);
+  const cityNow = cityMean[frame] ?? 0;
+
   return (
     <section id="year" aria-labelledby="year-h">
       <h2 id="year-h">A year of cooling, hour by hour</h2>
       <p className="lede">
-        Scrub through a typical year and watch cooling demand flush across the city — pale on winter
-        nights, deep red on summer afternoons. Colour is cooling intensity (W per m² of floor area),
-        on a fixed scale so seasons compare directly.
+        Every hour of a typical year, as 12 months by 24 hours. The cooling season is a shape: it
+        opens in April, peaks through summer afternoons, and closes in October. Pick any cell to
+        send the map to that hour.
       </p>
 
       <figure className="figure">
+        <YearCarpet
+          cityMean={cityMean}
+          months={frames.months}
+          vmax={vmax}
+          frame={frame}
+          onPick={(i) => {
+            setPlaying(false);
+            setFrame(i);
+          }}
+          fmt={fmt1}
+        />
+
         <div className="player">
           <button
             type="button"
@@ -174,7 +253,7 @@ export function HourlyMap({ buurten, frames, palette }: Props) {
           </button>
           <div className="player__label" aria-hidden="true">
             <strong>{label}</strong>
-            <span className="note"> · city avg {fmt1(cityMean)} W/m²</span>
+            <span className="note"> · city avg {fmt1(cityNow)} W/m²</span>
           </div>
           <input
             className="player__slider"
@@ -188,7 +267,7 @@ export function HourlyMap({ buurten, frames, palette }: Props) {
               setFrame(Number(e.target.value));
             }}
             aria-label="Time of year and hour of day"
-            aria-valuetext={`${label}, city average ${fmt1(cityMean)} watts per square metre`}
+            aria-valuetext={`${label}, city average ${fmt1(cityNow)} watts per square metre`}
           />
         </div>
 
@@ -201,7 +280,8 @@ export function HourlyMap({ buurten, frames, palette }: Props) {
         />
         <Legend items={heatLegend(vmax, HEAT_RAMP, fmt1)} title="Cooling intensity (W/m²)" />
         <figcaption>
-          Cooling intensity per neighbourhood · {label}. {frames.meta.weather_years} typical year.
+          Cooling intensity per neighbourhood · {label}. Carpet above shows the city average for
+          every hour, on the same scale. {frames.meta.weather_years} typical year.
         </figcaption>
       </figure>
     </section>

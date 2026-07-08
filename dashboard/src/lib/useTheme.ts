@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import type { Mode } from "./palette";
 
+/** Must match the key and the fallback chain in the inline script in index.html. */
 const KEY = "cooling-dashboard.theme";
 
 function initialMode(): Mode {
-  const saved = typeof localStorage !== "undefined" ? localStorage.getItem(KEY) : null;
-  if (saved === "light" || saved === "dark") return saved;
+  // index.html already resolved this before first paint — read it back rather than
+  // recomputing, so React state and the painted theme can never disagree.
+  const stamped = typeof document !== "undefined" ? document.documentElement.dataset.theme : null;
+  if (stamped === "light" || stamped === "dark") return stamped;
   return typeof matchMedia !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";

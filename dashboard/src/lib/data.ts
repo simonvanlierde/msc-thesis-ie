@@ -1,4 +1,4 @@
-// Load the three static datasets produced by the Python build scripts.
+// Load the static datasets produced by the Python build scripts.
 
 import type { BuurtCollection, HourlyFrames, ScenariosData, TemporalData } from "./types";
 
@@ -14,15 +14,20 @@ export interface Datasets {
   scenarios: ScenariosData;
   temporal: TemporalData;
   buurten: BuurtCollection | null; // optional: absent until geodata is built
-  frames: HourlyFrames | null; // optional: per-buurt hourly time-lapse
 }
 
+/** Everything the page needs to render its first screen. */
 export async function loadDatasets(): Promise<Datasets> {
-  const [scenarios, temporal, buurten, frames] = await Promise.all([
+  const [scenarios, temporal, buurten] = await Promise.all([
     getJSON<ScenariosData>("scenarios.json"),
     getJSON<TemporalData>("temporal.json"),
     getJSON<BuurtCollection>("cooling_by_buurt.geojson").catch(() => null),
-    getJSON<HourlyFrames>("cooling_frames.json").catch(() => null),
   ]);
-  return { scenarios, temporal, buurten, frames };
+  return { scenarios, temporal, buurten };
+}
+
+/** The 186 kB time-lapse grid, fetched by the year section after first paint rather than
+ *  holding up everything above it. Null when the geodata build hasn't been run. */
+export function loadFrames(): Promise<HourlyFrames | null> {
+  return getJSON<HourlyFrames>("cooling_frames.json").catch(() => null);
 }
