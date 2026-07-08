@@ -11,7 +11,9 @@ from pdok_http import retrying_session
 
 
 def _download(url: str, output: Path, expected_size: int | None) -> None:
-    if output.exists() and (expected_size is None or output.stat().st_size == expected_size):
+    # Skip only when we can confirm the existing file is complete; without an expected size we
+    # cannot tell a full file from one truncated by an aborted run, so re-download to be safe.
+    if output.exists() and expected_size is not None and output.stat().st_size == expected_size:
         return
 
     with retrying_session().get(url, stream=True, timeout=120) as response:

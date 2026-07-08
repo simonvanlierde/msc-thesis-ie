@@ -167,7 +167,7 @@ def _prepare_residences(residences_path: Path, energy_labels_path: Path) -> gpd.
         "EP-Online energy label",
     )
     labels = labels[[label_id, label_value]].rename(columns={label_id: "id_BAG", label_value: "energy_label"})
-    labels["energy_label_int"] = labels["energy_label"].replace(ENERGY_LABEL_TO_INT)
+    labels["energy_label_int"] = labels["energy_label"].map(ENERGY_LABEL_TO_INT)
     labels = labels.dropna(subset=["id_BAG", "energy_label_int"])
 
     return residences.merge(labels[["id_BAG", "energy_label_int"]], on="id_BAG", how="left")

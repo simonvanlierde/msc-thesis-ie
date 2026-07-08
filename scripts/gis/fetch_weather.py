@@ -1,6 +1,6 @@
 """Fetch the KNMI hourly weather series as a declared, cached pipeline input.
 
-Wraps ``functions.time_series.get_raw_weather_data`` so the weather series is
+Wraps ``cdm.time_series.get_raw_weather_data`` so the weather series is
 fetched once (per station/year window from config) instead of being pulled live
 inside every model run. Falls back to the committed backup automatically.
 """
