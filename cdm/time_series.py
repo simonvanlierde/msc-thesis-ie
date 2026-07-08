@@ -108,8 +108,10 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
         drop=True,
     )
 
-    # The API sometimes returns the first day of the year after end_year, so cut anything past end_year
-    weather_series_df = weather_series_df[weather_series_df["date"].dt.year <= end_year].reset_index(drop=True)
+    # The API sometimes returns years outside the requested window, so restrict to [start_year, end_year]
+    weather_series_df = weather_series_df[
+        (weather_series_df["date"].dt.year >= start_year) & (weather_series_df["date"].dt.year <= end_year)
+    ].reset_index(drop=True)
 
     # Never silently model the wrong period: the backup only covers a fixed set of years, so refuse it
     # (rather than returning stale data) when it does not cover the requested weather years.
