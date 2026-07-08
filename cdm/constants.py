@@ -17,9 +17,6 @@ SOLAR_DIRECTIONS = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
 # Scenario identifiers, in reporting order.
 SCENARIOS = ("SQ", "2030", "2050_L", "2050_M", "2050_H")
 
-# Default percentile at which the peak cooling power demand is capped.
-DEFAULT_CAP_PERCENTILE = 98
-
 # Global parameters the model reads. read_global_parameters validates that the loaded
 # configuration provides all of these, so a missing or renamed key fails at load with a
 # clear message instead of a cryptic KeyError deep inside the model. Keep in sync when a
