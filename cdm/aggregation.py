@@ -70,6 +70,13 @@ def aggregate_results(
     def weighted_mean(series: pd.Series) -> float:
         return np.average(series, weights=buildings.loc[series.index, "floor_area_total_m2"])
 
+    # Sum the hourly time series of a group element-wise, keeping them hourly
+    def sum_arrays(series_with_arrays: pd.Series) -> np.ndarray:
+        return np.sum(np.vstack(list(series_with_arrays)), axis=0)
+
+    # The percentile the demand columns were capped at, which the model writes into their names
+    cap = int(global_parameters["peak_cooling_percentile_cap"])
+
     # Construct the aggregations dictionary
     aggregations = {
         "id_BAG": "count",
@@ -82,11 +89,11 @@ def aggregate_results(
         "number_of_residences": "sum",
         "population": "sum",
         "E_cooling_kWh": "sum",
-        "E_cooling_capped_at_98th_percentile_kWh": "sum",
-        "E_cooling_capped_at_98th_percentile_Wh_m2": weighted_mean,
+        f"E_cooling_capped_at_{cap}th_percentile_kWh": "sum",
+        f"E_cooling_capped_at_{cap}th_percentile_Wh_m2": weighted_mean,
         "P_cooling_peak_kW": "sum",
-        "P_cooling_peak_98th_percentile_kW": "sum",
-        "P_cooling_peak_98th_percentile_W_m2": weighted_mean,
+        f"P_cooling_peak_{cap}th_percentile_kW": "sum",
+        f"P_cooling_peak_{cap}th_percentile_W_m2": weighted_mean,
         "electricity_use_kWh": "sum",
         "GHG_emissions_electricity_kgCO2eq": "sum",
         "GHG_emissions_refrigerant_leaks_kgCO2eq": "sum",
@@ -105,10 +112,6 @@ def aggregate_results(
     }
 
     if include_time_series:
-
-        def sum_arrays(series_with_arrays: pd.Series) -> np.ndarray:
-            return np.sum(np.vstack(list(series_with_arrays)), axis=0)
-
         # Add the time series aggregations to the aggregations dictionary
         time_series_aggregations = dict.fromkeys(buildings.filter(like="Q_").columns, sum_arrays)
         aggregations.update(time_series_aggregations)
@@ -120,11 +123,7 @@ def aggregate_results(
     buildings_agg = buildings_agg.reset_index()
 
     # Fetch columns that are summed, as these need to be scaled with the building stock growth rates
-    sum_columns = [
-        key
-        for key, value in aggregations.items()
-        if str(value).startswith("sum") or str(value).startswith("<function aggregate_results.<locals>.sum_arrays")
-    ]
+    sum_columns = [key for key, value in aggregations.items() if value == "sum" or value is sum_arrays]
 
     if scale_with_building_stock:
         # Scale the aggregated results with the building stock growth rates
