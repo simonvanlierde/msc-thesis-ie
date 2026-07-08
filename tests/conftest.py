@@ -19,7 +19,6 @@ def global_parameters() -> dict[str, float]:
     return {
         "air_density": 1.2,
         "air_heat_capacity": 1005.0,
-        "ventilation_efficiency": 0.7,
         "alfa_i": 7.5,
         "alfa_o": 27.5,
         "T_thresh_C": 25.0,
@@ -56,7 +55,6 @@ def building() -> pd.Series:
             "end_use": "office",
             "population": 30.0,
             "ventilation_rate_pp_m3_h": 30.0,
-            "pressure_drop_Pa": 100.0,
             "int_heat_gain_appliances_W_m2": 8.0,
             # Solar
             "window_area_per_orientation_m2": np.array([10.0, 5.0, 5.0, 5.0, 10.0, 5.0, 5.0, 5.0]),
@@ -70,6 +68,12 @@ def building() -> pd.Series:
             "f_window": 0.3,
         },
     )
+
+
+@pytest.fixture
+def buildings(building: pd.Series) -> pd.DataFrame:
+    """The single-building fixture as the one-row DataFrame the vectorised heat-flow functions take."""
+    return pd.DataFrame([building.to_dict()])
 
 
 @pytest.fixture

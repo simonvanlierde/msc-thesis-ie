@@ -12,8 +12,7 @@ import pytest
 from cdm.aggregation import scale_results_with_building_stock
 from cdm.constants import REQUIRED_GLOBAL_PARAMETERS
 from cdm.parameters import (
-    assign_building_type_parameters,
-    assign_energy_class_parameters,
+    assign_parameters_by_class,
     calculate_building_population,
     determine_building_type,
     determine_energy_label_to_class_mappings,
@@ -74,33 +73,46 @@ def test_determine_building_type(
     expected_type: int,
     global_parameters: dict,
 ) -> None:
-    building = pd.Series({"end_use": end_use, "height_m": height_m, "construction_year": construction_year})
-    assert determine_building_type(building, global_parameters) == expected_type
+    buildings = pd.DataFrame([{"end_use": end_use, "height_m": height_m, "construction_year": construction_year}])
+    assert determine_building_type(buildings, global_parameters).iloc[0] == expected_type
 
 
 def test_calculate_building_population_office_uses_floor_area(global_parameters: dict) -> None:
-    building = pd.Series({"end_use": "office", "floor_area_total_m2": 1000.0, "number_of_residences": 0})
-    assert calculate_building_population(building, global_parameters) == pytest.approx(1000.0 * 0.1)
+    buildings = pd.DataFrame([{"end_use": "office", "floor_area_total_m2": 1000.0, "number_of_residences": 0}])
+    assert calculate_building_population(buildings, global_parameters)[0] == pytest.approx(1000.0 * 0.1)
 
 
 def test_calculate_building_population_residential_uses_households(global_parameters: dict) -> None:
-    building = pd.Series({"end_use": "residential", "floor_area_total_m2": 1000.0, "number_of_residences": 5})
-    assert calculate_building_population(building, global_parameters) == pytest.approx(5 * 2.2)
+    buildings = pd.DataFrame([{"end_use": "residential", "floor_area_total_m2": 1000.0, "number_of_residences": 5}])
+    assert calculate_building_population(buildings, global_parameters)[0] == pytest.approx(5 * 2.2)
 
 
-def test_assign_building_type_parameters_selects_row_by_type() -> None:
-    building_parameters = [{"Rc_wall_m2K_W": 1.0}, {"Rc_wall_m2K_W": 2.0}, {"Rc_wall_m2K_W": 3.0}]
-    building = pd.Series({"building_type_int": 2})
+def test_calculate_building_population_mixes_end_uses_in_one_call(global_parameters: dict) -> None:
+    buildings = pd.DataFrame(
+        {
+            "end_use": ["office", "residential"],
+            "floor_area_total_m2": [1000.0, 1000.0],
+            "number_of_residences": [0, 5],
+        },
+    )
+    assert calculate_building_population(buildings, global_parameters) == pytest.approx([100.0, 11.0])
 
-    # The list is 1-indexed by building type, so type 2 selects the second record.
-    assert assign_building_type_parameters(building, building_parameters)["Rc_wall_m2K_W"] == 2.0
 
+def test_assign_parameters_by_class_selects_the_record_matching_each_building() -> None:
+    building_parameters = [
+        {"building_type_int": 1, "Rc_wall_m2K_W": 1.0},
+        {"building_type_int": 2, "Rc_wall_m2K_W": 2.0},
+        {"building_type_int": 3, "Rc_wall_m2K_W": 3.0},
+    ]
+    building_type_ints = pd.Series([2, 1], index=[10, 11])
 
-def test_assign_energy_class_parameters_selects_row_by_class() -> None:
-    energy_class_parameters = [{"U_window_W_m2K": 5.0}, {"U_window_W_m2K": 1.2}]
-    building = pd.Series({"energy_class_int": 1})
+    assigned = assign_parameters_by_class(building_type_ints, building_parameters, "building_type_int")
 
-    assert assign_energy_class_parameters(building, energy_class_parameters)["U_window_W_m2K"] == 5.0
+    # The class column becomes the lookup key, so only the parameters it selects come back.
+    assert list(assigned.columns) == ["Rc_wall_m2K_W"]
+    assert assigned["Rc_wall_m2K_W"].tolist() == [2.0, 1.0]
+    # The result stays aligned with the buildings it was looked up for.
+    assert assigned.index.tolist() == [10, 11]
 
 
 def test_determine_energy_label_to_class_mappings() -> None:

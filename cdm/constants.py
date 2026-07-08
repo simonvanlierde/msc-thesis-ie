@@ -52,7 +52,6 @@ REQUIRED_GLOBAL_PARAMETERS = frozenset(
         "peak_cooling_percentile_cap",
         "people_density_office",
         "people_per_hh",
-        "ventilation_efficiency",
         "weather_data_end_year",
         "weather_data_start_year",
         "weather_station",

@@ -5,83 +5,78 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from cdm.geometric import calc_window_and_wall_areas
 
 
-def calculate_building_population(building: pd.Series, global_parameters: dict[str, float]) -> float:
-    """Calculate the building population based on the building row and global parameters.
+def calculate_building_population(buildings: pd.DataFrame, global_parameters: dict[str, float]) -> np.ndarray:
+    """Calculate the building population based on the buildings and global parameters.
 
     Args:
-        building (pd.Series): The building row for which the population is calculated.
+        buildings (pd.DataFrame): The buildings for which the population is calculated.
         global_parameters (dict): The dictionary containing the global parameters for the cooling demand model.
 
     Returns:
-        float: The calculated building population.
+        np.ndarray: The calculated building population.
     """
-    if building["end_use"] == "office":
-        population = building["floor_area_total_m2"] * global_parameters["people_density_office"]
-    else:
-        population = building["number_of_residences"] * global_parameters["people_per_hh"]
-
-    return population
+    return np.where(
+        buildings["end_use"] == "office",
+        buildings["floor_area_total_m2"] * global_parameters["people_density_office"],
+        buildings["number_of_residences"] * global_parameters["people_per_hh"],
+    )
 
 
 def determine_building_type(
-    building: pd.Series,
+    buildings: pd.DataFrame,
     global_parameters: dict[str, float],
-) -> int:
-    """Determines the building type of a building based on the building parameters.
+) -> pd.Series:
+    """Determines the building type of each building based on the building parameters.
+
+    The type is a three-bit code (end use, low-rise, age) read as a decimal integer between 1 and 8.
 
     Args:
-        building (pd.Series): The building row for which the building type is determined.
+        buildings (pd.DataFrame): The buildings for which the building type is determined.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
 
     Returns:
-        int: The building type in integer representation
+        pd.Series: The building type in integer representation
     """
-    # Unpack building parameters
-    end_use = building["end_use"]
-    height_m = building["height_m"]
-    construction_year = building["construction_year"]
-
     #  Unpack global parameters
     building_type_height_cutoff_m = global_parameters["building_type_height_cutoff_m"]
     building_type_age_cutoff_yr = global_parameters["building_type_age_cutoff_yr"]
 
     # Determine the end use binary, giving 0 for residential and 1 for office
-    end_use_binary = 0 if end_use == "residential" else 1
+    end_use_binary = buildings["end_use"] != "residential"
 
     # Determine the low-rise binary, giving 0 for high-rise and 1 for low-rise
-    lowrise_binary = 0 if height_m > building_type_height_cutoff_m else 1
+    lowrise_binary = buildings["height_m"] <= building_type_height_cutoff_m
 
-    # Determine the age binary, giving 0 for new  and 1 for old
-    age_binary = 0 if construction_year > building_type_age_cutoff_yr else 1
+    # Determine the age binary, giving 0 for new and 1 for old
+    age_binary = buildings["construction_year"] <= building_type_age_cutoff_yr
 
-    # Determine the building type based on the three binary columns
-    building_type_binary = str(end_use_binary) + str(lowrise_binary) + str(age_binary)
-
-    # Convert building_type_binary to decimal integer between 1 and 8
-    return int(building_type_binary, 2) + 1
+    # Read the three binary columns as a decimal integer between 1 and 8
+    return 4 * end_use_binary + 2 * lowrise_binary + age_binary + 1
 
 
-def assign_building_type_parameters(
-    building: pd.Series,
-    building_parameters: list[dict[str, float]],
-) -> pd.Series:
-    """Assigns the building type-specific parameters to a building based on the building type.
+def assign_parameters_by_class(
+    class_ints: pd.Series,
+    parameters: list[dict[str, float]],
+    class_column: str,
+) -> pd.DataFrame:
+    """Looks up the class-specific parameters for each building.
 
     Args:
-        building (pd.Series): The building row for which the building-specific parameters are assigned.
-        building_parameters (list[dict[str, float]]): The list containing the building parameter dictionaries for the cooling demand model.
+        class_ints (pd.Series): The class (building type or energy class) of each building, in integer representation.
+        parameters (list[dict[str, float]]): The list containing one parameter dictionary per class.
+        class_column (str): The name of the key holding the class integer in each parameter dictionary.
 
     Returns:
-        pd.Series: The series containing the building type-specific parameters corresponding to the building type.
+        pd.DataFrame: The class-specific parameters for each building, indexed like ``class_ints``.
     """
-    building_type_int = building["building_type_int"]
-    parameters = building_parameters[building_type_int - 1]
-    return pd.Series(parameters)
+    parameter_table = pd.DataFrame(parameters).set_index(class_column)
+    return parameter_table.reindex(class_ints.to_numpy()).set_axis(class_ints.index)
 
 
 def add_building_type_data_to_buildings(
@@ -100,15 +95,13 @@ def add_building_type_data_to_buildings(
         pd.DataFrame: The DataFrame containing the buildings with the energy class dependent data added.
     """
     # Determine the building type (in integer representation)
-    df_buildings["building_type_int"] = df_buildings.apply(determine_building_type, args=(global_parameters,), axis=1)
+    df_buildings["building_type_int"] = determine_building_type(df_buildings, global_parameters)
 
     # Determine the building-type specific parameters based on the building type
-    df_building_type_parameters = df_buildings.apply(
-        assign_building_type_parameters,
-        args=(building_type_parameters,),
-        axis=1,
-    ).drop(
-        columns=["building_type_int"],
+    df_building_type_parameters = assign_parameters_by_class(
+        df_buildings["building_type_int"],
+        building_type_parameters,
+        "building_type_int",
     )
     df_buildings[df_building_type_parameters.columns] = df_building_type_parameters
 
@@ -147,24 +140,6 @@ def determine_energy_label_to_class_mappings(
     return residential_mapping, office_mapping
 
 
-def assign_energy_class_parameters(
-    building: pd.Series,
-    energy_class_parameters: list[dict[str, float]],
-) -> pd.Series:
-    """Assigns the energy class-specific parameters to a building based on the energy class.
-
-    Args:
-        building (pd.Series): The building row for which the energy class-specific parameters are assigned.
-        energy_class_parameters (list[dict[str, float]]): The list containing the energy class dependent parameter dictionaries for the cooling demand model.
-
-    Returns:
-        pd.Series: The series containing the energy class-specific parameters corresponding to the building type.
-    """
-    energy_class = building["energy_class_int"]
-    parameters = energy_class_parameters[energy_class - 1]
-    return pd.Series(parameters)
-
-
 def add_energy_class_data_to_buildings(
     df_buildings: pd.DataFrame,
     energy_class_parameters: list[dict[str, float]],
@@ -186,22 +161,18 @@ def add_energy_class_data_to_buildings(
     )
 
     # Determine energy label class based on the energy label, using the right mapping for residential and office buildings
-    df_buildings["energy_class_int"] = df_buildings.apply(
-        lambda row: (
-            energy_label_to_class_mapping_residential[int(row["energy_label_int"])]
-            if row["end_use"] == "residential"
-            else energy_label_to_class_mapping_office[int(row["energy_label_int"])]
-        ),
-        axis=1,
+    energy_labels = df_buildings["energy_label_int"].astype(int)
+    df_buildings["energy_class_int"] = np.where(
+        df_buildings["end_use"] == "residential",
+        energy_labels.map(energy_label_to_class_mapping_residential),
+        energy_labels.map(energy_label_to_class_mapping_office),
     )
 
     # Determine the energy class-specific parameters based on the energy class
-    df_energy_class_parameters = df_buildings.apply(
-        assign_energy_class_parameters,
-        args=(energy_class_parameters,),
-        axis=1,
-    ).drop(
-        columns=["energy_class_int"],
+    df_energy_class_parameters = assign_parameters_by_class(
+        df_buildings["energy_class_int"],
+        energy_class_parameters,
+        "energy_class_int",
     )
     df_buildings[df_energy_class_parameters.columns] = df_energy_class_parameters
 
@@ -225,7 +196,7 @@ def add_derived_parameters_to_buildings(
         pd.DataFrame: The DataFrame containing the buildings with the derived parameters added.
     """
     # Determine the building population
-    df_buildings["population"] = df_buildings.apply(calculate_building_population, args=(global_parameters,), axis=1)
+    df_buildings["population"] = calculate_building_population(df_buildings, global_parameters)
 
     # Determine the wall and window areas
     (

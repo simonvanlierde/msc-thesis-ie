@@ -1,4 +1,8 @@
-"""Unit tests for thermodynamic helper functions."""
+"""Unit tests for thermodynamic helper functions.
+
+The heat-flow functions are vectorised over buildings, so they take a DataFrame and
+return a (n_buildings, n_hours) array; the fixtures below use a single-row stock.
+"""
 
 import numpy as np
 import pandas as pd
@@ -6,10 +10,9 @@ import pytest
 
 from cdm.thermodynamic import (
     R_to_U,
-    calc_cooling_demand_for_building_row,
     calc_cooling_demand_from_thermal_flows,
+    calc_cooling_demand_metrics_for_df,
     calc_cooling_demand_percentile,
-    calc_cooling_demand_percentile_per_year,
     calc_Q_infiltration,
     calc_Q_internal_heat,
     calc_Q_solar_radiation,
@@ -39,24 +42,30 @@ def test_R_to_U_zero_resistance_is_surface_only() -> None:
     assert R_to_U(0.0, alfa_i, alfa_o) == pytest.approx(1 / (1 / alfa_i + 1 / alfa_o))
 
 
+def test_R_to_U_is_elementwise_over_an_array() -> None:
+    resistances = np.array([1.0, 5.0])
+    assert np.allclose(R_to_U(resistances), [R_to_U(1.0), R_to_U(5.0)])
+
+
 def test_calc_Q_infiltration_scales_linearly_with_temperature_difference() -> None:
-    building = pd.Series({"volume_m3": 300.0, "infiltration_ACH": 0.5})
+    buildings = pd.DataFrame([{"volume_m3": 300.0, "infiltration_ACH": 0.5}])
     global_parameters = {"air_density": 1.2, "air_heat_capacity": 1005.0}
 
     delta_t = np.array([0.0, 1.0, 2.0, 4.0])
     time_series = {"T_outdoor_minus_indoor_C": delta_t}
 
-    q = calc_Q_infiltration(building, time_series, global_parameters)
+    q = calc_Q_infiltration(buildings, time_series, global_parameters)
 
     mass_flow = 1.2 * 0.5 * 300.0 / 3600  # kg/s
     expected = mass_flow * 1005.0 * delta_t
-    assert np.allclose(q, expected)
+    assert q.shape == (1, 4)
+    assert np.allclose(q[0], expected)
     # Zero temperature difference must give zero heat flow.
-    assert q[0] == pytest.approx(0.0)
+    assert q[0, 0] == pytest.approx(0.0)
 
 
 def test_calc_Q_transmission_matches_component_sum(
-    building: pd.Series,
+    buildings: pd.DataFrame,
     time_series: dict,
     global_parameters: dict,
 ) -> None:
@@ -67,19 +76,23 @@ def test_calc_Q_transmission_matches_component_sum(
     # the floor with the (constant) subsurface gradient.
     expected = (1.8 * 50.0 + u_wall * 150.0 + u_roof * 100.0) * delta_t + u_floor * 100.0 * (12.0 - 25.0)
 
-    assert np.allclose(calc_Q_transmission(building, time_series, global_parameters), expected)
+    assert np.allclose(calc_Q_transmission(buildings, time_series, global_parameters)[0], expected)
 
 
-def test_calc_Q_solar_radiation_sums_over_orientations(building: pd.Series, time_series: dict) -> None:
+def test_calc_Q_solar_radiation_sums_over_orientations(
+    buildings: pd.DataFrame,
+    building: pd.Series,
+    time_series: dict,
+) -> None:
     window_area = building["window_area_per_orientation_m2"]
     radiation = np.array([time_series[f"P_sol_{d}_W_m2"] for d in ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]])
     expected = (window_area[:, None] * 0.6 * radiation).sum(axis=0)
 
-    assert np.allclose(calc_Q_solar_radiation(building, time_series), expected)
+    assert np.allclose(calc_Q_solar_radiation(buildings, time_series)[0], expected)
 
 
 def test_calc_Q_internal_heat_combines_people_lighting_appliances(
-    building: pd.Series,
+    buildings: pd.DataFrame,
     time_series: dict,
     global_parameters: dict,
 ) -> None:
@@ -89,32 +102,47 @@ def test_calc_Q_internal_heat_combines_people_lighting_appliances(
         + 8.0 * 300.0 * time_series["presence_appliances_office"]
     )
 
-    assert np.allclose(calc_Q_internal_heat(building, time_series, global_parameters), expected)
+    assert np.allclose(calc_Q_internal_heat(buildings, time_series, global_parameters)[0], expected)
 
 
-def test_calc_Q_ventilation_without_electricity_returns_none(
-    building: pd.Series,
+def test_calc_Q_ventilation_scales_with_occupancy(
+    buildings: pd.DataFrame,
     time_series: dict,
     global_parameters: dict,
 ) -> None:
-    q_vent, q_elec, e_elec = calc_Q_ventilation(building, time_series, global_parameters)
+    q_vent = calc_Q_ventilation(buildings, time_series, global_parameters)
 
     rate = 1.2 * 30.0 * 30.0 * time_series["presence_people_office"] / 3600
-    assert np.allclose(q_vent, rate * 1005.0 * time_series["T_outdoor_minus_indoor_C"])
-    # Electricity demand is opt-in and skipped by default.
-    assert q_elec is None
-    assert e_elec is None
+    assert np.allclose(q_vent[0], rate * 1005.0 * time_series["T_outdoor_minus_indoor_C"])
 
 
-def test_calc_Q_ventilation_with_electricity_is_computed(
+def test_end_use_dependent_flows_use_each_buildings_own_presence_profile(
     building: pd.Series,
     time_series: dict,
     global_parameters: dict,
 ) -> None:
-    _, q_elec, e_elec = calc_Q_ventilation(building, time_series, global_parameters, calc_electricity_demand=True)
+    # Two identical buildings apart from their end use must pick up different presence profiles.
+    residential = building.to_dict() | {"end_use": "residential"}
+    time_series = time_series | {
+        "presence_people_residential": np.array([0.9, 0.1, 0.1, 0.9]),
+        "presence_lighting_residential": np.array([0.8, 0.2, 0.2, 0.8]),
+        "presence_appliances_residential": np.array([0.7, 0.3, 0.3, 0.7]),
+    }
+    buildings = pd.DataFrame([building.to_dict(), residential])
 
-    assert q_elec is not None
-    assert e_elec is not None
+    q_vent = calc_Q_ventilation(buildings, time_series, global_parameters)
+    q_internal = calc_Q_internal_heat(buildings, time_series, global_parameters)
+
+    rate_residential = 1.2 * 30.0 * 30.0 * time_series["presence_people_residential"] / 3600
+    assert np.allclose(q_vent[1], rate_residential * 1005.0 * time_series["T_outdoor_minus_indoor_C"])
+    assert np.allclose(
+        q_internal[1],
+        30.0 * 100.0 * time_series["presence_people_residential"]
+        + 5.0 * 300.0 * time_series["presence_lighting_residential"]
+        + 8.0 * 300.0 * time_series["presence_appliances_residential"],
+    )
+    # The office row must be unaffected by the residential row sharing the same call.
+    assert np.allclose(q_vent[0], calc_Q_ventilation(buildings.iloc[:1], time_series, global_parameters)[0])
 
 
 def test_calc_cooling_demand_only_counts_positive_net_heat() -> None:
@@ -155,17 +183,31 @@ def test_calc_cooling_demand_averages_peaks_across_years() -> None:
     assert p_peak_kw == pytest.approx(2.0)
 
 
+def test_calc_cooling_demand_from_thermal_flows_is_vectorised_over_buildings() -> None:
+    # Two buildings, the second with twice the internal gains of the first.
+    q_internal = np.zeros((2, 8760))
+    q_internal[0, 0] = 1000.0
+    q_internal[1, 0] = 2000.0
+    zeros = np.zeros((2, 8760))
+
+    q_cooling, e_cooling_kwh, p_peak_kw = calc_cooling_demand_from_thermal_flows(zeros, zeros, zeros, zeros, q_internal)
+
+    assert q_cooling.shape == (2, 8760)
+    assert np.allclose(e_cooling_kwh, [1.0, 2.0])
+    assert np.allclose(p_peak_kw, [1.0, 2.0])
+
+
 def test_calc_cooling_demand_percentile_caps_peaks() -> None:
     # A flat year with two extreme spikes; capping at the 98th percentile removes the spikes.
     q = np.full(8760, 100.0)
     q[:2] = 50_000.0
 
-    _, p_peak_percentile_kw, _, e_capped_kwh = calc_cooling_demand_percentile_per_year(q, n_percentile=98)
+    _, p_peak_percentile_kw, _, e_capped_kwh = calc_cooling_demand_percentile(q, n_percentile=98)
 
     uncapped_kwh = q.sum() / 1000
     # The 98th-percentile cap is far below the spike, so the capped energy is lower than the raw total.
     assert e_capped_kwh < uncapped_kwh
-    assert p_peak_percentile_kw == pytest.approx(np.percentile(np.sort(q)[::-1], 98) / 1000)
+    assert p_peak_percentile_kw == pytest.approx(np.percentile(q, 98) / 1000)
 
 
 def test_calc_cooling_demand_percentile_averages_over_years() -> None:
@@ -175,27 +217,69 @@ def test_calc_cooling_demand_percentile_averages_over_years() -> None:
     two_years = np.concatenate([one_year, one_year])
 
     _, p_peak_two_years, _, e_two_years = calc_cooling_demand_percentile(two_years, n_percentile=98)
-    _, p_peak_one_year, _, e_one_year = calc_cooling_demand_percentile_per_year(one_year, n_percentile=98)
+    _, p_peak_one_year, _, e_one_year = calc_cooling_demand_percentile(one_year, n_percentile=98)
 
     assert p_peak_two_years == pytest.approx(p_peak_one_year)
     assert e_two_years == pytest.approx(e_one_year)
 
 
-def test_calc_cooling_demand_for_building_row_runs_end_to_end(
-    building: pd.Series,
+def test_calc_cooling_demand_percentile_sorts_each_year_descending() -> None:
+    q = np.tile(np.arange(8760, dtype=float), 2)
+
+    q_sorted, _, q_capped, _ = calc_cooling_demand_percentile(q, n_percentile=98, include_time_series=True)
+
+    assert q_sorted.shape == q.shape
+    # Each year is sorted independently, largest first.
+    assert np.allclose(q_sorted[:8760], np.arange(8759, -1, -1))
+    # Capping never raises a value.
+    assert (q_capped <= q).all()
+
+
+def test_calc_cooling_demand_metrics_for_df_runs_end_to_end(
+    buildings: pd.DataFrame,
     time_series_full_year: dict,
     global_parameters: dict,
 ) -> None:
-    q_cooling, e_cooling_kwh, p_peak_kw, heat_flows = calc_cooling_demand_for_building_row(
-        building,
+    result = calc_cooling_demand_metrics_for_df(buildings, time_series_full_year, global_parameters)
+
+    # Positive aggregate metrics, and the hourly series are only returned when explicitly requested.
+    assert result["E_cooling_kWh"].iloc[0] > 0
+    assert result["P_cooling_peak_kW"].iloc[0] > 0
+    assert "Q_cooling_demand_Wh" not in result.columns
+
+
+def test_calc_cooling_demand_metrics_for_df_returns_hourly_series_on_request(
+    buildings: pd.DataFrame,
+    time_series_full_year: dict,
+    global_parameters: dict,
+) -> None:
+    result = calc_cooling_demand_metrics_for_df(
+        buildings,
         time_series_full_year,
         global_parameters,
+        include_time_series=True,
     )
 
-    # A full year of hourly demand, non-negative everywhere, with positive aggregate metrics.
+    q_cooling = result["Q_cooling_demand_Wh"].iloc[0]
     assert q_cooling.shape == (8760,)
     assert (q_cooling >= 0).all()
-    assert e_cooling_kwh > 0
-    assert p_peak_kw > 0
-    # Heat flows are only returned when explicitly requested.
-    assert heat_flows is None
+    # The five heat flows that make up the demand are returned alongside it.
+    assert result["Q_transmission_Wh"].iloc[0].shape == (8760,)
+    assert result["Q_cooling_capped_at_98th_percentile_Wh"].iloc[0].shape == (8760,)
+
+
+def test_calc_cooling_demand_metrics_for_df_is_chunk_invariant(
+    building: pd.Series,
+    time_series_full_year: dict,
+    global_parameters: dict,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Chunking is a memory optimisation; it must not change a single number.
+    stock = pd.DataFrame([building.to_dict() | {"volume_m3": 900.0 * (1 + i)} for i in range(5)])
+
+    unchunked = calc_cooling_demand_metrics_for_df(stock.copy(), time_series_full_year, global_parameters)
+    monkeypatch.setattr("cdm.thermodynamic.MAX_CHUNK_CELLS", 8760 * 2)  # forces chunks of two buildings
+    chunked = calc_cooling_demand_metrics_for_df(stock.copy(), time_series_full_year, global_parameters)
+
+    assert np.allclose(unchunked["E_cooling_kWh"], chunked["E_cooling_kWh"])
+    assert np.allclose(unchunked["P_cooling_peak_98th_percentile_kW"], chunked["P_cooling_peak_98th_percentile_kW"])
