@@ -11,7 +11,11 @@ from cdm.environmental import (
     calculate_environmental_impacts_from_cooling_demand,
     calculate_environmental_parameters_for_cooling_technologies,
 )
-from cdm.parameters import add_cooling_technology_data_to_buildings, add_parameters_to_buildings
+from cdm.parameters import (
+    add_cooling_technology_data_to_buildings,
+    add_parameters_to_buildings,
+    assign_parameters_by_class,
+)
 from cdm.thermodynamic import calc_cooling_demand_metrics_for_df
 from cdm.time_series import create_time_series
 
@@ -28,6 +32,98 @@ def _record_impact_intensities(
     results.loc[index_value, "Electricity use (kWh/m2)"] = intensities["electricity_use_intensity_kWh_m2"]
     results.loc[index_value, "GHG emissions (kg CO2eq/m2)"] = intensities["GHG_emissions_intensity_kgCO2eq_m2"]
     results.loc[index_value, "Material demand (kg/m2)"] = intensities["material_use_intensity_kg_m2"]
+
+
+def run_cooling_demand_stage(
+    buildings: pd.DataFrame,
+    raw_weather_data: pd.DataFrame,
+    global_parameters: dict[str, float],
+    building_type_parameters: list[dict[str, float]],
+    energy_class_parameters: list[dict[str, float]],
+    multi_directional_solar_radiation_fractions_path: str,
+    presence_load_factors_path: str,
+) -> pd.DataFrame:
+    """Runs the expensive half of the model: building parameters, time series and hourly cooling demand.
+
+    The cooling demand depends on the building geometry, the energy class parameters, the non-cooling-technology
+    building type parameters, and the global parameters -- but not on the cooling technology mix or on any
+    cooling technology parameter. A sensitivity analysis that varies only those can therefore run this stage
+    once and feed the result to ``run_impact_stage`` on every step.
+
+    Args:
+        buildings (pd.DataFrame): The DataFrame containing the buildings for which the cooling demand is calculated.
+        raw_weather_data (pd.DataFrame): The DataFrame containing the raw weather data.
+        global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
+        building_type_parameters (list[dict[str, float]]): The list containing the building type parameter dictionaries for the cooling demand model.
+        energy_class_parameters (list[dict[str, float]]): The list containing the energy class parameter dictionaries for the cooling demand model.
+        multi_directional_solar_radiation_fractions_path (str): The path to the csv file containing the multi-directional solar radiation fractions.
+        presence_load_factors_path (str): The path to the csv file containing the presence load factors.
+
+    Returns:
+        pd.DataFrame: The buildings with their parameters and hourly cooling demand metrics added.
+    """
+    # Assign the building parameters
+    buildings = add_parameters_to_buildings(
+        buildings,
+        global_parameters,
+        building_type_parameters,
+        energy_class_parameters,
+    )
+
+    # Create time series for weather series and other hourly data
+    time_series = create_time_series(
+        global_parameters,
+        raw_weather_data,
+        multi_directional_solar_radiation_fractions_path,
+        presence_load_factors_path,
+    )
+
+    # Calculate the cooling demand
+    buildings = calc_cooling_demand_metrics_for_df(buildings, time_series, global_parameters, include_time_series=False)
+
+    # Drop duplicate columns from the DataFrame
+    return buildings.loc[:, ~buildings.columns.duplicated()]
+
+
+def run_impact_stage(
+    buildings_with_cooling_demand: pd.DataFrame,
+    global_parameters: dict[str, float],
+    building_type_parameters: list[dict[str, float]],
+    cooling_technology_parameters: list[dict[str, float]],
+) -> tuple[pd.DataFrame, dict[str, dict[str, float]]]:
+    """Runs the cheap half of the model: the cooling technology mix and the environmental impacts it drives.
+
+    Args:
+        buildings_with_cooling_demand (pd.DataFrame): The buildings as returned by ``run_cooling_demand_stage``.
+        global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
+        building_type_parameters (list[dict[str, float]]): The list containing the building type parameter dictionaries, whose cooling technology shares are re-read here.
+        cooling_technology_parameters (list[dict[str, float]]): The list containing the cooling technology parameter dictionaries for the cooling demand model.
+
+    Returns:
+        tuple[pd.DataFrame, dict[str, dict[str, float]]]: The buildings with the environmental impacts added, and a dictionary containing the summary of environmental impacts.
+    """
+    buildings = buildings_with_cooling_demand.copy()  # The caller reuses its cooling demand across SA steps
+
+    # Re-read the cooling technology shares from the building type parameters, which an SA may have varied
+    cooling_technology_shares = assign_parameters_by_class(
+        buildings["building_type_int"],
+        building_type_parameters,
+        "building_type_int",
+    ).filter(like="cooling_technology_share")
+    buildings[cooling_technology_shares.columns] = cooling_technology_shares
+    buildings["total_MPR"] = cooling_technology_shares.sum(axis=1)
+
+    # Build the cooling technologies DataFrame
+    cooling_technologies = calculate_environmental_parameters_for_cooling_technologies(
+        cooling_technology_parameters,
+        global_parameters,
+    )
+
+    # Assign the cooling technology parameters to the buildings
+    buildings = add_cooling_technology_data_to_buildings(buildings, cooling_technologies)
+
+    # Calculate the environmental impacts
+    return calculate_environmental_impacts_from_cooling_demand(buildings, global_parameters)
 
 
 def run_CDM_model_for_SA(
@@ -55,41 +151,39 @@ def run_CDM_model_for_SA(
     Returns:
         tuple[pd.DataFrame, dict[str, float]]: The DataFrame containing the buildings with the cooling demand metrics and environmental impacts added, and a dictionary containing the summary of environmental impacts.
     """
-    # Assign the building parameters
-    buildings = add_parameters_to_buildings(
+    buildings_with_cooling_demand = run_cooling_demand_stage(
         buildings,
+        raw_weather_data,
         global_parameters,
         building_type_parameters,
         energy_class_parameters,
-    )
-
-    # Build the cooling technologies DataFrame
-    cooling_technologies = calculate_environmental_parameters_for_cooling_technologies(
-        cooling_technology_parameters,
-        global_parameters,
-    )
-
-    # Assign the cooling technology parameters to the buildings
-    buildings = add_cooling_technology_data_to_buildings(buildings, cooling_technologies)
-
-    # Create time series for weather series and other hourly data
-    time_series = create_time_series(
-        global_parameters,
-        raw_weather_data,
         multi_directional_solar_radiation_fractions_path,
         presence_load_factors_path,
     )
 
-    # Calculate the cooling demand
-    buildings = calc_cooling_demand_metrics_for_df(buildings, time_series, global_parameters, include_time_series=False)
+    return run_impact_stage(
+        buildings_with_cooling_demand,
+        global_parameters,
+        building_type_parameters,
+        cooling_technology_parameters,
+    )
 
-    # Drop duplicate columns from the DataFrame
-    buildings = buildings.loc[:, ~buildings.columns.duplicated()]
 
-    # Calculate the environmental impacts
-    buildings, impact_summary = calculate_environmental_impacts_from_cooling_demand(buildings, global_parameters)
-
-    return buildings, impact_summary
+def _cooling_demand_from_static_parameters(
+    static_parameters: dict,
+    global_parameters: dict[str, float],
+    building_type_parameters: list[dict[str, float]],
+) -> pd.DataFrame:
+    """Runs the cooling demand stage once, for the SA drivers whose swept variable leaves it invariant."""
+    return run_cooling_demand_stage(
+        static_parameters["buildings"],
+        static_parameters["raw_weather_data"],
+        global_parameters,
+        building_type_parameters,
+        static_parameters["energy_class_parameters"],
+        static_parameters["multi_directional_solar_radiation_fractions_path"],
+        static_parameters["presence_load_factors_path"],
+    )
 
 
 def run_SA_for_variable_in_global_parameters(
@@ -181,6 +275,13 @@ def run_SA_for_variable_in_cooling_technology_parameters(
     # Define the DataFrame to which the results should be added
     df_variable_results = pd.DataFrame(index=variable_average_range)
 
+    # The cooling technology parameters do not enter the cooling demand, so it is calculated once up front
+    buildings_with_cooling_demand = _cooling_demand_from_static_parameters(
+        static_parameters,
+        static_parameters["global_parameters"],
+        static_parameters["building_type_parameters"],
+    )
+
     # Loop over the variable range
     for variable in tqdm(variable_average_range):
         # Determine the multiplier for the variable
@@ -190,16 +291,12 @@ def run_SA_for_variable_in_cooling_technology_parameters(
         df_cooling_technology_parameters_with_multiplier = df_cooling_technology_parameters.copy()
         df_cooling_technology_parameters_with_multiplier[variable_name] *= multiplier
 
-        # Run the cooling demand model with the current variable
-        _, impact_summary = run_CDM_model_for_SA(
-            static_parameters["buildings"],
-            static_parameters["raw_weather_data"],
+        # Recalculate only the environmental impacts with the current variable
+        _, impact_summary = run_impact_stage(
+            buildings_with_cooling_demand,
             static_parameters["global_parameters"],
             static_parameters["building_type_parameters"],
-            static_parameters["energy_class_parameters"],
             df_cooling_technology_parameters_with_multiplier.to_dict(orient="records"),
-            static_parameters["multi_directional_solar_radiation_fractions_path"],
-            static_parameters["presence_load_factors_path"],
         )
 
         # Add the results to the DataFrame
@@ -242,6 +339,13 @@ def run_SA_for_cooling_technology_mix(
         **{col: 0 for col in df_building_type_parameters.columns if col.startswith("cooling_technology_share")},
     )
 
+    # The cooling technology mix does not enter the cooling demand, so it is calculated once up front
+    buildings_with_cooling_demand = _cooling_demand_from_static_parameters(
+        static_parameters,
+        static_parameters["global_parameters"],
+        df_building_type_parameters.to_dict(orient="records"),
+    )
+
     # Loop over the variable range
     for mix_share in tqdm(mix_range):
         # Create a copy of the building_type_parameters in which the variable is changed to the current variable
@@ -253,16 +357,12 @@ def run_SA_for_cooling_technology_mix(
             100 - mix_share
         ) / 100
 
-        # Run the cooling demand model with the current variable
-        _, impact_summary = run_CDM_model_for_SA(
-            static_parameters["buildings"],
-            static_parameters["raw_weather_data"],
+        # Recalculate only the environmental impacts with the current mix
+        _, impact_summary = run_impact_stage(
+            buildings_with_cooling_demand,
             static_parameters["global_parameters"],
             df_building_type_parameters_with_mix_share.to_dict(orient="records"),
-            static_parameters["energy_class_parameters"],
             static_parameters["cooling_technology_parameters"],
-            static_parameters["multi_directional_solar_radiation_fractions_path"],
-            static_parameters["presence_load_factors_path"],
         )
 
         # Add the results to the DataFrame
@@ -303,6 +403,14 @@ def run_SA_for_total_market_penetration(
     # Define the DataFrame to which the results should be added
     df_results = pd.DataFrame(index=multiplication_range)
 
+    # The market penetration rate only scales the cooling technology shares, which do not enter the
+    # cooling demand, so it is calculated once up front
+    buildings_with_cooling_demand = _cooling_demand_from_static_parameters(
+        static_parameters,
+        static_parameters["global_parameters"],
+        df_building_type_parameters.to_dict(orient="records"),
+    )
+
     # Loop over the variable range
     for multiplier in tqdm(multiplication_range):
         # Create a copy of the global_parameters in which the variable is changed to the current variable
@@ -331,16 +439,12 @@ def run_SA_for_total_market_penetration(
             .sum()
         )
 
-        # Run the cooling demand model with the current variable
-        _, impact_summary = run_CDM_model_for_SA(
-            static_parameters["buildings"],
-            static_parameters["raw_weather_data"],
+        # Recalculate only the environmental impacts with the current market penetration rate
+        _, impact_summary = run_impact_stage(
+            buildings_with_cooling_demand,
             static_parameters["global_parameters"],
             df_building_type_parameters_with_multiplier.to_dict(orient="records"),
-            static_parameters["energy_class_parameters"],
             static_parameters["cooling_technology_parameters"],
-            static_parameters["multi_directional_solar_radiation_fractions_path"],
-            static_parameters["presence_load_factors_path"],
         )
 
         # Add the results to the DataFrame

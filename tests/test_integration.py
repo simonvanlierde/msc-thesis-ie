@@ -23,7 +23,7 @@ import pytest
 import requests
 
 from cdm.readers import read_buildings, read_global_parameters, read_parameter_specific_data
-from cdm.sensitivity_analysis import run_CDM_model_for_SA
+from cdm.sensitivity_analysis import run_CDM_model_for_SA, run_cooling_demand_stage, run_impact_stage
 from cdm.time_series import get_raw_weather_data
 
 PARAMETER_DIR = Path("data/input/parameters")
@@ -86,8 +86,8 @@ def _make_synthetic_stock(n: int = SAMPLE_SIZE, seed: int = SAMPLE_SEED) -> pd.D
     )
 
 
-def _run_sq_total_cooling_demand(monkeypatch: pytest.MonkeyPatch, buildings: pd.DataFrame) -> float:
-    """Run the full SQ pipeline on ``buildings`` (forcing the local weather backup); return total E_cooling_kWh."""
+def _load_sq_inputs(monkeypatch: pytest.MonkeyPatch) -> dict:
+    """Read the real SQ parameters and the local backup weather (the KNMI API is forced to time out)."""
 
     def fake_post(*_args: object, **_kwargs: object) -> None:
         raise requests.exceptions.Timeout
@@ -96,25 +96,45 @@ def _run_sq_total_cooling_demand(monkeypatch: pytest.MonkeyPatch, buildings: pd.
 
     global_parameters = read_global_parameters(PARAMETERS_TOML, SCENARIO)
     global_parameters["weather_data_start_year"], global_parameters["weather_data_end_year"] = BACKUP_WEATHER_YEARS
-    building_type_parameters = read_parameter_specific_data(PARAMETER_DIR / "parameters_building_type.csv", SCENARIO)
-    energy_class_parameters = read_parameter_specific_data(PARAMETER_DIR / "parameters_energy_class.csv", SCENARIO)
-    cooling_technology_parameters = read_parameter_specific_data(
-        PARAMETER_DIR / "parameters_cooling_technology.csv",
-        SCENARIO,
-    )
 
     with pytest.warns(UserWarning, match="backup"):
         raw_weather_data = get_raw_weather_data(global_parameters)
 
+    return {
+        "global_parameters": global_parameters,
+        "building_type_parameters": read_parameter_specific_data(
+            PARAMETER_DIR / "parameters_building_type.csv",
+            SCENARIO,
+        ),
+        "energy_class_parameters": read_parameter_specific_data(
+            PARAMETER_DIR / "parameters_energy_class.csv",
+            SCENARIO,
+        ),
+        "cooling_technology_parameters": read_parameter_specific_data(
+            PARAMETER_DIR / "parameters_cooling_technology.csv",
+            SCENARIO,
+        ),
+        "raw_weather_data": raw_weather_data,
+        "multi_directional_solar_radiation_fractions_path": str(
+            PARAMETER_DIR / "multidirectional_solar_radiation_fractions.csv",
+        ),
+        "presence_load_factors_path": str(PARAMETER_DIR / "presence_load_factors.csv"),
+    }
+
+
+def _run_sq_total_cooling_demand(monkeypatch: pytest.MonkeyPatch, buildings: pd.DataFrame) -> float:
+    """Run the full SQ pipeline on ``buildings`` (forcing the local weather backup); return total E_cooling_kWh."""
+    inputs = _load_sq_inputs(monkeypatch)
+
     result, _impact_summary = run_CDM_model_for_SA(
         buildings,
-        raw_weather_data,
-        global_parameters,
-        building_type_parameters,
-        energy_class_parameters,
-        cooling_technology_parameters,
-        str(PARAMETER_DIR / "multidirectional_solar_radiation_fractions.csv"),
-        str(PARAMETER_DIR / "presence_load_factors.csv"),
+        inputs["raw_weather_data"],
+        inputs["global_parameters"],
+        inputs["building_type_parameters"],
+        inputs["energy_class_parameters"],
+        inputs["cooling_technology_parameters"],
+        inputs["multi_directional_solar_radiation_fractions_path"],
+        inputs["presence_load_factors_path"],
     )
     return result["E_cooling_kWh"].sum()
 
@@ -135,6 +155,51 @@ def _assert_within_tolerance(total_kwh: float, reference_kwh: float) -> None:
 def test_full_pipeline_sq_synthetic_stock(monkeypatch: pytest.MonkeyPatch) -> None:
     total_kwh = _run_sq_total_cooling_demand(monkeypatch, _make_synthetic_stock())
     _assert_within_tolerance(total_kwh, REFERENCE_SYNTHETIC_TOTAL_E_COOLING_KWH)
+
+
+@pytest.mark.skipif(
+    not all(path.exists() for path in REQUIRED_INPUTS),
+    reason="real SQ parameter / weather inputs are not checked out",
+)
+def test_hoisted_demand_stage_matches_monolithic_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The SA drivers hoist run_cooling_demand_stage out of the loop; that must match the whole model.
+
+    Running the demand stage once and feeding it to run_impact_stage has to give exactly what
+    run_CDM_model_for_SA gives, so hoisting it above an SA loop over cooling-technology variables
+    does not change the result.
+    """
+    inputs = _load_sq_inputs(monkeypatch)
+    buildings = _make_synthetic_stock(n=500)
+
+    combined, combined_summary = run_CDM_model_for_SA(
+        buildings.copy(),
+        inputs["raw_weather_data"],
+        inputs["global_parameters"],
+        inputs["building_type_parameters"],
+        inputs["energy_class_parameters"],
+        inputs["cooling_technology_parameters"],
+        inputs["multi_directional_solar_radiation_fractions_path"],
+        inputs["presence_load_factors_path"],
+    )
+
+    demand = run_cooling_demand_stage(
+        buildings.copy(),
+        inputs["raw_weather_data"],
+        inputs["global_parameters"],
+        inputs["building_type_parameters"],
+        inputs["energy_class_parameters"],
+        inputs["multi_directional_solar_radiation_fractions_path"],
+        inputs["presence_load_factors_path"],
+    )
+    split, split_summary = run_impact_stage(
+        demand,
+        inputs["global_parameters"],
+        inputs["building_type_parameters"],
+        inputs["cooling_technology_parameters"],
+    )
+
+    assert split_summary == combined_summary
+    pd.testing.assert_frame_equal(split[combined.columns], combined)
 
 
 @pytest.mark.skipif(
