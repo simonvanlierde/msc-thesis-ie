@@ -1,7 +1,5 @@
 """Unit tests for geometric helper functions."""
 
-import math
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -13,17 +11,7 @@ from cdm.geometric import (
     calc_facade_area_per_orientation,
     calc_window_and_wall_areas,
     determine_orientation_class,
-    dist,
 )
-
-
-def test_dist_pythagorean_triple() -> None:
-    assert dist((0.0, 0.0), (3.0, 4.0)) == pytest.approx(5.0)
-
-
-def test_dist_is_symmetric() -> None:
-    a, b = (1.0, 2.0), (4.0, 6.0)
-    assert dist(a, b) == pytest.approx(dist(b, a))
 
 
 def test_azimuth_line_due_north_is_zero() -> None:
@@ -70,10 +58,6 @@ def test_calc_facade_area_per_orientation_rejects_bad_class(bad_class: int) -> N
     building = pd.Series({"MBR_width_m": 10.0, "MBR_length_m": 20.0, "height_m": 3.0})
     with pytest.raises(ValueError, match="between 1 and 4"):
         calc_facade_area_per_orientation(building, orientation_class_int=bad_class)
-
-
-def test_dist_matches_math_hypot() -> None:
-    assert dist((2.0, -1.0), (-2.0, 2.0)) == pytest.approx(math.hypot(-4.0, 3.0))
 
 
 def test_azimuth_rectangle_for_axis_aligned_rectangle() -> None:

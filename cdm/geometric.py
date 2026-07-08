@@ -20,11 +20,6 @@ MAX_AZIMUTH_DEGREES = 180  # Azimuths are measured in range 0-180 degrees
 ### Geometry functions
 
 
-def dist(a: tuple[float, float], b: tuple[float, float]) -> float:
-    """Calculate the distance between two 2D points a and b."""
-    return math.hypot(b[0] - a[0], b[1] - a[1])
-
-
 def azimuth_line(a: tuple[float, float], b: tuple[float, float]) -> float:
     """Calculate the azimuth between two 2D points a and b."""
     angle = np.degrees(np.arctan2(b[0] - a[0], b[1] - a[1]))
@@ -43,8 +38,8 @@ def azimuth_rectangle(rectangle: GeoSeries) -> tuple[float, float, float]:
         tuple[float, float, float]: The azimuth of the rotated rectangle in degrees, and its width and length in meters.
     """
     bbox = list(rectangle.exterior.coords)  # Get the coordinates of the rotated rectangle
-    axis1 = dist(bbox[0], bbox[3])  # Calculate the length of the first axis
-    axis2 = dist(bbox[0], bbox[1])  # Calculate the length of the second axis
+    axis1 = math.dist(bbox[0], bbox[3])  # Calculate the length of the first axis
+    axis2 = math.dist(bbox[0], bbox[1])  # Calculate the length of the second axis
 
     if axis1 <= axis2:  # Determine the azimuth based on the longest axis
         az = azimuth_line(bbox[0], bbox[1])
