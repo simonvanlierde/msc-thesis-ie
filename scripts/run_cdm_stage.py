@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from cdm.aggregation import aggregate_results
+from cdm.constants import PARAMETER_COLUMNS_TO_DROP_AFTER_CALCULATIONS
 from cdm.environmental import (
     calculate_environmental_impacts_from_cooling_demand,
     calculate_environmental_parameters_for_cooling_technologies,
@@ -22,48 +23,6 @@ from cdm.parameters import add_cooling_technology_data_to_buildings, add_paramet
 from cdm.readers import read_buildings, read_global_parameters, read_parameter_specific_data
 from cdm.thermodynamic import calc_cooling_demand_metrics_for_df
 from cdm.time_series import create_time_series
-
-PARAMETER_COLUMNS_TO_DROP_AFTER_CALCULATIONS = [
-    "avg_ADP_kgSbeq_kW",
-    "avg_CSI_kgSieq_kW",
-    "avg_GHG_emissions_electricity_kgCO2eq_kWh_cooling",
-    "avg_GHG_emissions_EoL_phase_kgCO2eq_kW",
-    "avg_GHG_emissions_production_phase_kgCO2eq_kW",
-    "avg_GHG_emissions_refrigerant_leaks_kgCO2eq_kW",
-    "avg_material_density_kg_kW",
-    "avg_refrigerant_leakage_kg_kW",
-    "avg_refrigerant_leakage_rate_relative",
-    "energy_class_int",
-    "energy_labels_included_residential",
-    "energy_labels_included_office",
-    "cooling_technology_share_ASHP",
-    "cooling_technology_share_GSHP",
-    "cooling_technology_share_WSHP",
-    "cooling_technology_share_chiller",
-    "cooling_technology_share_AC_split",
-    "cooling_technology_share_AC_mobile",
-    "f_wall",
-    "f_window",
-    "facade_area_per_orientation_m2",
-    "g_window",
-    "ground_elevation_m",
-    "infiltration_ACH",
-    "int_heat_gain_appliances_W_m2",
-    "MBR_length_m",
-    "MBR_width_m",
-    "pressure_drop_Pa",
-    "Rc_floor_m2K_W",
-    "Rc_roof_m2K_W",
-    "Rc_wall_m2K_W",
-    "roof_elevation_m",
-    "status",
-    "U_window_W_m2K",
-    "ventilation_rate_pp_m3_h",
-    "wall_area_total_m2",
-    "window_area_per_orientation_m2",
-    "window_area_total_m2",
-]
-
 
 PARAMETER_DIR = Path("data/input/parameters")
 PARAMETERS_TOML = PARAMETER_DIR / "parameters.toml"
@@ -147,11 +106,10 @@ def run_lca(args: argparse.Namespace) -> None:
     geodata_output_path.parent.mkdir(parents=True, exist_ok=True)
     csv_output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    buildings_to_file = _drop_array_columns(buildings)
-    columns_to_drop = [
-        column for column in PARAMETER_COLUMNS_TO_DROP_AFTER_CALCULATIONS if column in buildings_to_file.columns
-    ]
-    buildings_to_file = buildings_to_file.drop(columns=columns_to_drop)
+    buildings_to_file = _drop_array_columns(buildings).drop(
+        columns=list(PARAMETER_COLUMNS_TO_DROP_AFTER_CALCULATIONS),
+        errors="ignore",
+    )
 
     buildings_to_file.to_file(geodata_output_path, layer=args.geodata_output_layer, driver="GPKG")
     buildings_agg.to_csv(csv_output_path, index=False)

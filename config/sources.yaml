@@ -40,3 +40,14 @@ ep_online:
   # the national label export.
   energy_labels_csv: data/raw/ep_online/current/energy_labels.csv
   source_url: https://www.ep-online.nl/PublicData
+
+rivm_uhi:
+  # National urban-heat-island raster (RIVM / Atlas Natuurlijk Kapitaal). Published
+  # only as a ~1.95 GB ZIP of one national GeoTIFF -- no WCS -- so the pipeline
+  # downloads it once and clips it to the city bbox. Only needed by run_gis_notebook.
+  zip_url: https://data.rivm.nl/data/ank/Stedelijk_hitte_eiland_effect_01062022_v2.zip
+  license: CC BY 4.0
+  source_url: https://nationaalgeoregister.nl/geonetwork/srv/dut/catalog.search#/metadata/c9aa9109-3f32-4f65-84e5-bb1c9ebdfbec
+
+# Building subset the model runs on (layer suffix in the prepared GeoPackage).
+building_subset: full

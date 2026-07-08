@@ -117,38 +117,48 @@ uv run python docs/make_overview_figure.py
 ## Reproducible Snakemake Pipeline
 
 The existing notebook analysis is also declared as a Snakemake workflow. The
-workflow wraps the same `functions/` model code and notebook outputs; it does
+workflow wraps the same `cdm/` model code and notebook outputs; it does
 not replace the scientific calculations with new implementations.
 
 ![Snakemake workflow DAG](docs/pipeline_dag.svg)
 
-Create the runner environment once. The workflow still supports `uv` for normal
-development, but the Snakemake runner uses conda-forge packages because the GIS
-stack depends on native GDAL/PROJ/GEOS libraries.
+Create the runner environment once. `uv` installs the pinned dependencies from
+`uv.lock` and the `cdm` package itself, so no `PYTHONPATH` juggling is needed.
 
 ```bash
-conda env create -f workflow/envs/cooling-demand.yml
-conda activate cooling-demand-model
+uv sync
 ```
 
 Then reproduce the declared outputs (scenario results + overview figure) with one command:
 
 ```bash
-snakemake --sdm conda --cores 4
+uv run snakemake --cores 4
 ```
 
 For a fast end-to-end check, run the smoke profile (a tiny municipality, one
 weather year — finishes in minutes):
 
 ```bash
-snakemake --configfile config/smoke.yaml --cores 4
+uv run snakemake --configfile config/smoke.yaml --cores 4
 ```
 
 The heavy cooling-technology-mix sensitivity is **opt-in** (30 tech pairs × a
 20-step model sweep), kept out of the default target:
 
 ```bash
-snakemake --cores 4 cooling_mix
+uv run snakemake --cores 4 cooling_mix
+```
+
+Other opt-in targets (also kept out of `all`):
+
+```bash
+# Clip the RIVM urban-heat-island raster to the city (downloads a ~1.95 GB national ZIP once)
+uv run snakemake --cores 4 data/input/geodata/UHI_effect_TheHague.tif
+
+# Execute the analysis notebooks headless, keeping the executed copies as artifacts.
+# gis needs the UHI raster above + the Zenodo GeographicDivisions; main needs a sample
+# subset or ample RAM (its figures keep the full hourly time series in memory).
+uv run snakemake --cores 4 notebooks
 ```
 
 Alternatively, a hermetic container bundles the pinned environment:
@@ -173,6 +183,8 @@ The pipeline stages are:
 | `lca` | environmental-impact and aggregation steps from `main.ipynb` | cooling-demand geodata and scenario parameters | `results/CDM_results_{scenario}_full.csv` and CDM geodata |
 | `scenario_overview_figure` | README headline figure script | scenario result CSVs | `results/figures/scenario_overview.png` |
 | `cooling_mix_sensitivity` (opt-in) | cooling-technology-mix sensitivity cells in `main.ipynb`, extracted to `scripts/run_cooling_mix_sensitivity.py` | processed BAG geodata, SQ parameters, weather CSV | `results/cooling_mix_elasticities_table.csv` |
+| `fetch_uhi_raster` (opt-in) | RIVM urban-heat-island raster, previously a manual download | national UHI ZIP (RIVM), city bbox | `data/input/geodata/UHI_effect_TheHague.tif` (clipped) |
+| `run_main_notebook` / `run_gis_notebook` (opt-in) | execute the analysis notebooks headless; keep the executed copy | pipeline outputs the notebook reads, `cdm/`, the notebook | `results/notebooks/{main,gis}.executed.ipynb` |
 
 Each rule writes a log under `results/logs/` and the model stages a runtime
 benchmark under `results/benchmarks/`. Large raw spatial inputs are not
@@ -243,10 +255,10 @@ To refresh the committed DAG after editing `Snakefile`, run:
 
 ```bash
 # Reproduces the committed SVG (no Graphviz binary required)
-snakemake --dag | python scripts/dot_to_simple_svg.py > docs/pipeline_dag.svg
+uv run snakemake --dag | uv run python scripts/dot_to_simple_svg.py > docs/pipeline_dag.svg
 
 # Alternative, if Graphviz `dot` is installed (styled differently)
-snakemake --dag | dot -Tsvg > docs/pipeline_dag.svg
+uv run snakemake --dag | dot -Tsvg > docs/pipeline_dag.svg
 ```
 
 ## Development

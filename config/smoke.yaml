@@ -34,3 +34,10 @@ pdok_3d_basisvoorziening:
 ep_online:
   energy_labels_csv: data/raw/ep_online/current/energy_labels.csv
   source_url: https://www.ep-online.nl/PublicData
+
+rivm_uhi:
+  zip_url: https://data.rivm.nl/data/ank/Stedelijk_hitte_eiland_effect_01062022_v2.zip
+  license: CC BY 4.0
+  source_url: https://nationaalgeoregister.nl/geonetwork/srv/dut/catalog.search#/metadata/c9aa9109-3f32-4f65-84e5-bb1c9ebdfbec
+
+building_subset: full

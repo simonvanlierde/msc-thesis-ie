@@ -22,7 +22,7 @@ mpl.use("Agg")  # post_process_SA_cooling_tech_mix always writes figures; run he
 
 import pandas as pd
 
-from cdm.figures_sensitivity import SA_IMAGE_DIR, post_process_SA_cooling_tech_mix
+from cdm.figures_sensitivity import post_process_SA_cooling_tech_mix
 from cdm.readers import (
     read_buildings,
     read_global_parameters,
@@ -51,9 +51,10 @@ def build_elasticities_table(
     building_type_parameters: list[dict],
     static_parameters: dict,
     calculation_steps: int,
+    image_dir: str,
 ) -> pd.DataFrame:
     """Run the mix sweep for every ordered technology pair and collect mean elasticities."""
-    Path(SA_IMAGE_DIR).mkdir(parents=True, exist_ok=True)
+    Path(image_dir).mkdir(parents=True, exist_ok=True)
     rows = []
     for cooling_one, cooling_two in permutations(COOLING_TECHS, 2):
         sa_results = run_SA_for_cooling_technology_mix(
@@ -69,6 +70,7 @@ def build_elasticities_table(
             cooling_tech_one=cooling_one,
             cooling_tech_two=cooling_two,
             show_plots=False,
+            image_dir=image_dir,
         )
         rows.append(
             {
@@ -93,6 +95,7 @@ def main() -> None:
     parser.add_argument("--presence-load-factors", required=True)
     parser.add_argument("--weather-csv", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--image-dir", required=True, help="Directory for the SA figures; declared as a rule output.")
     parser.add_argument("--calculation-steps", type=int, default=20)
     args = parser.parse_args()
 
@@ -109,7 +112,12 @@ def main() -> None:
         "multi_directional_solar_radiation_fractions_path": args.solar_fractions,
         "presence_load_factors_path": args.presence_load_factors,
     }
-    table = build_elasticities_table(parameters["building_type"], static_parameters, args.calculation_steps)
+    table = build_elasticities_table(
+        parameters["building_type"],
+        static_parameters,
+        args.calculation_steps,
+        args.image_dir,
+    )
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

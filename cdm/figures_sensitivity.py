@@ -285,6 +285,7 @@ def post_process_SA_cooling_tech_mix(
     cooling_tech_two: str,
     show_plots: bool = True,
     figure_size: tuple[float, float] = (6, 6),
+    image_dir: str = SA_IMAGE_DIR,
 ) -> pd.DataFrame:
     """Post-process the results of a sensitivity analysis on the cooling technology mix.
 
@@ -294,6 +295,7 @@ def post_process_SA_cooling_tech_mix(
         cooling_tech_two (str): The name of the second cooling technology. Can be one of "ASHP", "GSHP", "WSHP", "chiller", "AC_split", or "AC_mobile".
         show_plots (bool, optional): Whether or not to show the plots to the console. Defaults to True.
         figure_size (tuple[float, float], optional): The size of the figures, in inches. Defaults to (6, 6).
+        image_dir (str, optional): Directory the figures are written to. Defaults to SA_IMAGE_DIR, so the notebook keeps its behaviour; the Snakemake rule passes its declared output directory.
 
     Returns:
         pd.DataFrame: The DataFrame containing the elasticity of the cooling demand and environmental impacts with respect to the mix split between the two cooling technologies.
@@ -319,7 +321,7 @@ def post_process_SA_cooling_tech_mix(
     plt.xlabel(x_axis_label)  # Add the x-axis label
     plt.tight_layout()  # Make sure the subplots don't overlap
     plt.savefig(
-        f"{SA_IMAGE_DIR}/SA_results_cooling_technology_mix.png",
+        f"{image_dir}/SA_results_cooling_technology_mix.png",
         dpi=300,
         bbox_inches="tight",
     )  # Save the figure
@@ -336,7 +338,7 @@ def post_process_SA_cooling_tech_mix(
     plt.legend()  # Add a legend to the plot
     plt.tight_layout()  # Make sure the subplots don't overlap
     plt.savefig(
-        f"{SA_IMAGE_DIR}/SA_results_cooling_technology_mix_elasticities.png",
+        f"{image_dir}/SA_results_cooling_technology_mix_elasticities.png",
         dpi=300,
         bbox_inches="tight",
     )  # Save the figure

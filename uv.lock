@@ -387,7 +387,7 @@ wheels = [
 [[package]]
 name = "cooling-demand-model"
 version = "1.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "geopandas" },
     { name = "itables" },

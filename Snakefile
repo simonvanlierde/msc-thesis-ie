@@ -1,9 +1,14 @@
 import re
+from pathlib import Path
+
+from cdm.constants import SCENARIOS
 
 configfile: "config/sources.yaml"
 
-SCENARIOS = ["SQ", "2030", "2050_L", "2050_M", "2050_H"]
-SUBSET = "full"
+# Target-only rules: no shell command, so never dispatch them to a cluster/executor.
+localrules: all, cooling_mix, notebooks
+
+SUBSET = config.get("building_subset", "full")
 
 PARAMETER_DIR = "data/input/parameters"
 PARAMETERS_TOML = f"{PARAMETER_DIR}/parameters.toml"
@@ -40,15 +45,25 @@ PDOK_3D_YEAR = int(config["pdok_3d_basisvoorziening"]["year"])
 PDOK_3D_DIR = f"{RAW_DIR}/pdok_3d_basisvoorziening/{CITY_SLUG}/{PDOK_3D_YEAR}"
 EP_ONLINE_LABELS = config["ep_online"]["energy_labels_csv"]
 
-# The stage scripts import the top-level ``functions`` package; running them by
-# path puts scripts/ on sys.path instead of the repo root, so make the repo root
-# importable for every rule.
-shell.prefix("export PYTHONPATH=$(pwd):${{PYTHONPATH:-}}; ")
+RIVM_UHI_ZIP_URL = config["rivm_uhi"]["zip_url"]
+RIVM_UHI_CACHE_DIR = f"{RAW_DIR}/rivm_uhi"
+# gis.ipynb reads this exact path (a clip of the national raster). The rule
+# materialises it, so the notebook's one external raster becomes reproducible.
+UHI_RASTER = "data/input/geodata/UHI_effect_TheHague.tif"
+
+# The model rules call ``cdm`` through a shell command, so Snakemake's ``code``
+# rerun-trigger (which only hashes run:/script: bodies) cannot see it. Declare the
+# model sources as inputs so editing the model re-runs the rules that use it.
+MODEL_SRC = sorted(str(path) for path in Path("cdm").glob("*.py"))
+
+# Rules that hit PDOK/KNMI/EP-Online. A 5xx mid-pagination kills the whole script, which
+# pdok_http's in-request Retry adapter cannot resume; re-running the job is the only recovery.
+NETWORK_RETRIES = 3
 
 
 rule all:
     input:
-        expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_" + SUBSET + ".csv", scenario=SCENARIOS),
+        expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_{SUBSET}.csv", scenario=SCENARIOS),
         f"{RESULTS_DIR}/figures/scenario_overview.png",
 
 
@@ -58,7 +73,18 @@ rule cooling_mix:
         f"{RESULTS_DIR}/cooling_mix_elasticities_table.csv",
 
 
+# Executed-notebook target: run both analysis notebooks headless and keep the
+# executed copies (figures, maps and sensitivity analyses embedded) as artifacts.
+# Opt-in and never part of `all` — main.ipynb's sensitivity sweeps run the full
+# model hundreds of times over the whole stock, so this is deliberately heavy.
+rule notebooks:
+    input:
+        f"{RESULTS_DIR}/notebooks/main.executed.ipynb",
+        f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
+
+
 rule fetch_city_boundary:
+    retries: NETWORK_RETRIES
     output:
         boundary=BOUNDARY_GEOJSON,
         bbox=BBOX_FILE,
@@ -68,8 +94,6 @@ rule fetch_city_boundary:
         name=CITY_NAME,
     log:
         f"{LOG_DIR}/fetch_city_boundary.log",
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/fetch_city_boundary.py \
@@ -82,6 +106,7 @@ rule fetch_city_boundary:
 
 
 rule fetch_bag_residences:
+    retries: NETWORK_RETRIES
     input:
         bbox=BBOX_FILE,
     output:
@@ -91,8 +116,6 @@ rule fetch_bag_residences:
         collection=config["pdok_bag"]["collections"]["residences"],
     log:
         f"{LOG_DIR}/fetch_bag_residences.log",
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/fetch_ogc_features.py \
@@ -104,6 +127,7 @@ rule fetch_bag_residences:
 
 
 rule discover_pdok_3d_height_tiles:
+    retries: NETWORK_RETRIES
     input:
         bbox=BBOX_FILE,
     output:
@@ -114,8 +138,6 @@ rule discover_pdok_3d_height_tiles:
         year=PDOK_3D_YEAR,
     log:
         f"{LOG_DIR}/discover_pdok_3d_height_tiles.log",
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/discover_pdok_3d_height_tiles.py \
@@ -128,6 +150,7 @@ rule discover_pdok_3d_height_tiles:
 
 
 rule download_pdok_3d_height_tiles:
+    retries: NETWORK_RETRIES
     input:
         f"{PDOK_3D_DIR}/height_tiles_manifest.json",
     output:
@@ -135,8 +158,6 @@ rule download_pdok_3d_height_tiles:
         manifest=f"{PDOK_3D_DIR}/height_tiles_local_manifest.json",
     log:
         f"{LOG_DIR}/download_pdok_3d_height_tiles.log",
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/download_manifest_files.py \
@@ -146,18 +167,45 @@ rule download_pdok_3d_height_tiles:
         """
 
 
+rule fetch_uhi_raster:
+    # Heavy: downloads a ~1.95 GB national raster (cached), then clips to the city bbox.
+    # Only needed by run_gis_notebook, never by `all`.
+    retries: NETWORK_RETRIES
+    input:
+        bbox=BBOX_FILE,
+    output:
+        UHI_RASTER,
+    params:
+        url=RIVM_UHI_ZIP_URL,
+        cache_dir=RIVM_UHI_CACHE_DIR,
+    log:
+        f"{LOG_DIR}/fetch_uhi_raster.log",
+    shell:
+        """
+        python scripts/gis/fetch_uhi_raster.py \
+          --url {params.url} \
+          --bbox $(cat {input.bbox}) \
+          --cache-dir {params.cache_dir} \
+          --output {output} > {log} 2>&1
+        """
+
+
 rule provide_ep_online_energy_labels:
+    retries: NETWORK_RETRIES
     output:
         EP_ONLINE_LABELS,
     log:
         f"{LOG_DIR}/provide_ep_online_energy_labels.log",
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         "python scripts/gis/ensure_energy_labels.py --labels {output} > {log} 2>&1"
 
 
 rule fetch_weather:
+    retries: NETWORK_RETRIES
+    # NOTE: no model_src input, even though fetch_weather.py imports
+    # cdm.time_series. It only calls the KNMI downloader, and listing MODEL_SRC here
+    # would re-download the series on every model edit. Add cdm/time_series.py alone
+    # if get_raw_weather_data ever starts transforming the data.
     output:
         WEATHER_CSV,
     params:
@@ -166,8 +214,6 @@ rule fetch_weather:
         end_year=WEATHER_END,
     log:
         f"{LOG_DIR}/fetch_weather.log",
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/fetch_weather.py \
@@ -185,6 +231,7 @@ rule prepare_bag_geodata:
         energy_labels=EP_ONLINE_LABELS,
         boundary=BOUNDARY_GEOJSON,
         script="scripts/gis/prepare_pdok_model_geodata.py",
+        model_src=MODEL_SRC,
     output:
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
     params:
@@ -194,8 +241,6 @@ rule prepare_bag_geodata:
     benchmark:
         f"{BENCHMARK_DIR}/prepare_bag_geodata.tsv"
     threads: 1
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/gis/prepare_pdok_model_geodata.py \
@@ -215,6 +260,8 @@ rule thermodynamic_model:
         weather=WEATHER_CSV,
         solar_fractions=f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv",
         presence_load_factors=f"{PARAMETER_DIR}/presence_load_factors.csv",
+        script="scripts/run_cdm_stage.py",
+        model_src=MODEL_SRC,
     output:
         cooling_demand=f"{INTERMEDIATE_DIR}/buildings_with_cooling_demand_{{scenario}}_{SUBSET}.gpkg",
     params:
@@ -225,8 +272,6 @@ rule thermodynamic_model:
     benchmark:
         f"{BENCHMARK_DIR}/thermodynamic_model_{{scenario}}.tsv"
     threads: 1
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/run_cdm_stage.py cooling-demand \
@@ -245,9 +290,11 @@ rule lca:
     input:
         cooling_demand=f"{INTERMEDIATE_DIR}/buildings_with_cooling_demand_{{scenario}}_{SUBSET}.gpkg",
         parameters=PARAMETERS_TOML,
+        script="scripts/run_cdm_stage.py",
+        model_src=MODEL_SRC,
     output:
         geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_{{scenario}}_{SUBSET}.gpkg",
-        csv=f"{RESULTS_DIR}/CDM_results_{{scenario}}_" + SUBSET + ".csv",
+        csv=f"{RESULTS_DIR}/CDM_results_{{scenario}}_{SUBSET}.csv",
     params:
         cooling_demand_layer=lambda wildcards: f"buildings_with_cooling_demand_{wildcards.scenario}_{SUBSET}",
         geodata_output_layer=lambda wildcards: f"buildings_with_CDM_results_{wildcards.scenario}_{SUBSET}",
@@ -256,8 +303,6 @@ rule lca:
     benchmark:
         f"{BENCHMARK_DIR}/lca_{{scenario}}.tsv"
     threads: 1
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
         python scripts/run_cdm_stage.py lca \
@@ -272,16 +317,15 @@ rule lca:
 
 rule scenario_overview_figure:
     input:
-        expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_" + SUBSET + ".csv", scenario=SCENARIOS),
+        csvs=expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_{SUBSET}.csv", scenario=SCENARIOS),
         script="docs/make_overview_figure.py",
     output:
         f"{RESULTS_DIR}/figures/scenario_overview.png",
     log:
         f"{LOG_DIR}/scenario_overview_figure.log",
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
-        "python docs/make_overview_figure.py --input-dir {RESULTS_DIR} --output {output} > {log} 2>&1"
+        # Derive the input dir from a declared input rather than the global, so provenance stays accurate.
+        "python docs/make_overview_figure.py --input-dir $(dirname {input.csvs[0]}) --output {output} > {log} 2>&1"
 
 
 rule cooling_mix_sensitivity:
@@ -292,8 +336,12 @@ rule cooling_mix_sensitivity:
         solar_fractions=f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv",
         presence_load_factors=f"{PARAMETER_DIR}/presence_load_factors.csv",
         script="scripts/run_cooling_mix_sensitivity.py",
+        model_src=MODEL_SRC,
     output:
-        f"{RESULTS_DIR}/cooling_mix_elasticities_table.csv",
+        table=f"{RESULTS_DIR}/cooling_mix_elasticities_table.csv",
+        # The sweep writes two PNGs per technology pair; declare the directory so
+        # Snakemake can clean and invalidate them instead of them appearing from nowhere.
+        figures=directory(f"{RESULTS_DIR}/figures/SA"),
     params:
         buildings_layer=f"BAG_buildings_{SUBSET}",
     log:
@@ -301,11 +349,8 @@ rule cooling_mix_sensitivity:
     benchmark:
         f"{BENCHMARK_DIR}/cooling_mix_sensitivity.tsv"
     threads: 1
-    conda:
-        "workflow/envs/cooling-demand.yml"
     shell:
         """
-        SA_IMAGE_DIR={RESULTS_DIR}/figures/SA \
         python scripts/run_cooling_mix_sensitivity.py \
           --scenario SQ \
           --buildings {input.buildings} \
@@ -313,5 +358,48 @@ rule cooling_mix_sensitivity:
           --solar-fractions {input.solar_fractions} \
           --presence-load-factors {input.presence_load_factors} \
           --weather-csv {input.weather} \
-          --output {output} > {log} 2>&1
+          --image-dir {output.figures} \
+          --output {output.table} > {log} 2>&1
+        """
+
+
+rule run_main_notebook:
+    input:
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
+        parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
+        notebook="main.ipynb",
+        model_src=MODEL_SRC,
+    output:
+        f"{RESULTS_DIR}/notebooks/main.executed.ipynb",
+    log:
+        f"{LOG_DIR}/run_main_notebook.log",
+    shell:
+        # timeout=-1: the sensitivity sweeps legitimately run for a long time headless.
+        """
+        jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
+          --output-dir "$(dirname {output})" --output "$(basename {output})" \
+          {input.notebook} > {log} 2>&1
+        """
+
+
+rule run_gis_notebook:
+    input:
+        # gis.ipynb pins SCENARIO="SQ". The UHI raster is produced by fetch_uhi_raster,
+        # so it is declared. GeographicDivisions is external Zenodo geodata the pipeline
+        # cannot produce; left undeclared so the DAG stays inspectable, and the notebook
+        # raises a clear FileNotFoundError at runtime if it is absent.
+        cdm_csv=f"{RESULTS_DIR}/CDM_results_SQ_{SUBSET}.csv",
+        cdm_geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
+        uhi_raster=UHI_RASTER,
+        notebook="gis.ipynb",
+        model_src=MODEL_SRC,
+    output:
+        f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
+    log:
+        f"{LOG_DIR}/run_gis_notebook.log",
+    shell:
+        """
+        jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
+          --output-dir "$(dirname {output})" --output "$(basename {output})" \
+          {input.notebook} > {log} 2>&1
         """
