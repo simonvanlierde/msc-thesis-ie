@@ -10,6 +10,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
+import pyogrio
 
 from cdm.geometric import azimuth_rectangle
 
@@ -64,7 +65,15 @@ def _read_ep_online_labels(path: Path) -> pd.DataFrame:
     )
 
 
-def _read_height_tiles(manifest_path: Path) -> gpd.GeoDataFrame:
+def _tile_bbox(gpkg_path: Path, boundary: gpd.GeoDataFrame | None) -> tuple[float, float, float, float] | None:
+    """Boundary extent in the tile's own CRS, which is what pyogrio's bbox filter requires."""
+    if boundary is None:
+        return None
+    crs = pyogrio.read_info(gpkg_path)["crs"]  # cheap: metadata only, no features read
+    return tuple(boundary.to_crs(crs).total_bounds)
+
+
+def _read_height_tiles(manifest_path: Path, boundary: gpd.GeoDataFrame | None = None) -> gpd.GeoDataFrame:
     manifest = json.loads(manifest_path.read_text())
     frames = []
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -80,7 +89,10 @@ def _read_height_tiles(manifest_path: Path) -> gpd.GeoDataFrame:
             if not gpkg_paths:
                 msg = f"No GeoPackage found in {local_path}"
                 raise ValueError(msg)
-            frames.extend(gpd.read_file(gpkg_path) for gpkg_path in gpkg_paths)
+            # Let OGR drop out-of-city features before they ever reach pandas.
+            frames.extend(
+                gpd.read_file(gpkg_path, bbox=_tile_bbox(gpkg_path, boundary)) for gpkg_path in gpkg_paths
+            )
 
     if not frames:
         msg = "No PDOK 3D height tile data was loaded."
@@ -208,12 +220,12 @@ def _join_buildings_residences(buildings: gpd.GeoDataFrame, residences: gpd.GeoD
     return buildings
 
 
-def _clip_to_boundary(buildings: gpd.GeoDataFrame, boundary_path: Path) -> gpd.GeoDataFrame:
+def _clip_to_boundary(buildings: gpd.GeoDataFrame, boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Keep only buildings whose footprint sits inside the municipal boundary polygon."""
-    boundary = gpd.read_file(boundary_path).to_crs(buildings.crs)
-    boundary_geom = boundary.union_all()
+    boundary_geom = boundary.to_crs(buildings.crs).union_all()
     inside = buildings.geometry.representative_point().within(boundary_geom)
-    return buildings[inside].copy()
+    # Contiguous index, as the pre-clip concat(ignore_index=True) used to guarantee downstream.
+    return buildings[inside].reset_index(drop=True)
 
 
 def main() -> None:
@@ -227,11 +239,16 @@ def main() -> None:
     parser.add_argument("--layer", required=True)
     args = parser.parse_args()
 
-    buildings = _prepare_buildings(_read_height_tiles(Path(args.height_manifest)))
+    # Clip before deriving geometry: the MBR/azimuth/volume work and the sjoin then run
+    # only on buildings that survive, instead of on the whole national tile extent.
+    boundary = gpd.read_file(args.boundary) if args.boundary else None
+    height_tiles = _read_height_tiles(Path(args.height_manifest), boundary)
+    if boundary is not None:
+        height_tiles = _clip_to_boundary(height_tiles, boundary)
+
+    buildings = _prepare_buildings(height_tiles)
     residences = _prepare_residences(Path(args.bag_residences), Path(args.energy_labels))
     prepared = _join_buildings_residences(buildings, residences)
-    if args.boundary:
-        prepared = _clip_to_boundary(prepared, Path(args.boundary))
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
