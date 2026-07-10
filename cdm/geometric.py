@@ -108,6 +108,60 @@ def calc_facade_area_per_orientation(building: pd.Series, orientation_class_int:
     return height * np.array(orientation_to_facade_lengths[orientation_class_int])
 
 
+# Vectorised form of determine_orientation_class -> calc_facade_area_per_orientation, for the whole
+# stock at once. Each of the 8 compass walls carries either the MBR width (W), the MBR length (L),
+# or nothing, depending on the orientation class (rows 0-3 == classes 1-4). These two masks encode
+# exactly the orientation_to_facade_lengths table above.
+_ORIENTATION_CLASS_BOUNDS = (22.5, 67.5, 112.5, 157.5)
+_WIDTH_PLACEMENT = np.array(
+    [
+        [1, 0, 0, 0, 1, 0, 0, 0],
+        [0, 1, 0, 0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 0, 1, 0, 0, 0, 1],
+    ],
+    dtype=float,
+)
+_LENGTH_PLACEMENT = np.array(
+    [
+        [0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0],
+        [0, 1, 0, 0, 0, 1, 0, 0],
+    ],
+    dtype=float,
+)
+
+
+def calc_window_and_wall_areas_vectorised(buildings: pd.DataFrame) -> tuple[list[np.ndarray], np.ndarray, np.ndarray]:
+    """Whole-stock form of calc_window_and_wall_areas (one pass, no per-row Python).
+
+    Returns the per-orientation window areas (one length-8 array per building), and the total
+    window and wall areas as arrays aligned to ``buildings``.
+    """
+    azimuth = buildings["MBR_azimuth"].to_numpy()
+    if ((azimuth < 0) | (azimuth > MAX_AZIMUTH_DEGREES)).any():
+        msg = "Azimuth should be between 0 and 180 degrees"
+        raise ValueError(msg)
+
+    # Bucket each azimuth into orientation class 1-4; >157.5 deg wraps back to class 1 (N-S), matching
+    # determine_orientation_class. `% 4` maps digitize's 0-4 onto the four 0-based class rows.
+    class_index = np.digitize(azimuth, _ORIENTATION_CLASS_BOUNDS, right=True) % 4
+
+    width = buildings["MBR_width_m"].to_numpy()
+    length = buildings["MBR_length_m"].to_numpy()
+    height = buildings["height_m"].to_numpy()
+
+    facade_area = height[:, None] * (
+        width[:, None] * _WIDTH_PLACEMENT[class_index] + length[:, None] * _LENGTH_PLACEMENT[class_index]
+    )
+    window_area_per_orientation = facade_area * buildings["f_window"].to_numpy()[:, None]
+    wall_area_total = facade_area.sum(axis=1) * buildings["f_wall"].to_numpy()
+    window_area_total = window_area_per_orientation.sum(axis=1)
+
+    return list(window_area_per_orientation), window_area_total, wall_area_total
+
+
 def calc_window_and_wall_areas(building: pd.Series) -> tuple[np.ndarray, float, float]:
     """Calculate the window and wall areas of a building in m2.
 

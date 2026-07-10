@@ -15,6 +15,7 @@ from shapely.geometry import Point
 from cdm.aggregation import aggregate_results, scale_results_with_building_stock
 from cdm.constants import REQUIRED_GLOBAL_PARAMETERS
 from cdm.parameters import (
+    add_cooling_technology_data_to_buildings,
     add_energy_class_data_to_buildings,
     assign_parameters_by_class,
     calculate_building_population,
@@ -200,6 +201,40 @@ def test_add_energy_class_data_assigns_known_labels() -> None:
     result = add_energy_class_data_to_buildings(buildings, _ENERGY_CLASS_PARAMS)
 
     assert result["energy_class_int"].tolist() == [1]
+
+
+_COOLING_TECHS = pd.DataFrame(
+    {
+        "cooling_technology": ["A", "B"],
+        "cooling_technology_int": [1, 2],
+        "SEER": [3.0, 4.0],  # dropped before weighting
+        "refrigerant_density_kg_kW": [0.1, 0.2],  # dropped before weighting
+        "average_lifetime_yr": [10.0, 20.0],
+        "some_param": [100.0, 200.0],
+    },
+)
+
+
+def test_add_cooling_technology_data_weights_params_by_share() -> None:
+    """Each avg_<param> is the building's share-weighted average of that technology parameter."""
+    buildings = pd.DataFrame(
+        {"cooling_technology_share_A": [0.25, 1.0], "cooling_technology_share_B": [0.75, 0.0]},
+    )
+
+    result = add_cooling_technology_data_to_buildings(buildings, _COOLING_TECHS)
+
+    assert result["avg_some_param"].iloc[0] == pytest.approx(0.25 * 100 + 0.75 * 200)
+    assert result["avg_some_param"].iloc[1] == pytest.approx(100.0)
+    # average_lifetime_yr is renamed to the model's column name.
+    assert result["avg_lifetime_cooling_technology_yr"].iloc[0] == pytest.approx(0.25 * 10 + 0.75 * 20)
+
+
+def test_add_cooling_technology_data_rejects_unknown_tech() -> None:
+    """A share column for a technology missing from the parameter table fails loud, not with KeyError."""
+    buildings = pd.DataFrame({"cooling_technology_share_A": [1.0], "cooling_technology_share_Z": [0.0]})
+
+    with pytest.raises(ValueError, match="no row in the cooling-technology parameters"):
+        add_cooling_technology_data_to_buildings(buildings, _COOLING_TECHS)
 
 
 def test_determine_energy_label_to_class_mappings() -> None:

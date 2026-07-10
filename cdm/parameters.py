@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from cdm.geometric import calc_window_and_wall_areas
+from cdm.geometric import calc_window_and_wall_areas_vectorised
 
 
 def calculate_building_population(buildings: pd.DataFrame, global_parameters: dict[str, float]) -> np.ndarray:
@@ -213,12 +213,12 @@ def add_derived_parameters_to_buildings(
     # Determine the building population
     df_buildings["population"] = calculate_building_population(df_buildings, global_parameters)
 
-    # Determine the wall and window areas
+    # Determine the wall and window areas for the whole stock in one vectorised pass
     (
         df_buildings["window_area_per_orientation_m2"],
         df_buildings["window_area_total_m2"],
         df_buildings["wall_area_total_m2"],
-    ) = zip(*df_buildings.apply(calc_window_and_wall_areas, axis=1), strict=True)
+    ) = calc_window_and_wall_areas_vectorised(df_buildings)
 
     # Determine the total market penetration rate of cooling equipment
     df_buildings["total_MPR"] = df_buildings[
@@ -249,23 +249,25 @@ def add_cooling_technology_data_to_buildings(
         columns=["cooling_technology_int", "SEER", "refrigerant_density_kg_kW"],
     )
 
-    # Compute weighted averages for all cooling technology dependent parameters
+    # Each avg_<param> is a share-weighted average of that parameter over the technologies, i.e.
+    # a matrix product (shares @ params). Doing it as one product replaces an O(tech x param) loop
+    # of fragmented column read-modify-writes with a single pass.
+    share_columns = buildings.filter(like="cooling_technology_share").columns
+    tech_names = [column.split("cooling_technology_share_")[-1] for column in share_columns]
+
+    # A share column for a technology absent from the parameter table would have raised KeyError
+    # deep in the old loop; name the offenders instead.
+    missing = [tech for tech in tech_names if tech not in cooling_tech_reshaped.index]
+    if missing:
+        msg = f"cooling technologies {missing} have a share column but no row in the cooling-technology parameters."
+        raise ValueError(msg)
+
+    weighted_values = buildings[share_columns].to_numpy() @ cooling_tech_reshaped.loc[tech_names].to_numpy()
     weighted_parameters_df = pd.DataFrame(
+        weighted_values,
         index=buildings.index,
-    )  # Initialize DataFrame to store the weighted parameters
-    for share_column in buildings.filter(
-        like="cooling_technology_share",
-    ).columns:  # Loop over all cooling technology share columns
-        tech_name = share_column.split("cooling_technology_share_")[
-            -1
-        ]  # Extract the cooling technology name from the share column name
-        for param, value in cooling_tech_reshaped.loc[
-            tech_name
-        ].items():  # Loop over all cooling technology dependent parameters
-            column_name = f"avg_{param}"  # Create the column name for the weighted parameter
-            weighted_parameters_df[column_name] = (
-                weighted_parameters_df.get(column_name, 0) + buildings[share_column] * value
-            )  # Compute the weighted parameter and add it to the DataFrame
+        columns=[f"avg_{param}" for param in cooling_tech_reshaped.columns],
+    )
 
     # Merge the computed weighted parameters with the original buildings DataFrame
     buildings_with_cooling_tech_data = pd.concat([buildings, weighted_parameters_df], axis=1)

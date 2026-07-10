@@ -10,6 +10,7 @@ from cdm.geometric import (
     azimuth_rectangle,
     calc_facade_area_per_orientation,
     calc_window_and_wall_areas,
+    calc_window_and_wall_areas_vectorised,
     determine_orientation_class,
 )
 
@@ -88,3 +89,42 @@ def test_calc_window_and_wall_areas_splits_facade_by_factor() -> None:
     assert window_total == pytest.approx(total_facade * 0.3)
     assert wall_total == pytest.approx(total_facade * 0.7)
     assert window_per_orientation.sum() == pytest.approx(window_total)
+
+
+def test_calc_window_and_wall_areas_vectorised_matches_the_per_row_form() -> None:
+    """The whole-stock vectorised form must equal the per-row reference, bit for bit.
+
+    Covers all four orientation classes plus the >157.5 deg wrap-around back to class 1.
+    """
+    buildings = pd.DataFrame(
+        {
+            "MBR_azimuth": [10.0, 30.0, 90.0, 130.0, 170.0],  # classes 1, 2, 3, 4, then wrap -> 1
+            "MBR_width_m": [10.0, 12.0, 8.0, 15.0, 9.0],
+            "MBR_length_m": [20.0, 18.0, 25.0, 16.0, 30.0],
+            "height_m": [15.0, 9.0, 30.0, 12.0, 6.0],
+            "f_wall": [0.7, 0.6, 0.8, 0.65, 0.75],
+            "f_window": [0.3, 0.4, 0.2, 0.35, 0.25],
+        },
+    )
+    wpo_vec, wt_vec, wall_vec = calc_window_and_wall_areas_vectorised(buildings)
+
+    for i, (_, building) in enumerate(buildings.iterrows()):
+        wpo_ref, wt_ref, wall_ref = calc_window_and_wall_areas(building)
+        assert np.array_equal(wpo_vec[i], wpo_ref)
+        assert wt_vec[i] == wt_ref
+        assert wall_vec[i] == wall_ref
+
+
+def test_calc_window_and_wall_areas_vectorised_rejects_out_of_range_azimuth() -> None:
+    buildings = pd.DataFrame(
+        {
+            "MBR_azimuth": [30.0, 200.0],
+            "MBR_width_m": [10.0, 10.0],
+            "MBR_length_m": [20.0, 20.0],
+            "height_m": [15.0, 15.0],
+            "f_wall": [0.7, 0.7],
+            "f_window": [0.3, 0.3],
+        },
+    )
+    with pytest.raises(ValueError, match="between 0 and 180"):
+        calc_window_and_wall_areas_vectorised(buildings)
