@@ -37,7 +37,7 @@ WEATHER_END = int(config["weather"]["end_year"])
 
 BOUNDARY_GEOJSON = f"{RAW_DIR}/pdok_boundary/{CITY_SLUG}_boundary.geojson"
 BBOX_FILE = f"{RAW_DIR}/pdok_boundary/{CITY_SLUG}_bbox.txt"
-BAG_RESIDENCES = f"{RAW_DIR}/pdok_bag/verblijfsobject_{CITY_SLUG}.geojson"
+BAG_RESIDENCES = f"{RAW_DIR}/pdok_bag/verblijfsobject_{CITY_SLUG}.gpkg"
 WEATHER_CSV = f"{RESULTS_DIR}/weather/knmi_{WEATHER_STATION}_{WEATHER_START}_{WEATHER_END}.csv"
 
 PDOK_3D_BASE_URL = config["pdok_3d_basisvoorziening"]["base_url"]

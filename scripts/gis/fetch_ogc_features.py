@@ -1,13 +1,18 @@
-"""Fetch a paginated OGC API Features collection to GeoJSON."""
+"""Fetch a paginated OGC API Features collection to a GeoPackage.
+
+GeoJSON was the original output, but the BAG residences layer is ~460k features: as
+GeoJSON it is 719 MB and takes ~18 s to re-parse on every downstream read. The same
+data as a GeoPackage is 296 MB and reads in ~4 s, so the fetch writes GPKG directly.
+"""
 
 from __future__ import annotations
 
 import argparse
-import json
 import time
 from pathlib import Path
 from urllib.parse import urljoin
 
+import geopandas as gpd
 from pdok_http import retrying_session
 
 # The PDOK BAG API allows up to 50 requests/s; stay well under it.
@@ -55,6 +60,22 @@ def fetch_features(base_url: str, collection: str, bbox: str, limit: int, max_pa
     }
 
 
+def to_geodataframe(features: list[dict]) -> gpd.GeoDataFrame:
+    """Build a GeoPackage-writable frame from OGC features (which are served in CRS84)."""
+    # from_features reads only `properties` and `geometry`, so the feature-level `id`
+    # member (which the GeoJSON driver used to surface as an `id` column) would be lost.
+    for feature in features:
+        if "id" in feature:
+            feature["properties"].setdefault("id", feature["id"])
+
+    frame = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    # GeoPackage has no list column type, and BAG's `pand.href` is a list of URLs.
+    for column in frame.columns:
+        if column != frame.geometry.name and frame[column].map(lambda value: isinstance(value, list)).any():
+            frame[column] = frame[column].map(lambda value: ",".join(value) if isinstance(value, list) else value)
+    return frame
+
+
 def main() -> None:
     """Run the OGC fetcher."""
     parser = argparse.ArgumentParser()
@@ -66,11 +87,16 @@ def main() -> None:
     parser.add_argument("--max-pages", type=int)
     args = parser.parse_args()
 
+    collection = fetch_features(args.base_url, args.collection, args.bbox, args.limit, args.max_pages)
+    if not collection["features"]:
+        msg = f"No features returned for collection {args.collection!r} in bbox {args.bbox}."
+        raise SystemExit(msg)
+
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(fetch_features(args.base_url, args.collection, args.bbox, args.limit, args.max_pages), indent=2),
-    )
+    # Provenance (source URL, bbox, page limit) is not embedded: it is fully determined by
+    # config/sources.yaml plus the committed bbox file, both declared inputs of this rule.
+    to_geodataframe(collection["features"]).to_file(output, driver="GPKG", layer=args.collection)
 
 
 if __name__ == "__main__":
