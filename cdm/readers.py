@@ -33,7 +33,9 @@ def read_buildings(buildings_path: Path, layer_name: str = "BAG_buildings") -> g
         .loc[
             lambda df: df["end_use"].isin(["woonfunctie", "kantoorfunctie", "residential", "office"])
         ]  # Filter by end use
-        .replace({"woonfunctie": "residential", "kantoorfunctie": "office"})  # Translate end use from Dutch to English
+        # Translate end use from Dutch to English. Scoped to end_use: a frame-wide .replace()
+        # would rewrite these strings in any column that ever came to hold them.
+        .assign(end_use=lambda df: df["end_use"].replace({"woonfunctie": "residential", "kantoorfunctie": "office"}))
         .loc[
             lambda df: df["status"] == "Pand in gebruik"
         ]  # Keep only in-use buildings, i.e. drop those not built yet or already demolished

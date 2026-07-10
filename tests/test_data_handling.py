@@ -6,8 +6,10 @@ exercised here; these tests cover the pure mapping and scaling logic.
 
 from typing import TYPE_CHECKING
 
+import geopandas as gpd
 import pandas as pd
 import pytest
+from shapely.geometry import Point
 
 from cdm.aggregation import scale_results_with_building_stock
 from cdm.constants import REQUIRED_GLOBAL_PARAMETERS
@@ -17,10 +19,36 @@ from cdm.parameters import (
     determine_building_type,
     determine_energy_label_to_class_mappings,
 )
-from cdm.readers import read_global_parameters, read_parameter_specific_data
+from cdm.readers import read_buildings, read_global_parameters, read_parameter_specific_data
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_read_buildings_translates_end_use_without_touching_other_columns(tmp_path: Path) -> None:
+    """The Dutch->English translation must be scoped to end_use.
+
+    A frame-wide .replace() rewrites "woonfunctie"/"kantoorfunctie" in *every* column, so a
+    sibling column that happens to hold one of those strings is silently corrupted.
+    """
+    buildings = gpd.GeoDataFrame(
+        {
+            "end_use": ["woonfunctie", "kantoorfunctie"],
+            "status": ["Pand in gebruik", "Pand in gebruik"],
+            "energy_label": ["A", "B"],
+            # A pass-through column that survives every filter and holds the Dutch term.
+            "source_note": ["woonfunctie", "kantoorfunctie"],
+        },
+        geometry=[Point(0, 0), Point(1, 1)],
+        crs="EPSG:28992",
+    )
+    path = tmp_path / "buildings.gpkg"
+    buildings.to_file(path, layer="BAG_buildings", driver="GPKG")
+
+    result = read_buildings(path, "BAG_buildings")
+
+    assert sorted(result["end_use"]) == ["office", "residential"]
+    assert sorted(result["source_note"]) == ["kantoorfunctie", "woonfunctie"]
 
 
 def test_read_global_parameters_merges_base_and_scenario(tmp_path: Path) -> None:
