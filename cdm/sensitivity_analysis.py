@@ -469,8 +469,11 @@ def normalize_SA_results(
     Returns:
         pd.DataFrame: The DataFrame containing the normalized results of the sensitivity analysis.
     """
-    # Normalize all the columns in the DataFrame to the value closest to the reference value
-    SA_results_normalized = SA_results / SA_results.loc[ref_value_in_SA_results]
+    # The index holds computed floats (a linspace of the independent variable), so an exact .loc
+    # match on the reference value is fragile. Snap to the nearest available index value, which is
+    # what "closest to the reference" already means.
+    nearest_reference = SA_results.index[np.abs(SA_results.index.to_numpy() - ref_value_in_SA_results).argmin()]
+    SA_results_normalized = SA_results / SA_results.loc[nearest_reference]
 
     # Rename all the columns in SA_results_normalized to remove impact units from the labels
     SA_results_normalized.columns = [col.split("(")[0].strip() for col in SA_results_normalized.columns]

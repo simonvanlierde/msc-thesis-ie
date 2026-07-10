@@ -77,7 +77,7 @@ def calc_Q_transmission(
     Rc_roof = buildings["Rc_roof_m2K_W"].to_numpy(dtype=FLOW_DTYPE)  # The thermal resistance of the roof in m2K/W
     Rc_floor = buildings["Rc_floor_m2K_W"].to_numpy(dtype=FLOW_DTYPE)  # The thermal resistance of the floor in m2K/W
     U_window = buildings["U_window_W_m2K"].to_numpy(
-        dtype=FLOW_DTYPE
+        dtype=FLOW_DTYPE,
     )  # The thermal transmittance of the windows in W/m2K
 
     # The roof area is assumed to be equal to the ground floor area
@@ -127,7 +127,7 @@ def calc_Q_infiltration(
     # Load building data
     building_volume = buildings["volume_m3"].to_numpy(dtype=FLOW_DTYPE)  # The volume of the buildings in m3
     infiltration_ACH = buildings["infiltration_ACH"].to_numpy(
-        dtype=FLOW_DTYPE
+        dtype=FLOW_DTYPE,
     )  # The air changes per hour by infiltration
 
     # Load temperature difference between in- and outdoor from time series
@@ -163,7 +163,7 @@ def calc_Q_ventilation(
     end_use = buildings["end_use"].to_numpy()  # The building end use (residential, office, etc.)
     population = buildings["population"].to_numpy(dtype=FLOW_DTYPE)  # The population of the buildings
     ventilation_rate_pp = buildings["ventilation_rate_pp_m3_h"].to_numpy(
-        dtype=FLOW_DTYPE
+        dtype=FLOW_DTYPE,
     )  # Ventilation rate pp in m3/h
 
     # Load temperature difference between in- and outdoor from time series
@@ -231,7 +231,7 @@ def calc_Q_internal_heat(
     population = buildings["population"].to_numpy(dtype=FLOW_DTYPE)  # The population of the buildings
     floor_area_total = buildings["floor_area_total_m2"].to_numpy(dtype=FLOW_DTYPE)  # The total floor area in m2
     int_heat_gain_appliances = buildings["int_heat_gain_appliances_W_m2"].to_numpy(
-        dtype=FLOW_DTYPE
+        dtype=FLOW_DTYPE,
     )  # Appliances in W/m2
 
     # Load global parameters

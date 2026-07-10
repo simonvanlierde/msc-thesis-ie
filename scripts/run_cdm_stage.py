@@ -42,10 +42,15 @@ def _load_parameters(scenario: str) -> dict:
 
 
 def _drop_array_columns(buildings: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    # GeoPackage cannot serialize array-valued cells (the hourly Q_* series). Only object-dtype
+    # columns can hold arrays (the geometry column has its own dtype and is left alone); scan the
+    # whole column, not just iloc[0], so a column whose first cell is None but whose later cells
+    # are arrays is still dropped rather than crashing the write.
     array_columns = [
         column
         for column in buildings.columns
-        if len(buildings) > 0 and isinstance(buildings[column].iloc[0], np.ndarray)
+        if buildings[column].dtype == object
+        and buildings[column].map(lambda value: isinstance(value, np.ndarray)).any()
     ]
     return buildings.drop(columns=array_columns)
 

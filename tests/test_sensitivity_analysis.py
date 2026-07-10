@@ -23,6 +23,18 @@ def test_normalize_SA_results_divides_by_reference_row() -> None:
     assert normalized["GHG emissions"].tolist() == pytest.approx([0.5, 1.0, 2.0])
 
 
+def test_normalize_SA_results_snaps_to_the_nearest_index_value() -> None:
+    """A reference value that isn't exactly on the (linspace) index must not raise KeyError."""
+    sa_results = pd.DataFrame(
+        {"GHG emissions (kg CO2eq/m2)": [10.0, 20.0, 40.0]},
+        index=[1.0, 2.0, 4.0],
+    )
+    # 2.1 is not an index value; it snaps to 2.0 and divides by that row.
+    normalized = normalize_SA_results(sa_results, ref_value_in_SA_results=2.1)
+
+    assert normalized["GHG emissions"].tolist() == pytest.approx([0.5, 1.0, 2.0])
+
+
 def test_calculate_elasticity_for_SA_results() -> None:
     sa_results = pd.DataFrame(
         {"Electricity use (kWh/m2)": [10.0, 11.0]},

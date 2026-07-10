@@ -79,7 +79,9 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     used_backup = False
     try:
         response = requests.post(
-            knmi_url, data=knmi_params, timeout=60
+            knmi_url,
+            data=knmi_params,
+            timeout=60,
         )  # KNMI API; 5+ years of hourly data is a large, slow response
         response.raise_for_status()
         weather_series_df = _parse_knmi_response(response.text)
