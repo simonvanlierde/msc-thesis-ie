@@ -51,6 +51,33 @@ def test_read_buildings_translates_end_use_without_touching_other_columns(tmp_pa
     assert sorted(result["source_note"]) == ["kantoorfunctie", "woonfunctie"]
 
 
+def test_read_buildings_filters_rows_at_read_time(tmp_path: Path) -> None:
+    """Only in-use residential/office buildings with a known energy label are modelled.
+
+    The predicate is pushed into GDAL as an attribute filter, so this pins the SQL against
+    the pandas semantics it replaced -- in particular that `energy_label IS NOT NULL` drops
+    the same rows as the `.dropna()` it stands in for.
+    """
+    buildings = gpd.GeoDataFrame(
+        {
+            "end_use": ["woonfunctie", "kantoorfunctie", "winkelfunctie", "woonfunctie", "woonfunctie"],
+            "status": ["Pand in gebruik", "Pand in gebruik", "Pand in gebruik", "Bouw gestart", "Pand in gebruik"],
+            # The last row's label is NULL in the GeoPackage: it must not survive the read.
+            "energy_label": ["A", "B", "C", "D", None],
+        },
+        geometry=[Point(i, i) for i in range(5)],
+        crs="EPSG:28992",
+    )
+    path = tmp_path / "buildings.gpkg"
+    buildings.to_file(path, layer="BAG_buildings", driver="GPKG")
+
+    result = read_buildings(path, "BAG_buildings")
+
+    # Kept: the residential and the office row. Dropped: retail, not-yet-built, no label.
+    assert sorted(result["end_use"]) == ["office", "residential"]
+    assert sorted(result["energy_label"]) == ["A", "B"]
+
+
 def test_read_global_parameters_merges_base_and_scenario(tmp_path: Path) -> None:
     path = tmp_path / "parameters.toml"
     # A complete [base] (all required keys, T_thresh_C among them) plus the specifics under test.
