@@ -9,6 +9,10 @@ configfile: "config/sources.yaml"
 localrules: all, cooling_mix, notebooks
 
 SUBSET = config.get("building_subset", "full")
+# main.ipynb's figures run on a representative sample of this many buildings (the full stock's
+# hourly series do not fit in memory); only used when building_subset is "sample".
+SAMPLE_SIZE = int(config.get("sample_size", 5000))
+SAMPLE_SEED = int(config.get("sample_seed", 0))
 
 PARAMETER_DIR = "data/input/parameters"
 PARAMETERS_TOML = f"{PARAMETER_DIR}/parameters.toml"
@@ -224,6 +228,8 @@ rule fetch_weather:
         """
 
 
+# Always builds the full stock. The optional `sample` subset is a downstream selection
+# (subsample_buildings), so this output is pinned to `_full` regardless of SUBSET.
 rule prepare_bag_geodata:
     input:
         height_manifest=f"{PDOK_3D_DIR}/height_tiles_local_manifest.json",
@@ -233,9 +239,9 @@ rule prepare_bag_geodata:
         script="scripts/gis/prepare_pdok_model_geodata.py",
         model_src=MODEL_SRC,
     output:
-        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
     params:
-        layer=f"BAG_buildings_{SUBSET}",
+        layer="BAG_buildings_full",
     log:
         f"{LOG_DIR}/prepare_bag_geodata.log",
     benchmark:
@@ -250,6 +256,34 @@ rule prepare_bag_geodata:
           --boundary {input.boundary} \
           --output {output.buildings} \
           --layer {params.layer} > {log} 2>&1
+        """
+
+
+# Representative subset for the memory-bound notebook figures. Reads the full stock and
+# writes a schema-identical GeoPackage, so every downstream rule treats `sample` like `full`.
+rule subsample_buildings:
+    input:
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
+        script="scripts/subsample_buildings.py",
+        model_src=MODEL_SRC,
+    output:
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_sample.gpkg",
+    params:
+        input_layer="BAG_buildings_full",
+        output_layer="BAG_buildings_sample",
+        sample_size=SAMPLE_SIZE,
+        seed=SAMPLE_SEED,
+    log:
+        f"{LOG_DIR}/subsample_buildings.log",
+    shell:
+        """
+        python scripts/subsample_buildings.py \
+          --buildings {input.buildings} \
+          --buildings-layer {params.input_layer} \
+          --output {output.buildings} \
+          --output-layer {params.output_layer} \
+          --sample-size {params.sample_size} \
+          --seed {params.seed} > {log} 2>&1
         """
 
 

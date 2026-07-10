@@ -50,4 +50,8 @@ rivm_uhi:
   source_url: https://nationaalgeoregister.nl/geonetwork/srv/dut/catalog.search#/metadata/c9aa9109-3f32-4f65-84e5-bb1c9ebdfbec
 
 # Building subset the model runs on (layer suffix in the prepared GeoPackage).
+# "full" = the whole stock; "sample" = a representative stratified subset, used for the
+# memory-bound notebook figures. sample_size/sample_seed only apply to "sample".
 building_subset: full
+sample_size: 5000
+sample_seed: 0
