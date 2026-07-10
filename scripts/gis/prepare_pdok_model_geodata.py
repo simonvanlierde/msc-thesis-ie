@@ -39,6 +39,9 @@ def _first_existing_column(columns: pd.Index, candidates: list[str], purpose: st
     raise ValueError(msg)
 
 
+# The only BAG verblijfsobject attributes the model needs, out of the 28 the fetch stores.
+RESIDENCE_SOURCE_COLUMNS = ["identificatie", "oppervlakte", "gebruiksdoel", "status"]
+
 _EP_WANTED_COLUMNS = {"bagverblijfsobjectid", "energieklasse"}
 _MAX_PREAMBLE_SCAN = 20  # preamble is 2 rows in practice; scan a few extra for drift
 
@@ -149,7 +152,15 @@ def _prepare_buildings(height_tiles: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def _prepare_residences(residences_path: Path, energy_labels_path: Path) -> gpd.GeoDataFrame:
-    residences = gpd.read_file(residences_path)
+    # Only 4 of the source's 28 attribute columns are used. pyogrio silently ignores
+    # names it cannot find, so validate against the real schema before reading.
+    available = set(pyogrio.read_info(residences_path)["fields"])
+    missing = [column for column in RESIDENCE_SOURCE_COLUMNS if column not in available]
+    if missing:
+        msg = f"BAG verblijfsobject data is missing columns {missing}. Available columns: {sorted(available)}"
+        raise ValueError(msg)
+
+    residences = gpd.read_file(residences_path, columns=RESIDENCE_SOURCE_COLUMNS)
     residences = residences.rename(
         columns={
             "identificatie": "id_BAG",
@@ -157,14 +168,7 @@ def _prepare_residences(residences_path: Path, energy_labels_path: Path) -> gpd.
             "gebruiksdoel": "end_use",
         },
     )
-    required = ["id_BAG", "floor_area_m2", "status", "end_use", "geometry"]
-    missing = [column for column in required if column not in residences.columns]
-    if missing:
-        msg = f"BAG verblijfsobject data is missing columns {missing}. Available columns: {list(residences.columns)}"
-        raise ValueError(
-            msg,
-        )
-    residences = residences[required]
+    residences = residences[["id_BAG", "floor_area_m2", "status", "end_use", "geometry"]]
     residences = residences[residences["status"] == "Verblijfsobject in gebruik"].copy()
 
     labels = _read_ep_online_labels(energy_labels_path)
