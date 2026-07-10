@@ -21,10 +21,18 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 # Buildings are processed in chunks of at most this many (building, hour) cells, so peak memory
-# stays flat as the building stock grows. Each (n_buildings, n_hours) float64 intermediate costs
-# 8 bytes per cell and roughly ten of them are live at once, so 4M cells is a few hundred MB.
-# ponytail: a fixed budget, not a measured one; tune it if a machine's memory profile differs.
+# stays flat as the building stock grows. Each (n_buildings, n_hours) float32 intermediate costs
+# 4 bytes per cell and roughly ten of them are live at once, so 4M cells is a few hundred MB.
+# NOTE: a fixed budget, not a measured one; tune it if a machine's memory profile differs.
 MAX_CHUNK_CELLS = 4_000_000
+
+# The hourly (building, hour) blocks are held in float32: they dominate memory, and a Wh-scale
+# quantity keeps ~7 significant digits, far more than the model's inputs justify. The dtype must
+# be introduced where the arrays are *born* -- casting the finished flows costs more than the
+# arithmetic it saves. Reductions along the hour axis still accumulate in float64 (see ACCUM_DTYPE),
+# so summing 43,800 hours does not lose precision.
+FLOW_DTYPE = np.float32
+ACCUM_DTYPE = np.float64
 
 # Parameter derivation functions
 
@@ -62,13 +70,13 @@ def calc_Q_transmission(
         np.ndarray: The total transmission heat flow in Wh, of shape (n_buildings, n_hours).
     """
     # Load building data
-    window_area = buildings["window_area_total_m2"].to_numpy(dtype=float)  # The window area of the buildings in m2
-    wall_area = buildings["wall_area_total_m2"].to_numpy(dtype=float)  # The wall area of the buildings in m2
-    floor_area = buildings["floor_area_ground_m2"].to_numpy(dtype=float)  # The floor area of the buildings in m2
-    Rc_wall = buildings["Rc_wall_m2K_W"].to_numpy(dtype=float)  # The thermal resistance of the walls in m2K/W
-    Rc_roof = buildings["Rc_roof_m2K_W"].to_numpy(dtype=float)  # The thermal resistance of the roof in m2K/W
-    Rc_floor = buildings["Rc_floor_m2K_W"].to_numpy(dtype=float)  # The thermal resistance of the floor in m2K/W
-    U_window = buildings["U_window_W_m2K"].to_numpy(dtype=float)  # The thermal transmittance of the windows in W/m2K
+    window_area = buildings["window_area_total_m2"].to_numpy(dtype=FLOW_DTYPE)  # The window area of the buildings in m2
+    wall_area = buildings["wall_area_total_m2"].to_numpy(dtype=FLOW_DTYPE)  # The wall area of the buildings in m2
+    floor_area = buildings["floor_area_ground_m2"].to_numpy(dtype=FLOW_DTYPE)  # The floor area of the buildings in m2
+    Rc_wall = buildings["Rc_wall_m2K_W"].to_numpy(dtype=FLOW_DTYPE)  # The thermal resistance of the walls in m2K/W
+    Rc_roof = buildings["Rc_roof_m2K_W"].to_numpy(dtype=FLOW_DTYPE)  # The thermal resistance of the roof in m2K/W
+    Rc_floor = buildings["Rc_floor_m2K_W"].to_numpy(dtype=FLOW_DTYPE)  # The thermal resistance of the floor in m2K/W
+    U_window = buildings["U_window_W_m2K"].to_numpy(dtype=FLOW_DTYPE)  # The thermal transmittance of the windows in W/m2K
 
     # The roof area is assumed to be equal to the ground floor area
     roof_area = floor_area
@@ -115,8 +123,8 @@ def calc_Q_infiltration(
         np.ndarray: The infiltration heat flows in Wh, of shape (n_buildings, n_hours).
     """
     # Load building data
-    building_volume = buildings["volume_m3"].to_numpy(dtype=float)  # The volume of the buildings in m3
-    infiltration_ACH = buildings["infiltration_ACH"].to_numpy(dtype=float)  # The air changes per hour by infiltration
+    building_volume = buildings["volume_m3"].to_numpy(dtype=FLOW_DTYPE)  # The volume of the buildings in m3
+    infiltration_ACH = buildings["infiltration_ACH"].to_numpy(dtype=FLOW_DTYPE)  # The air changes per hour by infiltration
 
     # Load temperature difference between in- and outdoor from time series
     delta_T_air = time_series["T_outdoor_minus_indoor_C"]
@@ -149,8 +157,8 @@ def calc_Q_ventilation(
     """
     # Load building data
     end_use = buildings["end_use"].to_numpy()  # The building end use (residential, office, etc.)
-    population = buildings["population"].to_numpy(dtype=float)  # The population of the buildings
-    ventilation_rate_pp = buildings["ventilation_rate_pp_m3_h"].to_numpy(dtype=float)  # Ventilation rate pp in m3/h
+    population = buildings["population"].to_numpy(dtype=FLOW_DTYPE)  # The population of the buildings
+    ventilation_rate_pp = buildings["ventilation_rate_pp_m3_h"].to_numpy(dtype=FLOW_DTYPE)  # Ventilation rate pp in m3/h
 
     # Load temperature difference between in- and outdoor from time series
     delta_T_air = time_series["T_outdoor_minus_indoor_C"]
@@ -163,7 +171,7 @@ def calc_Q_ventilation(
     # capacity of air) multiplied by an hourly profile that depends only on the building's end use.
     ventilation_coefficient = air_density * ventilation_rate_pp * population * air_heat_capacity / 3600
 
-    Q_ventilation = np.empty((len(buildings), len(delta_T_air)))
+    Q_ventilation = np.empty((len(buildings), len(delta_T_air)), dtype=FLOW_DTYPE)
     for use in np.unique(end_use):
         buildings_with_use = end_use == use
         hourly_profile = time_series[f"presence_people_{use}"] * delta_T_air
@@ -184,11 +192,14 @@ def calc_Q_solar_radiation(buildings: pd.DataFrame, time_series: dict[str, np.nd
     """
     # Load building data: the window area per compass direction (N, NE, ...) in m2 and the solar
     # transmittance factor of the windows (ranging from 0 to 1)
-    window_area_per_orientation = np.stack(buildings["window_area_per_orientation_m2"].to_numpy())
-    g_window = buildings["g_window"].to_numpy(dtype=float)
+    window_area_per_orientation = np.stack(buildings["window_area_per_orientation_m2"].to_numpy()).astype(FLOW_DTYPE)
+    g_window = buildings["g_window"].to_numpy(dtype=FLOW_DTYPE)
 
     # Solar radiation stacked per direction (N, NE, ..., NW), aligned to the window-area orientations
-    solar_radiation_per_direction = np.array([time_series[f"P_sol_{d}_W_m2"] for d in SOLAR_DIRECTIONS])
+    solar_radiation_per_direction = np.array(
+        [time_series[f"P_sol_{d}_W_m2"] for d in SOLAR_DIRECTIONS],
+        dtype=FLOW_DTYPE,
+    )
 
     # Sum the solar heat inflow over the eight window orientations in Wh
     return (g_window[:, np.newaxis] * window_area_per_orientation) @ solar_radiation_per_direction
@@ -211,9 +222,9 @@ def calc_Q_internal_heat(
     """
     # Load building data
     end_use = buildings["end_use"].to_numpy()  # The building end use (residential, office, etc.)
-    population = buildings["population"].to_numpy(dtype=float)  # The population of the buildings
-    floor_area_total = buildings["floor_area_total_m2"].to_numpy(dtype=float)  # The total floor area in m2
-    int_heat_gain_appliances = buildings["int_heat_gain_appliances_W_m2"].to_numpy(dtype=float)  # Appliances in W/m2
+    population = buildings["population"].to_numpy(dtype=FLOW_DTYPE)  # The population of the buildings
+    floor_area_total = buildings["floor_area_total_m2"].to_numpy(dtype=FLOW_DTYPE)  # The total floor area in m2
+    int_heat_gain_appliances = buildings["int_heat_gain_appliances_W_m2"].to_numpy(dtype=FLOW_DTYPE)  # Appliances in W/m2
 
     # Load global parameters
     int_heat_gain_pp_W = global_parameters["int_heat_gain_pp_W"]  # The internal heat gain per person in W
@@ -232,7 +243,7 @@ def calc_Q_internal_heat(
         ],
     )
 
-    Q_internal_heat = np.empty((len(buildings), len(time_series["T_outdoor_minus_indoor_C"])))
+    Q_internal_heat = np.empty((len(buildings), len(time_series["T_outdoor_minus_indoor_C"])), dtype=FLOW_DTYPE)
     for use in np.unique(end_use):
         buildings_with_use = end_use == use
         presence_profiles = np.array(
@@ -266,8 +277,13 @@ def calc_cooling_demand_from_thermal_flows(
         E_cooling_avg_kWh (np.ndarray): The average total cooling energy demand (kWh) per year.
         P_cooling_peak_avg_kW (np.ndarray): The average peak cooling power demand (kW) per year.
     """
-    # Calculate the net heat in- or outflow in Wh for each hour in the time series
-    Q_net = Q_transmission + Q_infiltration + Q_ventilation + Q_solar_radiation + Q_internal_heat
+    # Calculate the net heat in- or outflow in Wh for each hour in the time series.
+    # Accumulated in place: `a + b + c + d + e` would materialise a fresh (buildings, hours)
+    # block per `+`. Left-to-right order is preserved, so the result is bitwise identical.
+    Q_net = np.add(Q_transmission, Q_infiltration)
+    np.add(Q_net, Q_ventilation, out=Q_net)
+    np.add(Q_net, Q_solar_radiation, out=Q_net)
+    np.add(Q_net, Q_internal_heat, out=Q_net)
 
     # Only if Q_net is positive, there is a cooling demand equal in size to Q_net. Otherwise, there is no cooling demand.
     Q_cooling_demand_Wh = np.maximum(Q_net, 0, out=Q_net)  # Q_net is a fresh array, so clipping it in place is safe
@@ -276,11 +292,12 @@ def calc_cooling_demand_from_thermal_flows(
     years = Q_cooling_demand_Wh.shape[-1] // HOURS_PER_YEAR
     Q_cooling_demand_years = Q_cooling_demand_Wh.reshape(*Q_cooling_demand_Wh.shape[:-1], years, HOURS_PER_YEAR)
 
-    # Calculate the average total cooling energy demand in kWh per year
-    E_cooling_avg_kWh = Q_cooling_demand_Wh.sum(axis=-1) / 1000 / years
+    # Calculate the average total cooling energy demand in kWh per year. The hour-axis sum spans
+    # 43,800 float32 terms, so it accumulates in float64 to keep the annual totals exact.
+    E_cooling_avg_kWh = Q_cooling_demand_Wh.sum(axis=-1, dtype=ACCUM_DTYPE) / 1000 / years
 
     # Determine the peak cooling power demand in kW for each year, then average it across the years
-    P_cooling_peak_avg_kW = Q_cooling_demand_years.max(axis=-1).mean(axis=-1) / 1000
+    P_cooling_peak_avg_kW = Q_cooling_demand_years.max(axis=-1).mean(axis=-1, dtype=ACCUM_DTYPE) / 1000
 
     return Q_cooling_demand_Wh, E_cooling_avg_kWh, P_cooling_peak_avg_kW
 
@@ -322,11 +339,14 @@ def calc_cooling_demand_percentile(
         axis=-1,
         overwrite_input=not include_time_series,
     )
-    P_cooling_peak_percentile_kW = P_cooling_peak_percentile_per_year_Wh.mean(axis=-1) / 1000
+    P_cooling_peak_percentile_kW = P_cooling_peak_percentile_per_year_Wh.mean(axis=-1, dtype=ACCUM_DTYPE) / 1000
 
-    # Cap each year at its own peak percentile, then average the annual capped energy totals (kWh)
+    # Cap each year at its own peak percentile, then average the annual capped energy totals (kWh).
+    # As above, the 8760-term hour-axis sum accumulates in float64.
     Q_cooling_capped_years = np.minimum(Q_cooling_demand_years, P_cooling_peak_percentile_per_year_Wh[..., np.newaxis])
-    E_cooling_capped_at_percentile_kWh = Q_cooling_capped_years.sum(axis=-1).mean(axis=-1) / 1000
+    E_cooling_capped_at_percentile_kWh = (
+        Q_cooling_capped_years.sum(axis=-1, dtype=ACCUM_DTYPE).mean(axis=-1) / 1000
+    )
 
     # The full hourly series are only sorted/materialized when explicitly requested (memory + speed)
     if include_time_series:
@@ -388,7 +408,7 @@ def calc_cooling_demand_metrics_for_chunk(
     ) = calc_cooling_demand_percentile(Q_cooling_demand_Wh, cap, include_time_series)
 
     # Determine the capped cooling energy and peak power demand per floor area
-    floor_area_total_m2 = buildings["floor_area_total_m2"].to_numpy(dtype=float)
+    floor_area_total_m2 = buildings["floor_area_total_m2"].to_numpy(dtype=FLOW_DTYPE)
 
     metrics = pd.DataFrame(
         {
@@ -443,6 +463,10 @@ def calc_cooling_demand_metrics_for_df(
         pd.DataFrame: The DataFrame containing the cooling demand metrics for each building row.
     """
     n_hours = len(time_series["T_outdoor_minus_indoor_C"])
+
+    # Cast the hourly series once, not per chunk: a float64 series here would promote every
+    # (n_buildings, n_hours) block it touches straight back to float64.
+    time_series = {name: np.asarray(series, dtype=FLOW_DTYPE) for name, series in time_series.items()}
 
     metrics = pd.concat(
         [

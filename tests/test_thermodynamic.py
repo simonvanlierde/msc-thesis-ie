@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from cdm.thermodynamic import (
+    FLOW_DTYPE,
     R_to_U,
     calc_cooling_demand_from_thermal_flows,
     calc_cooling_demand_metrics_for_df,
@@ -283,3 +284,47 @@ def test_calc_cooling_demand_metrics_for_df_is_chunk_invariant(
 
     assert np.allclose(unchunked["E_cooling_kWh"], chunked["E_cooling_kWh"])
     assert np.allclose(unchunked["P_cooling_peak_98th_percentile_kW"], chunked["P_cooling_peak_98th_percentile_kW"])
+
+
+def test_heat_flows_stay_float32_and_reductions_accumulate_in_float64(
+    buildings: pd.DataFrame,
+    time_series_full_year: dict,
+    global_parameters: dict,
+) -> None:
+    """The hourly blocks must be born float32, or one float64 input silently promotes them all.
+
+    An np.empty() left at its default float64 is the easy way to lose this unnoticed.
+    """
+    time_series = {name: np.asarray(series, dtype=FLOW_DTYPE) for name, series in time_series_full_year.items()}
+    flows = [
+        calc_Q_transmission(buildings, time_series, global_parameters),
+        calc_Q_infiltration(buildings, time_series, global_parameters),
+        calc_Q_ventilation(buildings, time_series, global_parameters),
+        calc_Q_solar_radiation(buildings, time_series),
+        calc_Q_internal_heat(buildings, time_series, global_parameters),
+    ]
+    assert [flow.dtype for flow in flows] == [np.float32] * 5
+
+    Q_cooling, E_cooling, P_peak = calc_cooling_demand_from_thermal_flows(*flows)
+    assert Q_cooling.dtype == np.float32
+    # The hour-axis sums span 8760+ terms; float32 accumulation would lose precision.
+    assert E_cooling.dtype == np.float64
+    assert P_peak.dtype == np.float64
+
+
+def test_float32_flows_match_float64_on_annual_totals(
+    building: pd.Series,
+    time_series_full_year: dict,
+    global_parameters: dict,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # float32 is a memory/speed choice, not a modelling one: the annual totals must not move.
+    stock = pd.DataFrame([building.to_dict() | {"volume_m3": 900.0 * (1 + i)} for i in range(5)])
+
+    monkeypatch.setattr("cdm.thermodynamic.FLOW_DTYPE", np.float64)
+    reference = calc_cooling_demand_metrics_for_df(stock.copy(), time_series_full_year, global_parameters)
+    monkeypatch.setattr("cdm.thermodynamic.FLOW_DTYPE", np.float32)
+    actual = calc_cooling_demand_metrics_for_df(stock.copy(), time_series_full_year, global_parameters)
+
+    for column in ("E_cooling_kWh", "P_cooling_peak_kW", "P_cooling_peak_98th_percentile_kW"):
+        assert np.allclose(actual[column], reference[column], rtol=1e-6), column
