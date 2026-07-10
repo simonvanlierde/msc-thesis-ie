@@ -405,11 +405,16 @@ rule run_main_notebook:
         model_src=MODEL_SRC,
     output:
         f"{RESULTS_DIR}/notebooks/main.executed.ipynb",
+    params:
+        subset=SUBSET,
     log:
         f"{LOG_DIR}/run_main_notebook.log",
     shell:
         # timeout=-1: the sensitivity sweeps legitimately run for a long time headless.
+        # BUILDING_SUBSET_NAME: the notebook reads it (cell 5) to pick the buildings layer, so
+        # `sample` points it at the memory-sized subset instead of OOMing on the full stock.
         """
+        BUILDING_SUBSET_NAME={params.subset} \
         jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
           --output-dir "$(dirname {output})" --output "$(basename {output})" \
           {input.notebook} > {log} 2>&1
