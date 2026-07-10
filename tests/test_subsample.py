@@ -5,6 +5,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
+import pytest
 from shapely.geometry import Point
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -30,11 +31,23 @@ def test_sample_keeps_input_schema_and_every_stratum() -> None:
 
     sample = draw_representative_sample(buildings, strata, sample_size=50, seed=0)
 
-    # Schema is exactly the input's: the classification columns used for grouping never leak out.
-    assert list(sample.columns) == list(buildings.columns)
+    # Schema is the input's plus stock_weight; the grouping columns never leak out.
+    assert list(sample.columns) == [*buildings.columns, "stock_weight"]
     assert not set(STRATIFY_COLUMNS) & set(sample.columns)
     # The lone rare building survives despite rounding to ~0 of its proportional share.
     assert (sample["payload"] == 500).sum() == 1
+
+
+def test_stock_weight_reconstructs_the_stock_size() -> None:
+    # Each drawn building's weight = full stratum size / number drawn, so the weights sum
+    # back to the full stock count -- that is what lets aggregate_results rescale sums.
+    buildings, strata = _make_stock(n_common=500, n_rare=1)
+
+    sample = draw_representative_sample(buildings, strata, sample_size=50, seed=0)
+
+    assert sample["stock_weight"].sum() == pytest.approx(len(buildings))
+    # The rare single-building stratum is drawn whole, so its weight is exactly 1.
+    assert sample.loc[sample["payload"] == 500, "stock_weight"].iloc[0] == pytest.approx(1.0)
 
 
 def test_sample_is_deterministic_given_the_seed() -> None:

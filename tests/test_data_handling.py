@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 from shapely.geometry import Point
 
-from cdm.aggregation import scale_results_with_building_stock
+from cdm.aggregation import aggregate_results, scale_results_with_building_stock
 from cdm.constants import REQUIRED_GLOBAL_PARAMETERS
 from cdm.parameters import (
     assign_parameters_by_class,
@@ -179,6 +179,81 @@ def test_determine_energy_label_to_class_mappings() -> None:
 
     assert residential == {7: 1, 6: 1, 5: 2}
     assert office == {7: 1, 6: 2, 5: 2}
+
+
+def _aggregatable_stock(building_type_ints: list[int], energy_class_ints: list[int]) -> pd.DataFrame:
+    """A DataFrame carrying every column aggregate_results reads, one row per building type/class."""
+    n = len(building_type_ints)
+    # Each summed physical quantity is 10.0 per building; every weighted-mean input is 1.0.
+    sum_cols = [
+        "floor_area_ground_m2",
+        "volume_m3",
+        "floor_area_total_m2",
+        "number_of_residences",
+        "population",
+        "E_cooling_kWh",
+        "E_cooling_capped_at_98th_percentile_kWh",
+        "P_cooling_peak_kW",
+        "P_cooling_peak_98th_percentile_kW",
+        "electricity_use_kWh",
+        "GHG_emissions_electricity_kgCO2eq",
+        "GHG_emissions_refrigerant_leaks_kgCO2eq",
+        "GHG_emissions_production_phase_kgCO2eq",
+        "GHG_emissions_EoL_phase_kgCO2eq",
+        "mass_cooling_equipment_kg",
+        "ADP_kgSbeq",
+        "CSI_kgSieq",
+        "GHG_emissions_total_kgCO2eq",
+    ]
+    mean_cols = [
+        "construction_year",
+        "height_m",
+        "energy_label_int",
+        "E_cooling_capped_at_98th_percentile_Wh_m2",
+        "P_cooling_peak_98th_percentile_W_m2",
+        "electricity_use_intensity_kWh_m2",
+        "material_use_intensity_kg_m2",
+        "GHG_emissions_intensity_kgCO2eq_m2",
+        "avg_SEER_inv",
+        "total_MPR",
+        "avg_lifetime_cooling_technology_yr",
+    ]
+    data = {
+        "id_BAG": [f"b{i}" for i in range(n)],
+        "building_type_int": building_type_ints,
+        "building_type": [f"type_{t}" for t in building_type_ints],
+        "energy_class_int": energy_class_ints,
+        "energy_class": [f"class_{c}" for c in energy_class_ints],
+        **{col: [10.0] * n for col in sum_cols},
+        **{col: [1.0] * n for col in mean_cols},
+    }
+    return pd.DataFrame(data)
+
+
+def test_aggregate_scales_a_weighted_sample_back_to_stock_totals(global_parameters: dict) -> None:
+    """A sample carrying stock_weight must aggregate to the same summed totals as the full stock."""
+    # Full stock: 30 identical buildings in one (type, class) stratum.
+    full = _aggregatable_stock([1] * 30, [3] * 30)
+    full_agg = aggregate_results(full, global_parameters, scale_with_building_stock=False)
+
+    # Sample: one building standing in for all 30 (weight 30).
+    sample = _aggregatable_stock([1], [3])
+    sample["stock_weight"] = [30.0]
+    sample_agg = aggregate_results(sample, global_parameters, scale_with_building_stock=False)
+
+    assert sample_agg["E_cooling_kWh"].iloc[0] == pytest.approx(full_agg["E_cooling_kWh"].iloc[0])
+    # The reported building count is the represented stock count, not the single sampled row.
+    assert sample_agg["id_BAG"].iloc[0] == pytest.approx(30.0)
+
+
+def test_aggregate_without_stock_weight_reports_a_plain_count(global_parameters: dict) -> None:
+    """The full-stock path (no stock_weight) is unchanged: id_BAG is an integer building count."""
+    full = _aggregatable_stock([1] * 5, [3] * 5)
+
+    full_agg = aggregate_results(full, global_parameters, scale_with_building_stock=False)
+
+    assert full_agg["id_BAG"].iloc[0] == 5
+    assert full_agg["E_cooling_kWh"].iloc[0] == pytest.approx(50.0)
 
 
 def test_scale_results_with_building_stock_only_scales_growth_types(global_parameters: dict) -> None:

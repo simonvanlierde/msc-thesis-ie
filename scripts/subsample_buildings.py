@@ -3,13 +3,19 @@
 ``main.ipynb`` cannot hold the hourly time series for the full ~59k-building stock in
 memory (~165 GB), so the notebook's figure section runs on a stratified sample and scales
 the results back up. This script is that sampling step, made reproducible: it takes the
-full prepared GeoPackage and writes a smaller one with the *same schema*, so every
-downstream rule treats ``building_subset: sample`` exactly like ``full``.
+full prepared GeoPackage and writes a smaller one with the same schema plus a single
+``stock_weight`` column, so every downstream rule treats ``building_subset: sample`` like
+``full`` and aggregate_results can still recover stock-wide totals (see below).
 
 Representative = proportional stratified sample over (building_type, energy_class), the two
 axes that drive the cooling model, with at least one building kept per occupied stratum so
 rare combinations are not dropped. A plain ``.head(n)`` or unstratified ``.sample(n)`` would
 bias the stock-wide thermal flows the figures aggregate.
+
+``stock_weight`` is each drawn building's multiplicity in the full stock (full stratum size /
+number drawn from it). aggregate_results multiplies the summed physical quantities by it, so a
+pipeline run on the sample produces stock-scale totals; the full stock omits the column
+(weight 1), leaving that path unchanged.
 """
 
 from __future__ import annotations
@@ -44,20 +50,27 @@ def draw_representative_sample(
     """Proportional stratified sample: each stratum gets round(fraction * sample_size), min 1.
 
     ``strata`` carries the classification columns for the same rows as ``buildings`` (same
-    index); only ``buildings`` columns are returned, so the output schema matches the input.
+    index); only ``buildings`` columns are returned, plus a ``stock_weight`` giving each drawn
+    building's multiplicity in the full stock (full stratum size / drawn) so aggregate_results
+    can scale sample sums back up to stock totals. The full stock has no such column (weight 1).
     """
     counts = strata.groupby(STRATIFY_COLUMNS, dropna=False).size()
     fractions = counts / counts.sum()
 
     picked_index = []
+    weights = []
     for stratum, fraction in fractions.items():
         target = max(round(fraction * sample_size), 1)
         members = strata.index[(strata[STRATIFY_COLUMNS] == stratum).all(axis=1)]
         take = min(target, len(members))
         # Seed offset by the stratum's own count keeps strata from drawing correlated rows.
-        picked_index.extend(members.to_series().sample(n=take, random_state=seed + len(members)).tolist())
+        drawn = members.to_series().sample(n=take, random_state=seed + len(members)).tolist()
+        picked_index.extend(drawn)
+        weights.extend([len(members) / take] * take)
 
-    return buildings.loc[picked_index].reset_index(drop=True)
+    sample = buildings.loc[picked_index].reset_index(drop=True)
+    sample["stock_weight"] = weights
+    return sample
 
 
 def main() -> None:

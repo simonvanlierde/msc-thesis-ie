@@ -116,6 +116,18 @@ def aggregate_results(
         time_series_aggregations = dict.fromkeys(buildings.filter(like="Q_").columns, sum_arrays)
         aggregations.update(time_series_aggregations)
 
+    # A representative sample (subsample_buildings) carries a stock_weight: each row stands in
+    # for that many real buildings. Scale the summed physical quantities and the building count
+    # by it so a pipeline run on the sample still reports stock-scale totals; the intensity
+    # weighted-means then use stock-scaled floor area and stay representative. The full stock has
+    # no stock_weight column, so this whole block is skipped and that path is unchanged.
+    if "stock_weight" in buildings.columns:
+        scalar_sum_columns = [key for key, value in aggregations.items() if value == "sum"]
+        buildings = buildings.copy()
+        buildings[scalar_sum_columns] = buildings[scalar_sum_columns].mul(buildings["stock_weight"], axis=0)
+        buildings["id_BAG"] = buildings["stock_weight"]  # count -> summed weight == stock count
+        aggregations = {**aggregations, "id_BAG": "sum"}
+
     # Group by building type and energy class and aggregate the results
     buildings_agg = buildings.groupby(list(groupby_columns)).agg(aggregations)
 
