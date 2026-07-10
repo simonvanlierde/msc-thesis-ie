@@ -1,6 +1,6 @@
 import { ResponsiveBar } from "@nivo/bar";
 import { num, pct } from "../lib/format";
-import type { Palette } from "../lib/palette";
+import { inkOn, type Palette } from "../lib/palette";
 import { rollup, STAGE_ORDER } from "../lib/transform";
 import type { GhgStages, ScenarioKey, ScenariosData } from "../lib/types";
 import { Legend } from "./Legend";
@@ -74,7 +74,9 @@ export function LcaView({ data, scenario, palette }: Props) {
       </p>
 
       <figure className="figure">
-        <div className="chart">
+        {/* Two bars across the full column width would be saturated blocks; capping the plot
+            keeps the marks thin and the fills accents rather than slabs. */}
+        <div className="chart chart--narrow">
           <ResponsiveBar
             role="img"
             ariaLabel="Greenhouse-gas emissions by life-cycle stage, stacked, for residential versus office buildings, in kilotonnes CO2-equivalent."
@@ -83,14 +85,18 @@ export function LcaView({ data, scenario, palette }: Props) {
             keys={STAGE_ORDER as unknown as string[]}
             indexBy="use"
             margin={{ top: 10, right: 20, bottom: 50, left: 60 }}
-            padding={0.35}
+            padding={0.5}
             colors={(d) => palette.stage[d.id as keyof GhgStages]}
             innerPadding={2}
             // Only the dominant stage is tall enough to carry a label — which is the point
             // of the chart, so the reader gets it without decoding the stack.
             label={(d) => pct(d.value ?? 0, barTotal.get(String(d.indexValue)) ?? 1, 0)}
             labelSkipHeight={36}
-            labelTextColor="#fff"
+            labelSkipWidth={40}
+            // A label inside a fill is the one place text may sit on a data colour; it owes
+            // 4.5:1 to the fill under it, which a fixed white does not clear on five of the
+            // eight stage colours.
+            labelTextColor={(d) => inkOn(d.color)}
             borderRadius={2}
             axisBottom={{ legend: "Building use", legendOffset: 40, legendPosition: "middle" }}
             axisLeft={{
@@ -116,7 +122,7 @@ export function LcaView({ data, scenario, palette }: Props) {
       </figure>
 
       <figure className="figure">
-        <OfficeShareDots rows={shares} color={palette.use.Office} />
+        <OfficeShareDots rows={shares} color={palette.use.Office} ring={palette.page} />
         <figcaption>
           Office share of each impact category · scenario {scenario}. Offices hold{" "}
           {pct(
@@ -178,9 +184,11 @@ const TICKS = [0, 25, 50, 75, 100];
 function OfficeShareDots({
   rows,
   color,
+  ring,
 }: {
   rows: { label: string; share: number }[];
   color: string;
+  ring: string;
 }) {
   const H = TOP + rows.length * ROW_H + AXIS_H;
   const x = (p: number) => GUTTER_L + (p / 100) * (W - GUTTER_L - PLOT_R);
@@ -220,7 +228,8 @@ function OfficeShareDots({
               stroke={color}
               strokeWidth={4}
             />
-            <circle cx={x(r.share)} cy={rowY(i)} r={8} fill={color} />
+            {/* 2px surface ring, so the dot stays a distinct mark where it meets its bar. */}
+            <circle cx={x(r.share)} cy={rowY(i)} r={8} fill={color} stroke={ring} strokeWidth={2} />
             <text className="dotplot__value" x={x(r.share) + 16} y={rowY(i) + 5}>
               {r.share.toFixed(0)}%
             </text>

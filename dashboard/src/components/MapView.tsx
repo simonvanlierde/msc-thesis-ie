@@ -19,21 +19,21 @@ import { ValueStrip } from "./ValueStrip";
 interface Props {
   buurten: BuurtCollection | null;
   scenario: ScenarioKey;
+  metric: MapMetric;
   palette: Palette;
 }
 
-const METRIC_LABEL: Record<MapMetric, string> = {
+export const METRIC_LABEL: Record<MapMetric, string> = {
   intensity: "Cooling intensity (kWh per m² floor area)",
   total: "Total cooling demand (GWh)",
 };
 const METRIC_UNIT: Record<MapMetric, string> = { intensity: "kWh/m²", total: "GWh" };
 const fmt1 = (n: number) => num(n, 1);
 
-export function MapView({ buurten, scenario, palette }: Props) {
+export function MapView({ buurten, scenario, metric, palette }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
-  const [metric, setMetric] = useState<MapMetric>("intensity");
 
   // Latest palette + basemap flag for the style.load handler, which outlives the render
   // that created it.
@@ -155,23 +155,6 @@ export function MapView({ buurten, scenario, palette }: Props) {
         Cooling demand aggregated from ~59,000 individual buildings to the city's 112 neighbourhoods
         (buurten). Darker means more cooling.
       </p>
-
-      <fieldset className="segmented">
-        <legend>Shown on map</legend>
-        <div className="segmented__row">
-          {(["intensity", "total"] as MapMetric[]).map((mk) => (
-            <label key={mk}>
-              <input
-                type="radio"
-                name="mapmetric"
-                checked={metric === mk}
-                onChange={() => setMetric(mk)}
-              />
-              {mk === "intensity" ? "Intensity (per m²)" : "Total (GWh)"}
-            </label>
-          ))}
-        </div>
-      </fieldset>
 
       {buurten && view ? (
         <figure className="figure">

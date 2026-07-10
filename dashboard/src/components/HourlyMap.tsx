@@ -9,7 +9,7 @@ import { bbox } from "../lib/geo";
 import { HEAT_RAMP, type Palette } from "../lib/palette";
 import type { BuurtCollection, HourlyFrames } from "../lib/types";
 import { Legend } from "./Legend";
-import { YearCarpet } from "./YearCarpet";
+import { YearCarpet, YearTables } from "./YearCarpet";
 
 interface Props {
   buurten: BuurtCollection | null;
@@ -283,6 +283,7 @@ function YearMap({ buurten, frames, palette }: YearMapProps) {
           Cooling intensity per neighbourhood · {label}. Carpet above shows the city average for
           every hour, on the same scale. {frames.meta.weather_years} typical year.
         </figcaption>
+        <YearTables cityMean={cityMean} months={frames.months} fmt={fmt1} />
       </figure>
     </section>
   );

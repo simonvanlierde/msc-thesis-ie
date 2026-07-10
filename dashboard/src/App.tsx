@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { ScenarioPicker } from "./components/ScenarioPicker";
+import { Segmented } from "./components/Segmented";
 import { Summary } from "./components/Summary";
+import type { MapMetric } from "./lib/choropleth";
 import { type Datasets, loadDatasets } from "./lib/data";
 import { getPalette } from "./lib/palette";
 import type { ScenarioKey } from "./lib/types";
@@ -26,10 +27,19 @@ function ViewFallback({ label }: { label: string }) {
   );
 }
 
+const METRIC_OPTIONS: { value: MapMetric; label: string }[] = [
+  { value: "intensity", label: "Intensity (per m²)" },
+  { value: "total", label: "Total (GWh)" },
+];
+
 export function App() {
   const [data, setData] = useState<Datasets | null>(null);
   const [failed, setFailed] = useState(false);
   const [scenario, setScenario] = useState<ScenarioKey>("SQ");
+  const [metric, setMetric] = useState<MapMetric>("intensity");
+  // Resolved against the data rather than defaulted to a literal, so the control never
+  // opens on a season the build does not carry.
+  const [season, setSeason] = useState<string | null>(null);
   const [mode, toggleTheme] = useTheme();
   const palette = useMemo(() => getPalette(mode), [mode]);
 
@@ -75,27 +85,61 @@ export function App() {
           <>
             <Summary data={data.scenarios} scenario={scenario} />
 
-            <div className="card" style={{ marginTop: "1.5rem" }}>
-              <ScenarioPicker
-                order={data.scenarios.meta.scenario_order}
-                scenarios={data.scenarios.scenarios}
-                value={scenario}
-                onChange={setScenario}
-              />
+            {/* One control row above everything it scopes: no chart carries its own filter,
+                and each control names the view it drives. */}
+            <search className="card controls" aria-label="Chart controls">
+              <div className="controls__row">
+                <Segmented
+                  name="scenario"
+                  legend="Scenario"
+                  scope="map + impact"
+                  options={data.scenarios.meta.scenario_order.map((k) => ({
+                    value: k,
+                    label: data.scenarios.scenarios[k].label,
+                  }))}
+                  value={scenario}
+                  onChange={setScenario}
+                />
+                <Segmented
+                  name="mapmetric"
+                  legend="Shown on map"
+                  scope="map"
+                  options={METRIC_OPTIONS}
+                  value={metric}
+                  onChange={setMetric}
+                />
+                <Segmented
+                  name="season"
+                  legend="Season"
+                  scope="daily profile"
+                  options={data.temporal.seasons.map((s) => ({ value: s, label: s }))}
+                  value={season ?? data.temporal.seasons[0]}
+                  onChange={setSeason}
+                />
+              </div>
               <p className="scope-note">
-                Changes the map and the impact charts. The time-lapse and the daily profiles always
-                show the present-day building stock.
+                The time-lapse and the monthly profile always show the present-day building stock,
+                so the scenario does not change them.
               </p>
-            </div>
+            </search>
 
             <Suspense fallback={<ViewFallback label="the map" />}>
-              <MapView buurten={data.buurten} scenario={scenario} palette={palette} />
+              <MapView
+                buurten={data.buurten}
+                scenario={scenario}
+                metric={metric}
+                palette={palette}
+              />
             </Suspense>
             <Suspense fallback={<ViewFallback label="the time-lapse" />}>
               <HourlyMap buurten={data.buurten} palette={palette} />
             </Suspense>
             <Suspense fallback={<ViewFallback label="the profiles" />}>
-              <TemporalView temporal={data.temporal} palette={palette} />
+              <TemporalView
+                temporal={data.temporal}
+                season={season ?? data.temporal.seasons[0]}
+                palette={palette}
+              />
             </Suspense>
             <Suspense fallback={<ViewFallback label="the impact charts" />}>
               <LcaView data={data.scenarios} scenario={scenario} palette={palette} />

@@ -98,3 +98,99 @@ export function YearCarpet({ cityMean, months, vmax, frame, onPick, fmt }: Props
     </div>
   );
 }
+
+/**
+ * The carpet's table twin. The carpet encodes 288 values as colour alone, so they need a
+ * text path too: a per-month summary for reading, and the full month × hour matrix behind a
+ * second disclosure for the reader who wants the cell the carpet actually drew.
+ */
+export function YearTables({
+  cityMean,
+  months,
+  fmt,
+}: {
+  cityMean: number[];
+  months: string[];
+  fmt: (n: number) => string;
+}) {
+  const rows = months.map((mo, m) => {
+    const day = cityMean.slice(m * FRAMES_PER_DAY, (m + 1) * FRAMES_PER_DAY);
+    const peakHour = day.reduce((best, v, h) => (v > day[best] ? h : best), 0);
+    return {
+      month: mo,
+      mean: day.reduce((s, v) => s + v, 0) / day.length,
+      peakHour,
+      peak: day[peakHour],
+      day,
+    };
+  });
+
+  return (
+    <>
+      <details className="datatable" open>
+        <summary>Data table — the cooling year by month</summary>
+        <table>
+          <caption>City-average cooling intensity by month (W/m², typical year)</caption>
+          <thead>
+            <tr>
+              <th scope="col">Month</th>
+              <th scope="col">Daily mean</th>
+              <th scope="col">Peak hour</th>
+              <th scope="col">Peak value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.month}>
+                <th scope="row">{r.month}</th>
+                <td>{fmt(r.mean)}</td>
+                <td>{hh(r.peakHour)}:00</td>
+                <td>{fmt(r.peak)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+
+      <details className="datatable">
+        <summary>Data table — every hour of the year (12 months × 24 hours)</summary>
+        {/* The matrix is wider than the page, so its scroll container is a named, focusable
+            region: otherwise a keyboard user reaches the table but can never scroll it
+            sideways (WCAG 2.1.1, and axe's scrollable-region-focusable). */}
+        <section
+          className="datatable__scroll"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: the tab stop is the point — it is how a keyboard scrolls this region
+          tabIndex={0}
+          aria-label="Hourly cooling intensity matrix, scrollable"
+        >
+          <table>
+            <caption>
+              City-average cooling intensity for every month-and-hour cell of the carpet above
+              (W/m²)
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
+                {HOURS.map((h) => (
+                  <th scope="col" key={h}>
+                    {hh(h)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.month}>
+                  <th scope="row">{r.month}</th>
+                  {r.day.map((v, h) => (
+                    <td key={`${r.month}-${hh(h)}`}>{fmt(v)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </details>
+    </>
+  );
+}

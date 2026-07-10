@@ -105,9 +105,15 @@ pnpm dlx wrangler pages deploy dist
 Accessibility is a first-class requirement here, matching the setup in `tide` /
 `credit-heatmap`:
 
-- Keyboard-navigable controls (radio-group segmented controls, skip link, visible focus).
+- Keyboard-navigable controls (radio-group segmented controls, skip link, visible focus), gathered
+  into a single row above the views they scope rather than buried in each chart card.
 - Every chart and the map carry an accessible label, and each view has a **data-table
-  fallback** — nothing is available only as a chart or only on hover.
+  fallback** — nothing is available only as a chart or only on hover. The year time-lapse
+  gets two: a per-month summary and the full 12 × 24 matrix the carpet colours, in a
+  focusable scroll region so a keyboard can pan it.
+- Text set inside a coloured fill (the stacked bar's share labels) picks black or white by the
+  fill's luminance, so it always clears 4.5:1 — asserted in `src/lib/palette.test.ts`, since
+  axe cannot see SVG text.
 - A colourblind-safe palette (validated data-viz reference palette): a single-hue blue
   sequential scale for the map, blue/orange for residential/office, a warm ramp for the
   year's heat. Colour has one job per hue — magenta is reserved for keyboard focus and used
@@ -128,8 +134,9 @@ Playwright + axe (a11y), lefthook (git hooks). Vite is pinned to 7.x: Vite 8's r
 bundler currently breaks MapLibre's GeoJSON web worker in production builds.
 
 Type is self-hosted: [Fraunces](https://fonts.google.com/specimen/Fraunces) (variable, for the
-wordmark, headings and hero numbers) and [Public Sans](https://public-sans.digital.gov) (variable,
-body), both subset to `latin` in `public/fonts/` — no font CDN, no external request. The map draws
+wordmark, headings and the summary headline) and [Public Sans](https://public-sans.digital.gov)
+(variable, body and every figure — a serif on a stat-tile value reads as decoration), both subset
+to `latin` in `public/fonts/` — no font CDN, no external request. The map draws
 over [CARTO](https://carto.com)'s positron / dark-matter basemap (streets and place names, no API
 key); if that CDN is unreachable it falls back to a plain background, so the choropleth still works
 offline. CARTO/OpenStreetMap attribution shows on the map when the basemap loads.

@@ -76,12 +76,12 @@ a {
   color: var(--accent);
 }
 
-/* Display face, used with restraint: the wordmark, section titles, the headline, and
-   the four hero numbers. Nothing else. */
+/* Display face, used with restraint: the wordmark, section titles and the headline.
+   Nothing else — and never a figure. A serif on a hero number reads as decoration, so the
+   stat-tile values wear the body sans like every other number on the page. */
 .masthead h1,
 section > h2,
-.summary__headline,
-.tile__value {
+.summary__headline {
   font-family: var(--display);
   letter-spacing: -0.012em;
 }
@@ -230,12 +230,14 @@ section > h2 {
   border-radius: 12px;
   padding: 0.9rem 1rem;
 }
+/* Proportional figures: tabular-nums gives every digit the width of a `0`, which makes a
+   standalone number like 121 look loose at display size. It belongs in the columns below,
+   where numbers must align. */
 .tile__value {
   font-size: 1.7rem;
-  font-weight: 500;
-  font-variation-settings: "opsz" 72;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   line-height: 1.1;
+  letter-spacing: -0.012em;
 }
 .tile__label {
   color: var(--text-secondary);
@@ -243,10 +245,18 @@ section > h2 {
   margin-top: 0.15rem;
 }
 
-/* Controls */
+/* Controls — one row above every view they scope, never inside a chart card. */
+.controls {
+  margin-top: 1.5rem;
+}
+.controls__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.5rem;
+}
 fieldset.segmented {
   border: 0;
-  margin: 0 0 0.9rem;
+  margin: 0;
   padding: 0;
 }
 fieldset.segmented > legend {
@@ -254,6 +264,10 @@ fieldset.segmented > legend {
   color: var(--text-secondary);
   padding: 0;
   margin-bottom: 0.35rem;
+}
+/* Each control names the view it drives, so a control can sit far from its chart. */
+.segmented__scope {
+  color: var(--muted);
 }
 .segmented__row {
   display: inline-flex;
@@ -314,6 +328,11 @@ fieldset.segmented > legend {
 }
 .chart {
   height: 360px;
+}
+/* Two stacked bars across the full column would be saturated slabs; the cap keeps the
+   fills reading as marks. */
+.chart--narrow {
+  max-width: 520px;
 }
 .map {
   height: 460px;
@@ -494,6 +513,11 @@ details.datatable > summary {
   color: var(--text-secondary);
   font-size: 0.9rem;
 }
+/* The 12x24 hour matrix is wider than the column: it scrolls inside itself, never
+   pushing the page sideways. */
+.datatable__scroll {
+  overflow-x: auto;
+}
 table {
   border-collapse: collapse;
   width: 100%;
@@ -516,6 +540,16 @@ caption {
   color: var(--text-secondary);
   font-size: 0.85rem;
   margin-bottom: 0.3rem;
+}
+.datatable__scroll table {
+  min-width: 46rem;
+}
+/* Month stays visible while the 24 hour columns scroll past it. The table sits straight on
+   the page, not on a card, so the sticky cell wears the page colour. */
+.datatable__scroll th[scope="row"] {
+  position: sticky;
+  left: 0;
+  background: var(--page);
 }
 
 .tooltip {

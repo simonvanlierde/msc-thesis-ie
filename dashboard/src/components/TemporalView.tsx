@@ -1,11 +1,13 @@
 import { type LineCustomSvgLayer, type LineSeries, ResponsiveLine } from "@nivo/line";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { num } from "../lib/format";
 import type { Palette } from "../lib/palette";
 import type { TemporalData } from "../lib/types";
+import { Legend } from "./Legend";
 
 interface Props {
   temporal: TemporalData;
+  season: string;
   palette: Palette;
 }
 
@@ -19,10 +21,15 @@ const USE_LABEL: Record<string, string> = { residential: "Residential", office: 
 const colorForUse = (p: Palette, use: string) =>
   use === "office" ? p.use.Office : p.use.Residential;
 
-// Two series only: label the line ends and drop the legend, so reading a line costs no
-// glance away from it. Draw order (bottom to top) is default layers plus ours.
+// Direct end-labels supplement the legend below the chart; they never replace it, because
+// colour-matching alone is not a dependable identity channel. Draw order (bottom to top) is
+// the default layers plus ours.
 const LAYERS = ["grid", "axes", "crosshair", "lines", "points", "mesh"] as const;
 const LABEL_GAP = 16;
+const LEADER_X = 12; // horizontal run of the leader line before it meets the label
+// The right margin has to clear LEADER_X plus the widest series name ("Residential"), or
+// nivo clips the end-labels. Widen the two together.
+const MARGIN = { top: 20, right: 124, bottom: 50, left: 55 };
 
 function nivoTheme(p: Palette) {
   return {
@@ -53,36 +60,65 @@ function Tooltip({
   );
 }
 
-/** Series names at the right-hand line ends, nudged apart when the lines converge. */
-const endLabels: LineCustomSvgLayer<Series> = ({ series }) => {
-  const items = series
-    .map((s) => {
-      const last = s.data[s.data.length - 1];
-      return { id: String(s.id), color: s.color, x: last.position.x, y: last.position.y };
-    })
-    .sort((a, b) => a.y - b.y);
-  for (let i = 1; i < items.length; i++) {
-    const overlap = items[i - 1].y + LABEL_GAP - items[i].y;
-    if (overlap > 0) items[i].y += overlap;
-  }
-  return (
-    <g>
-      {items.map((it) => (
-        <text
-          key={it.id}
-          x={it.x + 10}
-          y={it.y + 4}
-          fill={it.color}
-          fontSize={13}
-          fontWeight={600}
-          fontFamily="inherit"
-        >
-          {USE_LABEL[it.id] ?? it.id}
-        </text>
-      ))}
-    </g>
-  );
-};
+/**
+ * Series names at the right-hand line ends. When the lines converge, a nudged label floats
+ * free of the line it names, so each label keeps a leader line back to its own line-end and
+ * a ringed dot anchoring it there. The text itself wears an ink token, never the series
+ * colour — a mid-blue or orange word on the surface is a contrast problem, and the coloured
+ * dot beside it already carries the identity.
+ */
+function makeEndLabels(palette: Palette): LineCustomSvgLayer<Series> {
+  return ({ series }) => {
+    const items = series
+      .map((s) => {
+        const last = s.data[s.data.length - 1];
+        return {
+          id: String(s.id),
+          color: s.color,
+          x: last.position.x,
+          y: last.position.y,
+          labelY: last.position.y,
+        };
+      })
+      .sort((a, b) => a.labelY - b.labelY);
+    for (let i = 1; i < items.length; i++) {
+      const overlap = items[i - 1].labelY + LABEL_GAP - items[i].labelY;
+      if (overlap > 0) items[i].labelY += overlap;
+    }
+    return (
+      <g pointerEvents="none">
+        {items.map((it) => (
+          <g key={it.id}>
+            <polyline
+              points={`${it.x},${it.y} ${it.x + LEADER_X},${it.y} ${it.x + LEADER_X},${it.labelY}`}
+              fill="none"
+              stroke={it.color}
+              strokeWidth={1}
+            />
+            <circle
+              cx={it.x}
+              cy={it.y}
+              r={4}
+              fill={it.color}
+              stroke={palette.page}
+              strokeWidth={2}
+            />
+            <text
+              x={it.x + LEADER_X + 6}
+              y={it.labelY + 4}
+              fill={palette.textPrimary}
+              fontSize={13}
+              fontWeight={600}
+              fontFamily="inherit"
+            >
+              {USE_LABEL[it.id] ?? it.id}
+            </text>
+          </g>
+        ))}
+      </g>
+    );
+  };
+}
 
 /** One annotation, on the thing the eye lands on: the day's single highest point of
  *  cooling power, whichever series and season it falls in. Computed from the data, never
@@ -133,11 +169,15 @@ function makePeakLayer(palette: Palette): LineCustomSvgLayer<Series> {
   };
 }
 
-export function TemporalView({ temporal, palette }: Props) {
-  const [season, setSeason] = useState(temporal.seasons[0]);
+export function TemporalView({ temporal, season, palette }: Props) {
   const uses = temporal.uses;
   const theme = nivoTheme(palette);
   const peakLayer = useMemo(() => makePeakLayer(palette), [palette]);
+  const endLabels = useMemo(() => makeEndLabels(palette), [palette]);
+  const useLegend = uses.map((u) => ({
+    color: colorForUse(palette, u),
+    label: USE_LABEL[u] ?? u,
+  }));
 
   const diurnal: Series[] = uses.map((use) => ({
     id: use,
@@ -164,23 +204,6 @@ export function TemporalView({ temporal, palette }: Props) {
         again in the early evening.
       </p>
 
-      <fieldset className="segmented">
-        <legend>Season (daily profile)</legend>
-        <div className="segmented__row">
-          {temporal.seasons.map((se) => (
-            <label key={se}>
-              <input
-                type="radio"
-                name="season"
-                checked={season === se}
-                onChange={() => setSeason(se)}
-              />
-              {se}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
       <figure className="figure">
         <div className="chart">
           <ResponsiveLine<Series>
@@ -190,7 +213,7 @@ export function TemporalView({ temporal, palette }: Props) {
             theme={theme}
             colors={(s) => s.color}
             layers={[...LAYERS, endLabels, peakLayer]}
-            margin={{ top: 20, right: 96, bottom: 50, left: 55 }}
+            margin={MARGIN}
             xScale={{ type: "point" }}
             yScale={{ type: "linear", min: 0, max: "auto" }}
             axisBottom={{
@@ -213,6 +236,7 @@ export function TemporalView({ temporal, palette }: Props) {
             tooltip={({ point }) => <Tooltip point={point} />}
           />
         </div>
+        <Legend items={useLegend} title="Building use" />
         <figcaption>Average cooling power through the day · {season}.</figcaption>
       </figure>
 
@@ -225,7 +249,7 @@ export function TemporalView({ temporal, palette }: Props) {
             theme={theme}
             colors={(s) => s.color}
             layers={[...LAYERS, endLabels]}
-            margin={{ top: 20, right: 96, bottom: 50, left: 55 }}
+            margin={MARGIN}
             xScale={{ type: "point" }}
             yScale={{ type: "linear", min: 0, max: "auto" }}
             axisBottom={{ legend: "Month", legendOffset: 40, legendPosition: "middle" }}
@@ -236,6 +260,9 @@ export function TemporalView({ temporal, palette }: Props) {
             }}
             enablePoints
             pointSize={8}
+            // 2px surface ring, so a marker stays legible where the two lines cross.
+            pointBorderWidth={2}
+            pointBorderColor={palette.page}
             enableGridX={false}
             lineWidth={2}
             useMesh
@@ -244,6 +271,7 @@ export function TemporalView({ temporal, palette }: Props) {
             tooltip={({ point }) => <Tooltip point={point} />}
           />
         </div>
+        <Legend items={useLegend} title="Building use" />
         <figcaption>Cooling energy by month · typical year.</figcaption>
       </figure>
 
