@@ -66,6 +66,18 @@ def test_add_presence_load_factors_joins_repeated_daily_profile(tmp_path: Path) 
     assert result["presence_people_office"].tolist() == list(range(24)) * 2
 
 
+def test_add_presence_load_factors_rejects_a_partial_day(tmp_path: Path) -> None:
+    """A series that isn't a whole number of days must fail loud, not silently NaN the tail hours."""
+    factors_path = tmp_path / "presence.csv"
+    pd.DataFrame({"presence_people_office": list(range(24))}).to_csv(factors_path, index=False)
+
+    # 30 hours: one full day plus a partial one. int(30/24)=1 tile would leave hours 24-29 unmatched.
+    time_series_df = pd.DataFrame({"T_outdoor_C": list(range(30))})
+
+    with pytest.raises(ValueError, match="whole number of 24-hour days"):
+        ts.add_presence_load_factors(time_series_df, str(factors_path))
+
+
 def test_read_dynamic_subsurface_temperature(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Force the local backup by making the KNMI download fail.
     def fake_get(*_args: object, **_kwargs: object) -> None:

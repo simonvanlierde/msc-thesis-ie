@@ -269,6 +269,19 @@ def test_calc_cooling_demand_metrics_for_df_returns_hourly_series_on_request(
     assert result["Q_cooling_capped_at_98th_percentile_Wh"].iloc[0].shape == (8760,)
 
 
+def test_calc_cooling_demand_metrics_for_df_rejects_partial_years(
+    buildings: pd.DataFrame,
+    time_series_full_year: dict,
+    global_parameters: dict,
+) -> None:
+    """A weather series that isn't a whole number of years fails loud, not with a cryptic reshape."""
+    # 8760 + 24 hours: one extra day, as a leftover Feb 29 would produce.
+    partial = {key: np.concatenate([value, value[:24]]) for key, value in time_series_full_year.items()}
+
+    with pytest.raises(ValueError, match="whole number of 8760-hour years"):
+        calc_cooling_demand_metrics_for_df(buildings, partial, global_parameters)
+
+
 def test_calc_cooling_demand_metrics_for_df_is_chunk_invariant(
     building: pd.Series,
     time_series_full_year: dict,

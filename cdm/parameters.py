@@ -161,12 +161,27 @@ def add_energy_class_data_to_buildings(
     )
 
     # Determine energy label class based on the energy label, using the right mapping for residential and office buildings
-    energy_labels = df_buildings["energy_label_int"].astype(int)
-    df_buildings["energy_class_int"] = np.where(
+    energy_label_int = df_buildings["energy_label_int"]
+    if energy_label_int.isna().any():
+        # A null derived label cannot be cast to int (astype would crash) nor classified.
+        msg = f"{int(energy_label_int.isna().sum())} building(s) have a null energy_label_int and cannot be assigned an energy class."
+        raise ValueError(msg)
+    energy_labels = energy_label_int.astype(int)
+    energy_class_int = np.where(
         df_buildings["end_use"] == "residential",
         energy_labels.map(energy_label_to_class_mapping_residential),
         energy_labels.map(energy_label_to_class_mapping_office),
     )
+    # A label absent from every energy_labels_included_* list maps to NaN, which would then be
+    # silently dropped from every groupby-sum downstream (understating the stock totals). Fail loud.
+    if pd.isna(energy_class_int).any():
+        unmapped = sorted({int(label) for label in energy_labels[pd.isna(energy_class_int)]})
+        msg = (
+            f"energy label int(s) {unmapped} are not covered by any energy_labels_included_* list in "
+            "the energy-class parameters; their buildings would be dropped from the results."
+        )
+        raise ValueError(msg)
+    df_buildings["energy_class_int"] = energy_class_int
 
     # Determine the energy class-specific parameters based on the energy class
     df_energy_class_parameters = assign_parameters_by_class(

@@ -78,7 +78,9 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     # API format drifting from what the parser expects).
     used_backup = False
     try:
-        response = requests.post(knmi_url, data=knmi_params, timeout=60)  # KNMI API; 5+ years of hourly data is a large, slow response
+        response = requests.post(
+            knmi_url, data=knmi_params, timeout=60
+        )  # KNMI API; 5+ years of hourly data is a large, slow response
         response.raise_for_status()
         weather_series_df = _parse_knmi_response(response.text)
     except (requests.exceptions.RequestException, pd.errors.ParserError, ValueError, StopIteration) as error:
@@ -268,6 +270,13 @@ def add_presence_load_factors(time_series_df: pd.DataFrame, presence_load_factor
     """
     # Read in presence load factors
     presence_load_factors = pd.read_csv(presence_load_factors_path)
+
+    # The daily factor pattern is tiled to cover the series, so the series must be whole days.
+    # A partial final day would truncate the tiled frame and the index-aligned join would leave
+    # the trailing hours with NaN presence factors, silently zeroing part of the demand.
+    if len(time_series_df) % 24 != 0:
+        msg = f"time series has {len(time_series_df)} hours, not a whole number of 24-hour days; presence factors would misalign."
+        raise ValueError(msg)
 
     # Determine the amount of days of the hourly time series
     days = len(time_series_df) / 24

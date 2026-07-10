@@ -68,7 +68,12 @@ def aggregate_results(
 
     # Create a aggregation function that calculates the weighted mean using total floor area as weights
     def weighted_mean(series: pd.Series) -> float:
-        return np.average(series, weights=buildings.loc[series.index, "floor_area_total_m2"])
+        weights = buildings.loc[series.index, "floor_area_total_m2"]
+        if weights.sum() == 0:
+            # A group with no floor area to weight by is degenerate; np.average would raise
+            # "Weights sum to zero". Report the mean as undefined rather than killing every group.
+            return np.nan
+        return np.average(series, weights=weights)
 
     # Sum the hourly time series of a group element-wise, keeping them hourly
     def sum_arrays(series_with_arrays: pd.Series) -> np.ndarray:
@@ -128,8 +133,10 @@ def aggregate_results(
         buildings["id_BAG"] = buildings["stock_weight"]  # count -> summed weight == stock count
         aggregations = {**aggregations, "id_BAG": "sum"}
 
-    # Group by building type and energy class and aggregate the results
-    buildings_agg = buildings.groupby(list(groupby_columns)).agg(aggregations)
+    # Group by building type and energy class and aggregate the results. dropna=False so a building
+    # with a NaN group key is never silently dropped from the stock totals (upstream guards keep the
+    # classification keys non-null, but a dropped row would understate every sum with no warning).
+    buildings_agg = buildings.groupby(list(groupby_columns), dropna=False).agg(aggregations)
 
     # Reset index
     buildings_agg = buildings_agg.reset_index()

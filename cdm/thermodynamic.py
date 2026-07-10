@@ -76,7 +76,9 @@ def calc_Q_transmission(
     Rc_wall = buildings["Rc_wall_m2K_W"].to_numpy(dtype=FLOW_DTYPE)  # The thermal resistance of the walls in m2K/W
     Rc_roof = buildings["Rc_roof_m2K_W"].to_numpy(dtype=FLOW_DTYPE)  # The thermal resistance of the roof in m2K/W
     Rc_floor = buildings["Rc_floor_m2K_W"].to_numpy(dtype=FLOW_DTYPE)  # The thermal resistance of the floor in m2K/W
-    U_window = buildings["U_window_W_m2K"].to_numpy(dtype=FLOW_DTYPE)  # The thermal transmittance of the windows in W/m2K
+    U_window = buildings["U_window_W_m2K"].to_numpy(
+        dtype=FLOW_DTYPE
+    )  # The thermal transmittance of the windows in W/m2K
 
     # The roof area is assumed to be equal to the ground floor area
     roof_area = floor_area
@@ -124,7 +126,9 @@ def calc_Q_infiltration(
     """
     # Load building data
     building_volume = buildings["volume_m3"].to_numpy(dtype=FLOW_DTYPE)  # The volume of the buildings in m3
-    infiltration_ACH = buildings["infiltration_ACH"].to_numpy(dtype=FLOW_DTYPE)  # The air changes per hour by infiltration
+    infiltration_ACH = buildings["infiltration_ACH"].to_numpy(
+        dtype=FLOW_DTYPE
+    )  # The air changes per hour by infiltration
 
     # Load temperature difference between in- and outdoor from time series
     delta_T_air = time_series["T_outdoor_minus_indoor_C"]
@@ -158,7 +162,9 @@ def calc_Q_ventilation(
     # Load building data
     end_use = buildings["end_use"].to_numpy()  # The building end use (residential, office, etc.)
     population = buildings["population"].to_numpy(dtype=FLOW_DTYPE)  # The population of the buildings
-    ventilation_rate_pp = buildings["ventilation_rate_pp_m3_h"].to_numpy(dtype=FLOW_DTYPE)  # Ventilation rate pp in m3/h
+    ventilation_rate_pp = buildings["ventilation_rate_pp_m3_h"].to_numpy(
+        dtype=FLOW_DTYPE
+    )  # Ventilation rate pp in m3/h
 
     # Load temperature difference between in- and outdoor from time series
     delta_T_air = time_series["T_outdoor_minus_indoor_C"]
@@ -224,7 +230,9 @@ def calc_Q_internal_heat(
     end_use = buildings["end_use"].to_numpy()  # The building end use (residential, office, etc.)
     population = buildings["population"].to_numpy(dtype=FLOW_DTYPE)  # The population of the buildings
     floor_area_total = buildings["floor_area_total_m2"].to_numpy(dtype=FLOW_DTYPE)  # The total floor area in m2
-    int_heat_gain_appliances = buildings["int_heat_gain_appliances_W_m2"].to_numpy(dtype=FLOW_DTYPE)  # Appliances in W/m2
+    int_heat_gain_appliances = buildings["int_heat_gain_appliances_W_m2"].to_numpy(
+        dtype=FLOW_DTYPE
+    )  # Appliances in W/m2
 
     # Load global parameters
     int_heat_gain_pp_W = global_parameters["int_heat_gain_pp_W"]  # The internal heat gain per person in W
@@ -344,9 +352,7 @@ def calc_cooling_demand_percentile(
     # Cap each year at its own peak percentile, then average the annual capped energy totals (kWh).
     # As above, the 8760-term hour-axis sum accumulates in float64.
     Q_cooling_capped_years = np.minimum(Q_cooling_demand_years, P_cooling_peak_percentile_per_year_Wh[..., np.newaxis])
-    E_cooling_capped_at_percentile_kWh = (
-        Q_cooling_capped_years.sum(axis=-1, dtype=ACCUM_DTYPE).mean(axis=-1) / 1000
-    )
+    E_cooling_capped_at_percentile_kWh = Q_cooling_capped_years.sum(axis=-1, dtype=ACCUM_DTYPE).mean(axis=-1) / 1000
 
     # The full hourly series are only sorted/materialized when explicitly requested (memory + speed)
     if include_time_series:
@@ -463,6 +469,15 @@ def calc_cooling_demand_metrics_for_df(
         pd.DataFrame: The DataFrame containing the cooling demand metrics for each building row.
     """
     n_hours = len(time_series["T_outdoor_minus_indoor_C"])
+    if n_hours % HOURS_PER_YEAR != 0:
+        # The demand series is reshaped into whole years; a partial year (a weather CSV that still
+        # holds a Feb 29, or a truncated series) otherwise fails the reshape with a cryptic
+        # "cannot reshape" deep in the chunk loop. Fail here, at the boundary, with the real counts.
+        msg = (
+            f"weather series has {n_hours} hours, not a whole number of {HOURS_PER_YEAR}-hour years "
+            f"({n_hours / HOURS_PER_YEAR:.4f}); drop leap days and supply full years."
+        )
+        raise ValueError(msg)
 
     # Cast the hourly series once, not per chunk: a float64 series here would promote every
     # (n_buildings, n_hours) block it touches straight back to float64.

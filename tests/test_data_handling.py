@@ -7,6 +7,7 @@ exercised here; these tests cover the pure mapping and scaling logic.
 from typing import TYPE_CHECKING
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import pytest
 from shapely.geometry import Point
@@ -14,6 +15,7 @@ from shapely.geometry import Point
 from cdm.aggregation import aggregate_results, scale_results_with_building_stock
 from cdm.constants import REQUIRED_GLOBAL_PARAMETERS
 from cdm.parameters import (
+    add_energy_class_data_to_buildings,
     assign_parameters_by_class,
     calculate_building_population,
     determine_building_type,
@@ -170,6 +172,36 @@ def test_assign_parameters_by_class_selects_the_record_matching_each_building() 
     assert assigned.index.tolist() == [10, 11]
 
 
+_ENERGY_CLASS_PARAMS = [
+    {"energy_class_int": 1, "energy_labels_included_residential": [7], "energy_labels_included_office": [7], "R": 1.0},
+]
+
+
+def test_add_energy_class_data_raises_on_unmapped_label() -> None:
+    """A label outside every energy_labels_included_* list must fail loud, not vanish from totals."""
+    buildings = pd.DataFrame({"energy_label_int": [7.0, 3.0], "end_use": ["residential", "residential"]})
+
+    with pytest.raises(ValueError, match="not covered"):
+        add_energy_class_data_to_buildings(buildings, _ENERGY_CLASS_PARAMS)
+
+
+def test_add_energy_class_data_raises_on_null_label() -> None:
+    """A null energy_label_int would crash the int cast; fail with a clear message instead."""
+    buildings = pd.DataFrame({"energy_label_int": [7.0, None], "end_use": ["residential", "residential"]})
+
+    with pytest.raises(ValueError, match="null energy_label_int"):
+        add_energy_class_data_to_buildings(buildings, _ENERGY_CLASS_PARAMS)
+
+
+def test_add_energy_class_data_assigns_known_labels() -> None:
+    """The happy path still classifies a covered label (guards do not block valid data)."""
+    buildings = pd.DataFrame({"energy_label_int": [7.0], "end_use": ["residential"]})
+
+    result = add_energy_class_data_to_buildings(buildings, _ENERGY_CLASS_PARAMS)
+
+    assert result["energy_class_int"].tolist() == [1]
+
+
 def test_determine_energy_label_to_class_mappings() -> None:
     energy_class_parameters = [
         {"energy_class_int": 1, "energy_labels_included_residential": [7, 6], "energy_labels_included_office": [7]},
@@ -254,6 +286,18 @@ def test_aggregate_without_stock_weight_reports_a_plain_count(global_parameters:
 
     assert full_agg["id_BAG"].iloc[0] == 5
     assert full_agg["E_cooling_kWh"].iloc[0] == pytest.approx(50.0)
+
+
+def test_aggregate_weighted_mean_survives_a_zero_floor_area_group(global_parameters: dict) -> None:
+    """A group with zero total floor area must yield NaN intensities, not crash the whole aggregation."""
+    stock = _aggregatable_stock([1, 2], [3, 3])
+    stock["floor_area_total_m2"] = [0.0, 100.0]  # first group has no floor area to weight by
+
+    agg = aggregate_results(stock, global_parameters, scale_with_building_stock=False)
+
+    by_type = agg.set_index("building_type_int")
+    assert np.isnan(by_type.loc[1, "electricity_use_intensity_kWh_m2"])  # degenerate group -> NaN
+    assert not np.isnan(by_type.loc[2, "electricity_use_intensity_kWh_m2"])  # healthy group unaffected
 
 
 def test_scale_results_with_building_stock_only_scales_growth_types(global_parameters: dict) -> None:
