@@ -55,3 +55,7 @@ rivm_uhi:
 building_subset: full
 sample_size: 5000
 sample_seed: 0
+
+# Sensitivity-analysis resolution (steps per sweep) for the `sensitivity` rule. Coarse by
+# default; the curated SA set runs on the sample subset, so a fine sweep is not needed.
+sa_steps: 21

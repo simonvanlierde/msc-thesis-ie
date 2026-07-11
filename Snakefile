@@ -85,6 +85,7 @@ rule notebooks:
     input:
         f"{RESULTS_DIR}/notebooks/main.executed.ipynb",
         f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
+        f"{RESULTS_DIR}/sensitivity_summary.csv",
 
 
 rule fetch_city_boundary:
@@ -394,6 +395,43 @@ rule cooling_mix_sensitivity:
           --weather-csv {input.weather} \
           --image-dir {output.figures} \
           --output {output.table} > {log} 2>&1
+        """
+
+
+# Curated sensitivity-analysis set (the 15 SAs the paper draft leans on), downsampled onto the
+# sample subset. Replaces the ~20-SA main.ipynb section. Opt-in; pulled by `notebooks`.
+rule sensitivity:
+    input:
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
+        parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
+        weather=WEATHER_CSV,
+        solar_fractions=f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv",
+        presence_load_factors=f"{PARAMETER_DIR}/presence_load_factors.csv",
+        script="scripts/run_sensitivity.py",
+        model_src=MODEL_SRC,
+    output:
+        summary=f"{RESULTS_DIR}/sensitivity_summary.csv",
+        figures=directory(f"{RESULTS_DIR}/figures/SA_curated"),
+    params:
+        buildings_layer=f"BAG_buildings_{SUBSET}",
+        steps=int(config.get("sa_steps", 21)),
+    log:
+        f"{LOG_DIR}/sensitivity.log",
+    benchmark:
+        f"{BENCHMARK_DIR}/sensitivity.tsv"
+    threads: 1
+    shell:
+        """
+        python scripts/run_sensitivity.py \
+          --scenario SQ \
+          --buildings {input.buildings} \
+          --buildings-layer {params.buildings_layer} \
+          --solar-fractions {input.solar_fractions} \
+          --presence-load-factors {input.presence_load_factors} \
+          --weather-csv {input.weather} \
+          --image-dir {output.figures} \
+          --steps {params.steps} \
+          --output {output.summary} > {log} 2>&1
         """
 
 
