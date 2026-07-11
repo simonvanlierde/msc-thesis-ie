@@ -156,6 +156,38 @@ def plot_thermal_flows_for_building_types(
     )
 
 
+def plot_thermal_flows_for_end_use(
+    building: pd.Series,
+    time_series: pd.DataFrame,
+    start_date: str | datetime,
+    end_date: str | datetime,
+    subplot_ax: plt.Axes | None = None,
+    unit_print: str = "W/m2",
+    sort_hours: bool = False,
+    save_figure: bool = False,
+    scenario: str = "SQ",
+    building_subset_name: str = "sample",
+) -> None:
+    """Plot the thermal flows for one end-use group (residential or office) between two dates."""
+    end_use = str(building["end_use"]).capitalize()
+    _plot_thermal_flows(
+        building,
+        time_series,
+        start_date,
+        end_date,
+        subplot_ax,
+        unit_print,
+        sort_hours,
+        save_figure,
+        scenario,
+        building_subset_name,
+        subplot_title=end_use,
+        standalone_subject=f"{end_use.lower()} buildings",
+        filename_group="end_use",
+        filename_id=str(building["end_use"]),
+    )
+
+
 def plot_thermal_flows_for_energy_classes(
     building: pd.Series,
     time_series: pd.DataFrame,
@@ -307,6 +339,32 @@ def plot_cooling_loads_for_building_types(
         standalone_subject=f"building type {building_type}",
         filename_group="building_type",
         filename_id=f"{building['building_type_int']!s}",
+    )
+
+
+def plot_cooling_loads_for_end_use(
+    building: pd.Series,
+    years_int_time_series: int = 5,
+    peak_power_percentile_cap: int = 98,
+    subplot_ax: plt.Axes | None = None,
+    save_figure: bool = False,
+    scenario: str = "SQ",
+    building_subset_name: str = "sample",
+) -> None:
+    """Plot the average annual cooling load distribution for one end-use group (residential or office)."""
+    end_use = str(building["end_use"]).capitalize()
+    _plot_cooling_loads(
+        building,
+        years_int_time_series,
+        peak_power_percentile_cap,
+        subplot_ax,
+        save_figure,
+        scenario,
+        building_subset_name,
+        subplot_title=end_use,
+        standalone_subject=f"{end_use.lower()} buildings",
+        filename_group="end_use",
+        filename_id=str(building["end_use"]),
     )
 
 
