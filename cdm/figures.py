@@ -111,51 +111,6 @@ def _plot_thermal_flows(
     plt.show()
 
 
-def plot_thermal_flows_for_building_types(
-    building: pd.Series,
-    time_series: pd.DataFrame,
-    start_date: str | datetime,
-    end_date: str | datetime,
-    subplot_ax: plt.Axes | None = None,
-    unit_print: str = "W/m2",
-    sort_hours: bool = False,
-    save_figure: bool = False,
-    scenario: str = "SQ",
-    building_subset_name: str = "sample",
-) -> None:
-    """Plot the thermal flows for a building type between two dates.
-
-    Args:
-        building (pd.Series): The building to plot the thermal flows for. It should contain thermal flow time series as np.arrays.
-        time_series (pd.DataFrame): The time series DataFrame used to generate the thermal flows. It should contain a "date" column.
-        start_date (str | datetime): The start date of the time series to plot.
-        end_date (str | datetime): The end date of the time series to plot.
-        subplot_ax (plt.Axes, optional): The subplot to plot the thermal flows on. Defaults to None.
-        unit_print (str, optional): The unit of the thermal flows to print. Defaults to "W/m2".
-        sort_hours (bool, optional): Whether to sort the hours in descending order. Defaults to False.
-        save_figure (bool, optional): Whether to save the plot to a file. Defaults to False.
-        scenario (str, optional): The scenario used to generate the thermal flows, for filename purposes. Defaults to "SQ".
-        building_subset_name (str, optional): The building subset used to generate the thermal flows, for filename purposes. Defaults to "sample".
-    """
-    building_type = f"{building['building_type_int']!s} ({building['building_type']})"
-    _plot_thermal_flows(
-        building,
-        time_series,
-        start_date,
-        end_date,
-        subplot_ax,
-        unit_print,
-        sort_hours,
-        save_figure,
-        scenario,
-        building_subset_name,
-        subplot_title=f"Building type: {building_type}",
-        standalone_subject=f"building type {building_type}",
-        filename_group="building_type",
-        filename_id=f"{building['building_type_int']!s}",
-    )
-
-
 def plot_thermal_flows_for_end_use(
     building: pd.Series,
     time_series: pd.DataFrame,
@@ -186,54 +141,6 @@ def plot_thermal_flows_for_end_use(
         filename_group="end_use",
         filename_id=str(building["end_use"]),
     )
-
-
-def plot_thermal_flows_for_energy_classes(
-    building: pd.Series,
-    time_series: pd.DataFrame,
-    start_date: str | datetime,
-    end_date: str | datetime,
-    subplot_ax: plt.Axes | None = None,
-    unit_print: str = "W/m2",
-    sort_hours: bool = False,
-    save_figure: bool = False,
-    scenario: str = "SQ",
-    building_subset_name: str = "sample",
-) -> None:
-    """Plot the thermal flows for an energy class between two dates.
-
-    Args:
-        building (pd.Series): The building to plot the thermal flows for. It should contain thermal flow time series as np.arrays.
-        time_series (pd.DataFrame): The time series DataFrame used to generate the thermal flows. It should contain a "date" column.
-        start_date (str | datetime): The start date of the time series to plot.
-        end_date (str | datetime): The end date of the time series to plot.
-        subplot_ax (plt.Axes, optional): The subplot to plot the thermal flows on. Defaults to None.
-        unit_print (str, optional): The unit of the thermal flows to print. Defaults to "W/m2".
-        sort_hours (bool, optional): Whether to sort the hours in descending order. Defaults to False.
-        save_figure (bool, optional): Whether to save the plot to a file. Defaults to False.
-        scenario (str, optional): The scenario used to generate the thermal flows, for filename purposes. Defaults to "SQ".
-        building_subset_name (str, optional): The building subset used to generate the thermal flows, for filename purposes. Defaults to "sample".
-    """
-    energy_class = building["energy_class"].replace("-", " - ")
-    _plot_thermal_flows(
-        building,
-        time_series,
-        start_date,
-        end_date,
-        subplot_ax,
-        unit_print,
-        sort_hours,
-        save_figure,
-        scenario,
-        building_subset_name,
-        subplot_title=f"Energy labels: {energy_class}",
-        standalone_subject=f"buildings with energy labels {energy_class}",
-        filename_group="energy_class",
-        filename_id=f"{building['energy_class_int']!s}",
-    )
-
-
-# Cooling load figures
 
 
 def _plot_cooling_loads(
@@ -306,42 +213,6 @@ def _plot_cooling_loads(
     plt.show()
 
 
-def plot_cooling_loads_for_building_types(
-    building: pd.Series,
-    years_int_time_series: int = 5,
-    peak_power_percentile_cap: int = 98,
-    subplot_ax: plt.Axes | None = None,
-    save_figure: bool = False,
-    scenario: str = "SQ",
-    building_subset_name: str = "sample",
-) -> None:
-    """Plot the average annual cooling load distribution for a building type.
-
-    Args:
-        building (pd.Series): The building to plot the cooling load distribution for. It should contain thermal flow time series as np.arrays.
-        years_int_time_series (int, optional): The number of years in the time series. Defaults to 5.
-        peak_power_percentile_cap (int, optional): The percentile to cap the peak power at. Defaults to 98.
-        subplot_ax (plt.Axes, optional): The subplot to plot the cooling load distribution on. Defaults to None.
-        save_figure (bool, optional): Whether to save the plot to a file. Defaults to False.
-        scenario (str, optional): The scenario used to generate the cooling load distribution, for filename purposes. Defaults to "SQ".
-        building_subset_name (str, optional): The building subset used to generate the cooling load distribution, for filename purposes. Defaults to "sample".
-    """
-    building_type = f"{building['building_type_int']!s} ({building['building_type']})"
-    _plot_cooling_loads(
-        building,
-        years_int_time_series,
-        peak_power_percentile_cap,
-        subplot_ax,
-        save_figure,
-        scenario,
-        building_subset_name,
-        subplot_title=f"Building type: {building_type}",
-        standalone_subject=f"building type {building_type}",
-        filename_group="building_type",
-        filename_id=f"{building['building_type_int']!s}",
-    )
-
-
 def plot_cooling_loads_for_end_use(
     building: pd.Series,
     years_int_time_series: int = 5,
@@ -368,37 +239,3 @@ def plot_cooling_loads_for_end_use(
     )
 
 
-def plot_cooling_loads_for_energy_classes(
-    building: pd.Series,
-    years_int_time_series: int = 5,
-    peak_power_percentile_cap: int = 98,
-    subplot_ax: plt.Axes | None = None,
-    save_figure: bool = False,
-    scenario: str = "SQ",
-    building_subset_name: str = "sample",
-) -> None:
-    """Plot the average annual cooling load distribution for an energy class.
-
-    Args:
-        building (pd.Series): The building to plot the cooling load distribution for. It should contain thermal flow time series as np.arrays.
-        years_int_time_series (int, optional): The number of years in the time series. Defaults to 5.
-        peak_power_percentile_cap (int, optional): The percentile to cap the peak power at. Defaults to 98.
-        subplot_ax (plt.Axes, optional): The subplot to plot the cooling load distribution on. Defaults to None.
-        save_figure (bool, optional): Whether to save the plot to a file. Defaults to False.
-        scenario (str, optional): The scenario used to generate the cooling load distribution, for filename purposes. Defaults to "SQ".
-        building_subset_name (str, optional): The building subset used to generate the cooling load distribution, for filename purposes. Defaults to "sample".
-    """
-    energy_class = building["energy_class"].replace("-", " - ")
-    _plot_cooling_loads(
-        building,
-        years_int_time_series,
-        peak_power_percentile_cap,
-        subplot_ax,
-        save_figure,
-        scenario,
-        building_subset_name,
-        subplot_title=f"Energy class: {energy_class}",
-        standalone_subject=f"energy class {energy_class}",
-        filename_group="energy_class",
-        filename_id=f"{building['energy_class_int']!s}",
-    )
