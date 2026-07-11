@@ -404,7 +404,10 @@ rule run_main_notebook:
         notebook="main.ipynb",
         model_src=MODEL_SRC,
     output:
-        f"{RESULTS_DIR}/notebooks/main.executed.ipynb",
+        notebook=f"{RESULTS_DIR}/notebooks/main.executed.ipynb",
+        # The notebook's figures now write here (repointed off the old data/output/ fork), so
+        # declare the directory to make them tracked, cleanable pipeline artifacts.
+        figures=directory(f"{RESULTS_DIR}/figures/main"),
     params:
         subset=SUBSET,
     log:
@@ -416,7 +419,7 @@ rule run_main_notebook:
         """
         BUILDING_SUBSET_NAME={params.subset} \
         jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
-          --output-dir "$(dirname {output})" --output "$(basename {output})" \
+          --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
           {input.notebook} > {log} 2>&1
         """
 
@@ -433,12 +436,13 @@ rule run_gis_notebook:
         notebook="gis.ipynb",
         model_src=MODEL_SRC,
     output:
-        f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
+        notebook=f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
+        figures=directory(f"{RESULTS_DIR}/figures/gis"),
     log:
         f"{LOG_DIR}/run_gis_notebook.log",
     shell:
         """
         jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
-          --output-dir "$(dirname {output})" --output "$(basename {output})" \
+          --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
           {input.notebook} > {log} 2>&1
         """
