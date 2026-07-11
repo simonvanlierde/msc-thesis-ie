@@ -49,7 +49,9 @@ const NAV_IDS = NAV.map((n) => n.id);
 export function App() {
   const [data, setData] = useState<Datasets | null>(null);
   const [failed, setFailed] = useState(false);
-  const [scenario, setScenario] = useState<ScenarioKey>("SQ");
+  // Opens on the middle 2050 path so the payoff and detail land on a future, not the present —
+  // the fork is pre-set, and choosing another path is the page's central interaction.
+  const [scenario, setScenario] = useState<ScenarioKey>("2050_M");
   const [metric, setMetric] = useState<MapMetric>("intensity");
   // Resolved against the data rather than defaulted to a literal, so the control never
   // opens on a season the build does not carry.

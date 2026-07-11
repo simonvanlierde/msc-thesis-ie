@@ -27,7 +27,11 @@ export function Fork({ scenario, onChange }: Props) {
         By 2050 the same city's cooling emissions span an 18-fold range — from a tenth of today's to
         nearly double. Which future arrives is a set of choices: how hot we let it get, whether we
         adapt what "comfortable" means, how clean the grid stays, whether high-warming refrigerants
-        are phased out. Pick a path.
+        are phased out.
+      </p>
+
+      <p className="fork__prompt">
+        Choose a 2050 — the impact below and the map update to the path you pick.
       </p>
 
       <fieldset className="fork">
@@ -35,16 +39,18 @@ export function Fork({ scenario, onChange }: Props) {
         <div className="fork__paths">
           {PATHS_2050.map((k) => {
             const m = SCENARIO_META[k];
+            const checked = scenario === k;
             return (
               <label key={k} className="fork__card" data-path={k}>
                 <input
                   type="radio"
                   name="scenario"
                   value={k}
-                  checked={scenario === k}
+                  checked={checked}
                   onChange={() => onChange(k)}
                 />
                 <span className="fork__head">
+                  <span className="fork__radio" aria-hidden="true" />
                   <span className="fork__short">{m.short}</span>
                   <span className="fork__tag">{m.tagline}</span>
                 </span>

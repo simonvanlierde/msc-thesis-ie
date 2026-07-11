@@ -731,6 +731,22 @@ footer.colophon {
 }
 
 /* Act 3 — the fork. Three 2050 paths as cards you commit to; one radiogroup underneath. */
+
+/* A plain-spoken cue that this is the interaction — the cards are choices, and choosing
+   drives the rest of the page. */
+.fork__prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.fork__prompt::before {
+  content: "↓";
+  color: var(--accent);
+  font-weight: 700;
+}
 .fork {
   border: 0;
   margin: 0;
@@ -770,6 +786,7 @@ footer.colophon {
 }
 .fork__card:hover {
   border-color: var(--path);
+  transform: translateY(-2px);
 }
 .fork__card:has(input:checked) {
   border-color: var(--path);
@@ -787,9 +804,31 @@ footer.colophon {
 }
 .fork__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+/* Visible radio, so a glance reads "these are options — one is picked, pick another". */
+.fork__radio {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--muted);
+  position: relative;
+}
+.fork__card:hover .fork__radio {
+  border-color: var(--path);
+}
+.fork__card:has(input:checked) .fork__radio {
+  border-color: var(--path);
+}
+.fork__card:has(input:checked) .fork__radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--path);
 }
 .fork__short {
   font-family: var(--display);

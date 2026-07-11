@@ -36,11 +36,12 @@ deploys without them.
 
 ### Caveats (kept honest)
 
-- The map defaults to the **present-day (SQ)** scenario, where the per-building geometry and
-  the archetype totals are the same underlying stock and agree exactly. Future scenarios add
-  building-stock growth in the archetype totals that the current per-building geometry does
-  not carry, so their map sums run ~10–12% below the headline scenario total — shown but
-  labelled.
+- The page opens on the **2050 medium** path (the "choose your 2050" narrative pre-selects a
+  future), so the map first shows that scenario; **present-day (SQ)** is one click away. Only in
+  SQ do the per-building geometry and the archetype totals share the same underlying stock and
+  agree exactly. Future scenarios add building-stock growth in the archetype totals that the
+  current per-building geometry does not carry, so their map sums run ~10–12% below the scenario
+  total — shown but labelled.
 - The temporal profile uses representative building geometry (only the footprint MBR is
   reconstructed; the physics is the thesis code, unchanged) calibrated to the published
   totals. To swap in an exact hourly export from a notebook run, replace `temporal.json`.
