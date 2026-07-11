@@ -476,10 +476,15 @@ rule run_gis_notebook:
     output:
         notebook=f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
         figures=directory(f"{RESULTS_DIR}/figures/gis"),
+    params:
+        subset=SUBSET,
     log:
         f"{LOG_DIR}/run_gis_notebook.log",
     shell:
+        # BUILDING_SUBSET_NAME: the notebook reads it (cell 31) to pick the CDM layer, matching the
+        # declared inputs. Maps are fine on the full stock (no time series), so "full" is the default.
         """
+        BUILDING_SUBSET_NAME={params.subset} \
         jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
           --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
           {input.notebook} > {log} 2>&1
