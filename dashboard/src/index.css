@@ -588,12 +588,344 @@ footer.colophon {
   color: var(--text-primary);
 }
 
-/* The only motion on this page is the smooth scroll below, the map's own easing (off:
-   fitBounds animate:false) and the time-lapse (user-initiated, so it stays). This
-   stylesheet declares no animation or transition, so the usual blanket `*` override
-   would be overriding nothing. */
+/* ── Scroll acts: the "choose your 2050" narrative ──────────────────────────────
+   Each act is a full-bleed band whose tint carries the page's emotional temperature.
+   It rises as you descend (today = cool blue → the fork = neutral) and, in the payoff,
+   COMMITS to the chosen path: Low stays cool, High goes warm. This reuses the one colour
+   rule already in force — saturated warm means "hot" — and gives it a second job.
+   Tints are low-chroma washes UNDER the unchanged ink tokens, so contrast never drops. */
+.act {
+  position: relative;
+  padding-block: clamp(2.75rem, 6vw, 5rem);
+  background: var(--tint, var(--page));
+}
+.act + .act {
+  /* Bands butt against each other; a hairline keeps the temperature step legible. */
+  border-top: 1px solid var(--border);
+}
+.act__inner > :first-child {
+  margin-top: 0;
+}
+.act__eyebrow {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.6rem;
+}
+
+.act--today {
+  --tint: light-dark(#eef3fb, #0e141c);
+}
+.act--near {
+  --tint: light-dark(#f1f5fb, #0d1017);
+}
+/* The decision point and the detail are deliberately neutral — no thumb on the scale. */
+.act--fork,
+.act--detail {
+  --tint: var(--page);
+}
+/* The payoff commits to the chosen path. Cool → warm as impact climbs. */
+.act--payoff {
+  transition: background 0.6s ease;
+}
+.act--payoff[data-path="SQ"],
+.act--payoff[data-path="2030"],
+.act--payoff[data-path="2050_L"] {
+  --tint: light-dark(#eef4fb, #0e141c);
+}
+.act--payoff[data-path="2050_M"] {
+  --tint: light-dark(#fbf3e9, #17120b);
+}
+.act--payoff[data-path="2050_H"] {
+  --tint: light-dark(#fbede7, #1c0f0a);
+}
+
+/* Reveal on scroll (useInView adds .in-view). One-way; motion-only, so reduced-motion
+   below turns it off and the content is simply present. */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease;
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: none;
+}
+
+/* Act 1 — the hero headline. Same treatment the old summary headline wore. */
+.hero__headline {
+  font-family: var(--display);
+  letter-spacing: -0.02em;
+  font-size: clamp(1.9rem, 4.4vw, 3.2rem);
+  font-weight: 500;
+  font-variation-settings: "opsz" 144;
+  line-height: 1.05;
+  text-wrap: balance;
+  max-width: 20ch;
+  margin: 0 0 1.1rem;
+}
+.hero__headline em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+/* Act 2 — the near-term deltas: two before→after readings. */
+.deltas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+  max-width: 720px;
+}
+.delta {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+.delta__metric {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.delta__row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.3rem 0 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+.delta__from {
+  color: var(--muted);
+}
+.delta__arrow {
+  color: var(--muted);
+}
+.delta__to {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.delta__pct {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.delta__pct--down {
+  color: light-dark(#0f7a52, #4bbf8c);
+}
+.delta__pct--flat {
+  color: var(--muted);
+}
+.delta__note {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Act 3 — the fork. Three 2050 paths as cards you commit to; one radiogroup underneath. */
+.fork {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+.fork__paths {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.9rem;
+}
+.fork__card {
+  --path: var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 1.05rem 1.1rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+/* Low = calm blue, High = hot red: the card's own accent tracks the temperature story. */
+.fork__card[data-path="2050_L"] {
+  --path: light-dark(#256abf, #86b6ef);
+}
+.fork__card[data-path="2050_M"] {
+  /* Amber dark enough to clear 4.5:1 as title text on the card surface (light mode). */
+  --path: light-dark(#a05e0d, #f0a83a);
+}
+.fork__card[data-path="2050_H"] {
+  --path: light-dark(#c0281c, #f2765f);
+}
+.fork__card:hover {
+  border-color: var(--path);
+}
+.fork__card:has(input:checked) {
+  border-color: var(--path);
+  box-shadow: inset 0 0 0 1px var(--path);
+}
+.fork__card:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.fork__card input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.fork__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.fork__short {
+  font-family: var(--display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--path);
+}
+.fork__tag {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.fork__card:has(input:checked) .fork__tag {
+  color: var(--text-primary);
+}
+.fork__blurb {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.fork__chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-top: auto;
+}
+.chip {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.chip__k {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.fork__ref {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.fork__ref-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.fork__refchip {
+  position: relative;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.fork__refchip:has(input:checked) {
+  background: #256abf;
+  color: #fff;
+  border-color: #256abf;
+}
+.fork__refchip:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.fork__refchip input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+/* Act 4 — the payoff bars. Two metrics, the full fan of futures, the chosen one lit. */
+.payoff {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem 2rem;
+}
+.payoff__chart {
+  min-width: 0;
+}
+/* The two charts are grid siblings; the global .figure + .figure spacer would push the
+   second one down and break their top alignment. The grid gap already spaces them. */
+.payoff .figure + .figure {
+  margin-top: 0;
+}
+.payoff__title {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.payoff__unit {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+.payoff__chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.payoff__track {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+.payoff__label {
+  fill: var(--text-secondary);
+  font-family: var(--body);
+  font-size: 15px;
+}
+.payoff__label--active {
+  fill: var(--text-primary);
+  font-weight: 600;
+}
+.payoff__value {
+  fill: var(--text-secondary);
+  font-family: var(--body);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.payoff__value--active {
+  fill: var(--text-primary);
+  font-weight: 700;
+}
+.payoff__ratio {
+  fill: var(--muted);
+  font-weight: 400;
+}
+
+/* Motion is opt-in: the reveal, the payoff's warmth transition, and the smooth anchor
+   scroll all fall back to instant when the visitor asks for less motion. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .act--payoff,
+  .fork__card {
+    transition: none;
   }
 }

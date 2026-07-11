@@ -1,13 +1,17 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Act } from "./components/Act";
+import { Fork } from "./components/Fork";
+import { NearTerm } from "./components/NearTerm";
+import { Payoff } from "./components/Payoff";
 import { Segmented } from "./components/Segmented";
-import { Summary } from "./components/Summary";
+import { TodayHero } from "./components/TodayHero";
 import type { MapMetric } from "./lib/choropleth";
 import { type Datasets, loadDatasets } from "./lib/data";
 import { getPalette } from "./lib/palette";
 import type { ScenarioKey } from "./lib/types";
 import { useTheme } from "./lib/useTheme";
 
-// Split the heavy views (MapLibre, nivo) into their own chunks so the summary and controls
+// Split the heavy views (MapLibre, nivo) into their own chunks so the story and controls
 // paint immediately while the maps and charts stream in. Each gets its own Suspense
 // boundary: one shared boundary would hold the charts hostage to MapLibre's 1 MB.
 const MapView = lazy(() => import("./components/MapView").then((m) => ({ default: m.MapView })));
@@ -62,10 +66,10 @@ export function App() {
         <div className="wrap masthead__row">
           <h1>Cooling for Comfort · The Hague</h1>
           <nav aria-label="Sections">
-            <a href="#map">Map</a>
-            <a href="#year">Time-lapse</a>
-            <a href="#when">Profiles</a>
-            <a href="#impact">Impact</a>
+            <a href="#today">Now</a>
+            <a href="#fork">2050</a>
+            <a href="#payoff">Impact</a>
+            <a href="#detail">Detail</a>
           </nav>
           <button type="button" className="iconbtn" onClick={toggleTheme}>
             {mode === "dark" ? "☀ Light" : "☾ Dark"}
@@ -73,79 +77,84 @@ export function App() {
         </div>
       </header>
 
-      <main id="main" className="wrap">
+      <main id="main">
         {failed && (
-          <p className="errbox" role="alert">
+          <p className="errbox wrap" role="alert">
             The thesis data didn't load. Check your connection and reload the page.
           </p>
         )}
-        {!(data || failed) && <p className="loading">Loading thesis results…</p>}
+        {!(data || failed) && <p className="loading wrap">Loading thesis results…</p>}
 
         {data && (
           <>
-            <Summary data={data.scenarios} scenario={scenario} />
+            <TodayHero data={data.scenarios} />
+            <NearTerm data={data.scenarios} />
+            <Fork scenario={scenario} onChange={setScenario} />
+            <Payoff data={data.scenarios} scenario={scenario} palette={palette} />
 
-            {/* One control row above everything it scopes: no chart carries its own filter,
-                and each control names the view it drives. */}
-            <search className="card controls" aria-label="Chart controls">
-              <div className="controls__row">
-                <Segmented
-                  name="scenario"
-                  legend="Scenario"
-                  scope="map + impact"
-                  options={data.scenarios.meta.scenario_order.map((k) => ({
-                    value: k,
-                    label: data.scenarios.scenarios[k].label,
-                  }))}
-                  value={scenario}
-                  onChange={setScenario}
-                />
-                <Segmented
-                  name="mapmetric"
-                  legend="Shown on map"
-                  scope="map"
-                  options={METRIC_OPTIONS}
-                  value={metric}
-                  onChange={setMetric}
-                />
-                <Segmented
-                  name="season"
-                  legend="Season"
-                  scope="daily profile"
-                  options={data.temporal.seasons.map((s) => ({ value: s, label: s }))}
-                  value={season ?? data.temporal.seasons[0]}
-                  onChange={setSeason}
-                />
-              </div>
-              <p className="scope-note">
-                The time-lapse and the monthly profile always show the present-day building stock,
-                so the scenario does not change them.
+            <Act
+              id="detail"
+              variant="detail"
+              eyebrow="The detail behind the story"
+              labelledBy="detail-h"
+            >
+              <h2 id="detail-h">Where, when, and what it costs</h2>
+              <p className="lede">
+                The full picture behind the headline: where cooling concentrates across the city,
+                how demand moves through the day and year, and the life-cycle breakdown of the
+                impact — all for the scenario you chose above.
               </p>
-            </search>
 
-            <Suspense fallback={<ViewFallback label="the map" />}>
-              <MapView
-                buurten={data.buurten}
-                scenario={scenario}
-                metric={metric}
-                palette={palette}
-              />
-            </Suspense>
-            <Suspense fallback={<ViewFallback label="the time-lapse" />}>
-              <HourlyMap buurten={data.buurten} palette={palette} />
-            </Suspense>
-            <Suspense fallback={<ViewFallback label="the profiles" />}>
-              <TemporalView
-                temporal={data.temporal}
-                season={season ?? data.temporal.seasons[0]}
-                palette={palette}
-              />
-            </Suspense>
-            <Suspense fallback={<ViewFallback label="the impact charts" />}>
-              <LcaView data={data.scenarios} scenario={scenario} palette={palette} />
-            </Suspense>
+              {/* Controls for the views in this act only; the scenario is set by the fork above. */}
+              <search className="card controls" aria-label="Detail view controls">
+                <div className="controls__row">
+                  <Segmented
+                    name="mapmetric"
+                    legend="Shown on map"
+                    scope="map"
+                    options={METRIC_OPTIONS}
+                    value={metric}
+                    onChange={setMetric}
+                  />
+                  <Segmented
+                    name="season"
+                    legend="Season"
+                    scope="daily profile"
+                    options={data.temporal.seasons.map((s) => ({ value: s, label: s }))}
+                    value={season ?? data.temporal.seasons[0]}
+                    onChange={setSeason}
+                  />
+                </div>
+                <p className="scope-note">
+                  The time-lapse and the monthly profile always show the present-day building stock,
+                  so the chosen path does not change them.
+                </p>
+              </search>
 
-            <footer className="colophon">
+              <Suspense fallback={<ViewFallback label="the map" />}>
+                <MapView
+                  buurten={data.buurten}
+                  scenario={scenario}
+                  metric={metric}
+                  palette={palette}
+                />
+              </Suspense>
+              <Suspense fallback={<ViewFallback label="the time-lapse" />}>
+                <HourlyMap buurten={data.buurten} palette={palette} />
+              </Suspense>
+              <Suspense fallback={<ViewFallback label="the profiles" />}>
+                <TemporalView
+                  temporal={data.temporal}
+                  season={season ?? data.temporal.seasons[0]}
+                  palette={palette}
+                />
+              </Suspense>
+              <Suspense fallback={<ViewFallback label="the impact charts" />}>
+                <LcaView data={data.scenarios} scenario={scenario} palette={palette} />
+              </Suspense>
+            </Act>
+
+            <footer className="colophon wrap">
               <p>
                 Data: bottom-up cooling-demand and life-cycle model of The Hague building stock (BAG
                 geospatial data · hourly heat-balance · LCA). MSc Industrial Ecology thesis, Leiden
