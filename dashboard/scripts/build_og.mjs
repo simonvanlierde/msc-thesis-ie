@@ -144,7 +144,7 @@ await shoot(
 
 // ---- og card ------------------------------------------------------------------------
 const { area, ghg } = headline(scenarios);
-const fonts = ["newsreader-latin-opsz-normal", "public-sans-latin-wght-normal"].map((f) =>
+const fonts = ["newsreader-latin-wght-normal", "public-sans-latin-wght-normal"].map((f) =>
   readFileSync(join(OUT, "fonts", `${f}.woff2`)).toString("base64"),
 );
 
@@ -156,7 +156,7 @@ const card = `<!doctype html><meta charset="utf-8"><style>
          font-family: "Public Sans", sans-serif; display: flex; flex-direction: column }
   .top { flex: 1 1 auto; padding: 64px 64px 0 }
   .kicker { font-size: 22px; color: #52514e; letter-spacing: 0.01em }
-  h1 { font-family: Newsreader; font-variation-settings: "opsz" 72; font-weight: 500;
+  h1 { font-family: Newsreader; font-weight: 500;
        font-size: 68px; line-height: 1.04; letter-spacing: -0.02em; margin: 28px 0 0;
        max-width: 17ch; text-wrap: balance }
   em { font-style: normal; color: #256abf }

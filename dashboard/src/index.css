@@ -10,9 +10,9 @@
 
 @font-face {
   /* Newsreader: an editorial serif drawn for on-screen reading — legible where Fraunces's
-     high contrast was not. opsz axis runs 6–72 (Fraunces ran to 144). */
+     high contrast was not. The weight-axis subset (no opsz) keeps the file to ~58 kB. */
   font-family: "Newsreader";
-  src: url("/fonts/newsreader-latin-opsz-normal.woff2") format("woff2-variations");
+  src: url("/fonts/newsreader-latin-wght-normal.woff2") format("woff2-variations");
   font-weight: 100 900;
   font-display: swap;
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2212;
@@ -147,7 +147,6 @@ section > h2,
   font-size: 1.0625rem;
   margin: 0;
   font-weight: 600;
-  font-variation-settings: "opsz" 20;
 }
 .masthead nav {
   display: flex;
@@ -194,7 +193,6 @@ section {
 section > h2 {
   font-size: clamp(1.5rem, 2.6vw, 1.95rem);
   font-weight: 600;
-  font-variation-settings: "opsz" 60;
   line-height: 1.15;
   margin: 0 0 0.35rem;
 }
@@ -647,18 +645,20 @@ footer.colophon {
   transform: none;
 }
 
-/* Act 1 — the wordmark lockup + hero headline. */
+/* Act 1 — the wordmark lockup + hero headline. The lockup is the thesis's identity: a
+   refined title that sits above the hero finding, deliberately smaller so the finding (the
+   most characteristic thing in the subject's world) stays the hero and the two serif blocks
+   don't compete. */
 .wordmark {
   display: flex;
   flex-direction: column;
-  line-height: 1;
+  line-height: 1.04;
   font-weight: 600;
-  font-variation-settings: "opsz" 72;
-  letter-spacing: -0.018em;
-  margin: 0 0 1.5rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 1.6rem;
 }
 .wordmark span {
-  font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+  font-size: clamp(1.3rem, 3.2vw, 1.95rem);
 }
 /* The thesis's second half rides the High-path red: business-as-usual is what warms the world. */
 .wordmark__warm {
@@ -667,9 +667,8 @@ footer.colophon {
 .hero__headline {
   font-family: var(--display);
   letter-spacing: -0.02em;
-  font-size: clamp(1.9rem, 4.4vw, 3.2rem);
+  font-size: clamp(2rem, 4.6vw, 3.3rem);
   font-weight: 500;
-  font-variation-settings: "opsz" 72;
   line-height: 1.05;
   text-wrap: balance;
   max-width: 20ch;

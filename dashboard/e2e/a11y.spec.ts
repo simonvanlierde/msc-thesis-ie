@@ -30,6 +30,30 @@ for (const colorScheme of ["light", "dark"] as const) {
   });
 }
 
+test("reduced motion disables the reveal and bar-grow", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /choose the path to 2050/i })).toBeVisible({
+    timeout: 20_000,
+  });
+  // A below-the-fold reveal act is fully opaque without being scrolled into view.
+  const opacity = await page.locator("#payoff").evaluate((el) => getComputedStyle(el).opacity);
+  expect(opacity).toBe("1");
+  // Smooth anchor scrolling is off.
+  const scrollBehavior = await page.evaluate(
+    () => getComputedStyle(document.documentElement).scrollBehavior,
+  );
+  expect(scrollBehavior).toBe("auto");
+  // The bar-grow entrance is suppressed even once the charts are in view (grow class added).
+  await page.locator("#payoff").scrollIntoViewIfNeeded();
+  await expect(page.locator(".payoff--grow")).toBeVisible();
+  const animation = await page
+    .locator(".payoff__bar")
+    .first()
+    .evaluate((el) => getComputedStyle(el).animationName);
+  expect(animation).toBe("none");
+});
+
 test("captures a screenshot for the README", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await ready(page);
