@@ -53,7 +53,7 @@ rivm_uhi:
 # "full" = the whole stock; "sample" = a representative stratified subset, used for the
 # memory-bound notebook figures. sample_size/sample_seed only apply to "sample".
 building_subset: full
-sample_size: 5000
+sample_size: 2500
 sample_seed: 0
 
 # Sensitivity-analysis resolution (steps per sweep) for the `sensitivity` rule. Coarse by
