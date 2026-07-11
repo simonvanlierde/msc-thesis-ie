@@ -348,3 +348,36 @@ def test_scale_results_with_building_stock_only_scales_growth_types(global_param
     assert scaled.set_index("building_type_int")["E_cooling_kWh"].to_dict() == pytest.approx(
         {1: 110.0, 2: 100.0, 3: 110.0, 6: 120.0, 8: 120.0},
     )
+
+
+def test_aggregate_results_stock_weights_time_series_arrays(global_parameters: dict) -> None:
+    """A representative sample's hourly Q arrays must be scaled by stock_weight, like the scalar sums,
+    so an intensity built as summed_array / summed_floor_area stays stock-consistent (regression:
+    arrays used to be summed unweighted, understating every intensity/profile figure by stock_weight)."""
+    cap = int(global_parameters["peak_cooling_percentile_cap"])
+    scalar_cols = [
+        "id_BAG", "construction_year", "floor_area_ground_m2", "height_m", "volume_m3",
+        "energy_label_int", "floor_area_total_m2", "number_of_residences", "population", "E_cooling_kWh",
+        f"E_cooling_capped_at_{cap}th_percentile_kWh", f"E_cooling_capped_at_{cap}th_percentile_Wh_m2",
+        "P_cooling_peak_kW", f"P_cooling_peak_{cap}th_percentile_kW", f"P_cooling_peak_{cap}th_percentile_W_m2",
+        "electricity_use_kWh", "GHG_emissions_electricity_kgCO2eq", "GHG_emissions_refrigerant_leaks_kgCO2eq",
+        "GHG_emissions_production_phase_kgCO2eq", "GHG_emissions_EoL_phase_kgCO2eq", "mass_cooling_equipment_kg",
+        "ADP_kgSbeq", "CSI_kgSieq", "GHG_emissions_total_kgCO2eq", "electricity_use_intensity_kWh_m2",
+        "material_use_intensity_kg_m2", "GHG_emissions_intensity_kgCO2eq_m2", "avg_SEER_inv", "total_MPR",
+        "avg_lifetime_cooling_technology_yr",
+    ]
+    buildings = pd.DataFrame({c: [1.0, 1.0] for c in scalar_cols})
+    buildings["end_use"] = "office"
+    buildings["floor_area_total_m2"] = [10.0, 10.0]
+    buildings["stock_weight"] = [3.0, 3.0]
+    buildings["Q_cooling_demand_Wh"] = [np.array([2.0, 4.0]), np.array([2.0, 4.0])]
+
+    agg = aggregate_results(
+        buildings, global_parameters, groupby_columns=("end_use",),
+        scale_with_building_stock=False, include_time_series=True,
+    )
+
+    # Each row's array [2,4] weighted by 3, summed over the two rows -> [12, 24].
+    np.testing.assert_array_equal(agg["Q_cooling_demand_Wh"].iloc[0], np.array([12.0, 24.0]))
+    # Floor area is stock-weighted the same way: (10 + 10) * 3 = 60.
+    assert agg["floor_area_total_m2"].iloc[0] == 60.0

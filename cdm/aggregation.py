@@ -130,6 +130,12 @@ def aggregate_results(
         scalar_sum_columns = [key for key, value in aggregations.items() if value == "sum"]
         buildings = buildings.copy()
         buildings[scalar_sum_columns] = buildings[scalar_sum_columns].mul(buildings["stock_weight"], axis=0)
+        # The summed hourly arrays (Q_* time series) must be weighted too, or an intensity built as
+        # summed_array / summed_floor_area mixes a sample-scale numerator with a stock-scale denominator
+        # and comes out low by the stock_weight factor. Weight each array by its row's stock_weight.
+        array_sum_columns = [key for key, value in aggregations.items() if value is sum_arrays]
+        for col in array_sum_columns:
+            buildings[col] = buildings[col] * buildings["stock_weight"]
         buildings["id_BAG"] = buildings["stock_weight"]  # count -> summed weight == stock count
         aggregations = {**aggregations, "id_BAG": "sum"}
 
