@@ -468,23 +468,23 @@ rule run_gis_notebook:
         # so it is declared. GeographicDivisions is external Zenodo geodata the pipeline
         # cannot produce; left undeclared so the DAG stays inspectable, and the notebook
         # raises a clear FileNotFoundError at runtime if it is absent.
-        cdm_csv=f"{RESULTS_DIR}/CDM_results_SQ_{SUBSET}.csv",
-        cdm_geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
+        # Pinned to the full stock (not SUBSET): the maps are spatial aggregations, not memory-bound
+        # time series, so they want complete coverage. Only main.ipynb needs the sample subset.
+        cdm_csv=f"{RESULTS_DIR}/CDM_results_SQ_full.csv",
+        cdm_geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_full.gpkg",
         uhi_raster=UHI_RASTER,
         notebook="gis.ipynb",
         model_src=MODEL_SRC,
     output:
         notebook=f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
         figures=directory(f"{RESULTS_DIR}/figures/gis"),
-    params:
-        subset=SUBSET,
     log:
         f"{LOG_DIR}/run_gis_notebook.log",
     shell:
-        # BUILDING_SUBSET_NAME: the notebook reads it (cell 31) to pick the CDM layer, matching the
-        # declared inputs. Maps are fine on the full stock (no time series), so "full" is the default.
+        # BUILDING_SUBSET_NAME=full: the notebook reads it (cell 31) to pick the CDM layer, matching
+        # the full-stock inputs declared above.
         """
-        BUILDING_SUBSET_NAME={params.subset} \
+        BUILDING_SUBSET_NAME=full \
         jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
           --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
           {input.notebook} > {log} 2>&1
