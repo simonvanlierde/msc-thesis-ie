@@ -133,8 +133,8 @@ map, [Biome](https://biomejs.dev) (lint/format), Vitest (unit tests for the data
 Playwright + axe (a11y), lefthook (git hooks). Vite is pinned to 7.x: Vite 8's rolldown
 bundler currently breaks MapLibre's GeoJSON web worker in production builds.
 
-Type is self-hosted: [Fraunces](https://fonts.google.com/specimen/Fraunces) (variable, for the
-wordmark, headings and the summary headline) and [Public Sans](https://public-sans.digital.gov)
+Type is self-hosted: [Newsreader](https://fonts.google.com/specimen/Newsreader) (variable, for the
+wordmark, headings and the hero headline) and [Public Sans](https://public-sans.digital.gov)
 (variable, body and every figure — a serif on a stat-tile value reads as decoration), both subset
 to `latin` in `public/fonts/` — no font CDN, no external request. The map draws
 over [CARTO](https://carto.com)'s positron / dark-matter basemap (streets and place names, no API
