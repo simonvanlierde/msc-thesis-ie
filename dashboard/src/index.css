@@ -9,8 +9,10 @@
    Before adding a colour, decide which of those three it is. */
 
 @font-face {
-  font-family: "Fraunces";
-  src: url("/fonts/fraunces-latin-opsz-normal.woff2") format("woff2-variations");
+  /* Newsreader: an editorial serif drawn for on-screen reading — legible where Fraunces's
+     high contrast was not. opsz axis runs 6–72 (Fraunces ran to 144). */
+  font-family: "Newsreader";
+  src: url("/fonts/newsreader-latin-opsz-normal.woff2") format("woff2-variations");
   font-weight: 100 900;
   font-display: swap;
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2212;
@@ -43,7 +45,7 @@
   /* Reserved for focus. 5.5:1 on light paper, 6.8:1 on dark. Never a data colour. */
   --focus: light-dark(#c4007a, #ff6bc4);
 
-  --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --display: "Newsreader", "Iowan Old Style", Georgia, serif;
   --body: "Public Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 :root[data-theme="light"] {
@@ -81,7 +83,8 @@ a {
    stat-tile values wear the body sans like every other number on the page. */
 .masthead h1,
 section > h2,
-.summary__headline {
+.hero__headline,
+.wordmark {
   font-family: var(--display);
   letter-spacing: -0.012em;
 }
@@ -162,6 +165,12 @@ section > h2,
   background: var(--accent-wash);
   color: var(--text-primary);
 }
+/* Scroll-spy: the act currently under the top of the viewport. */
+.masthead nav a[aria-current="true"] {
+  background: var(--accent-wash);
+  color: var(--text-primary);
+  font-weight: 600;
+}
 
 .iconbtn {
   background: var(--surface);
@@ -201,24 +210,7 @@ section > h2 {
   padding: 1rem 1.1rem;
 }
 
-/* Hero / summary stat tiles */
-.summary {
-  padding-top: 1.75rem;
-}
-.summary__headline {
-  font-size: clamp(1.85rem, 4.2vw, 3.1rem);
-  font-weight: 500;
-  font-variation-settings: "opsz" 144;
-  line-height: 1.06;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-  max-width: 20ch;
-  margin: 0.5rem 0 1.25rem;
-}
-.summary__headline em {
-  font-style: normal;
-  color: var(--accent);
-}
+/* Stat tiles */
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -655,13 +647,29 @@ footer.colophon {
   transform: none;
 }
 
-/* Act 1 — the hero headline. Same treatment the old summary headline wore. */
+/* Act 1 — the wordmark lockup + hero headline. */
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  font-weight: 600;
+  font-variation-settings: "opsz" 72;
+  letter-spacing: -0.018em;
+  margin: 0 0 1.5rem;
+}
+.wordmark span {
+  font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+}
+/* The thesis's second half rides the High-path red: business-as-usual is what warms the world. */
+.wordmark__warm {
+  color: light-dark(#c0281c, #f2765f);
+}
 .hero__headline {
   font-family: var(--display);
   letter-spacing: -0.02em;
   font-size: clamp(1.9rem, 4.4vw, 3.2rem);
   font-weight: 500;
-  font-variation-settings: "opsz" 144;
+  font-variation-settings: "opsz" 72;
   line-height: 1.05;
   text-wrap: balance;
   max-width: 20ch;
@@ -857,11 +865,92 @@ footer.colophon {
   height: 1px;
 }
 
-/* Act 4 — the payoff bars. Two metrics, the full fan of futures, the chosen one lit. */
+/* Act 4 — the payoff. Sticky path switcher, then the two fan charts. */
+
+/* Sticky switcher: the fork's choice, kept in reach while the bars are on screen. It pins
+   under the masthead as you scroll the payoff. */
+.payoff__switch {
+  position: sticky;
+  top: 3.1rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--page-veil);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+}
+.payoff__switch-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-left: 0.3rem;
+}
+.payoff__pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+.payoff__pill {
+  position: relative;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.payoff__pill:hover {
+  color: var(--text-primary);
+}
+.payoff__pill:has(input:checked) {
+  background: #256abf;
+  color: #fff;
+  font-weight: 600;
+}
+.payoff__pill:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.payoff__pill input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
 .payoff {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem 2rem;
+}
+/* Bars grow from the baseline the first time the charts scroll into view. Default state is
+   full width (so a non-scrolling capture and reduced-motion both show real bars); the .grow
+   class replays the entrance. */
+.payoff__bar {
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+.payoff--grow .payoff__bar {
+  animation: bar-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 .payoff__chart {
   min-width: 0;
@@ -927,5 +1016,8 @@ footer.colophon {
   .act--payoff,
   .fork__card {
     transition: none;
+  }
+  .payoff--grow .payoff__bar {
+    animation: none;
   }
 }

@@ -9,6 +9,7 @@ import type { MapMetric } from "./lib/choropleth";
 import { type Datasets, loadDatasets } from "./lib/data";
 import { getPalette } from "./lib/palette";
 import type { ScenarioKey } from "./lib/types";
+import { useScrollSpy } from "./lib/useScrollSpy";
 import { useTheme } from "./lib/useTheme";
 
 // Split the heavy views (MapLibre, nivo) into their own chunks so the story and controls
@@ -36,6 +37,15 @@ const METRIC_OPTIONS: { value: MapMetric; label: string }[] = [
   { value: "total", label: "Total (GWh)" },
 ];
 
+// Nav targets, in scroll order. Module-scoped so the id list is a stable ref for the spy.
+const NAV = [
+  { id: "today", label: "Now" },
+  { id: "fork", label: "2050" },
+  { id: "payoff", label: "Impact" },
+  { id: "detail", label: "Detail" },
+];
+const NAV_IDS = NAV.map((n) => n.id);
+
 export function App() {
   const [data, setData] = useState<Datasets | null>(null);
   const [failed, setFailed] = useState(false);
@@ -46,6 +56,7 @@ export function App() {
   const [season, setSeason] = useState<string | null>(null);
   const [mode, toggleTheme] = useTheme();
   const palette = useMemo(() => getPalette(mode), [mode]);
+  const activeSection = useScrollSpy(NAV_IDS, data !== null);
 
   useEffect(() => {
     loadDatasets()
@@ -66,10 +77,15 @@ export function App() {
         <div className="wrap masthead__row">
           <h1>Cooling for Comfort · The Hague</h1>
           <nav aria-label="Sections">
-            <a href="#today">Now</a>
-            <a href="#fork">2050</a>
-            <a href="#payoff">Impact</a>
-            <a href="#detail">Detail</a>
+            {NAV.map((n) => (
+              <a
+                key={n.id}
+                href={`#${n.id}`}
+                aria-current={activeSection === n.id ? "true" : undefined}
+              >
+                {n.label}
+              </a>
+            ))}
           </nav>
           <button type="button" className="iconbtn" onClick={toggleTheme}>
             {mode === "dark" ? "☀ Light" : "☾ Dark"}
@@ -90,7 +106,12 @@ export function App() {
             <TodayHero data={data.scenarios} />
             <NearTerm data={data.scenarios} />
             <Fork scenario={scenario} onChange={setScenario} />
-            <Payoff data={data.scenarios} scenario={scenario} palette={palette} />
+            <Payoff
+              data={data.scenarios}
+              scenario={scenario}
+              onChange={setScenario}
+              palette={palette}
+            />
 
             <Act
               id="detail"

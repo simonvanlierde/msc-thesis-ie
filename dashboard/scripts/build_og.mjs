@@ -144,19 +144,19 @@ await shoot(
 
 // ---- og card ------------------------------------------------------------------------
 const { area, ghg } = headline(scenarios);
-const fonts = ["fraunces-latin-opsz-normal", "public-sans-latin-wght-normal"].map((f) =>
+const fonts = ["newsreader-latin-opsz-normal", "public-sans-latin-wght-normal"].map((f) =>
   readFileSync(join(OUT, "fonts", `${f}.woff2`)).toString("base64"),
 );
 
 const card = `<!doctype html><meta charset="utf-8"><style>
-  @font-face { font-family: Fraunces; src: url(data:font/woff2;base64,${fonts[0]}) format("woff2-variations"); font-weight: 100 900 }
+  @font-face { font-family: Newsreader; src: url(data:font/woff2;base64,${fonts[0]}) format("woff2-variations"); font-weight: 100 900 }
   @font-face { font-family: "Public Sans"; src: url(data:font/woff2;base64,${fonts[1]}) format("woff2-variations"); font-weight: 100 900 }
   * { box-sizing: border-box }
   body { margin: 0; width: 1200px; height: 630px; background: #f9f9f7; color: #0b0b0b;
          font-family: "Public Sans", sans-serif; display: flex; flex-direction: column }
   .top { flex: 1 1 auto; padding: 64px 64px 0 }
   .kicker { font-size: 22px; color: #52514e; letter-spacing: 0.01em }
-  h1 { font-family: Fraunces; font-variation-settings: "opsz" 144; font-weight: 500;
+  h1 { font-family: Newsreader; font-variation-settings: "opsz" 72; font-weight: 500;
        font-size: 68px; line-height: 1.04; letter-spacing: -0.02em; margin: 28px 0 0;
        max-width: 17ch; text-wrap: balance }
   em { font-style: normal; color: #256abf }
@@ -166,7 +166,7 @@ const card = `<!doctype html><meta charset="utf-8"><style>
 </style>
 <body>
   <div class="top">
-    <div class="kicker">Cooling for Comfort · The Hague</div>
+    <div class="kicker">Cooling for Comfort, Warming the World · The Hague</div>
     <h1>Offices fill just <em>${area}</em> of the floor area but drive <em>${ghg}</em> of cooling emissions.</h1>
   </div>
   <div class="credit">Every hour of a typical year, below · MSc Industrial Ecology thesis, Leiden University &amp; TU Delft</div>

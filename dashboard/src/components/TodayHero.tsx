@@ -15,7 +15,12 @@ export function TodayHero({ data }: Props) {
   const h = officeHeadline(s.archetypes);
 
   return (
-    <Act id="today" variant="today" eyebrow="Now · the city as it is" labelledBy="today-h">
+    <Act id="today" variant="today" labelledBy="today-h">
+      <p className="wordmark">
+        <span>Cooling for Comfort,</span>
+        <span className="wordmark__warm">Warming the World</span>
+      </p>
+      <p className="act__eyebrow">Now · the city as it is</p>
       <h2 id="today-h" className="visually-hidden">
         Cooling in The Hague today
       </h2>

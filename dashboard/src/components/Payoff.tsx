@@ -1,12 +1,15 @@
+import { useEffect, useState } from "react";
 import { num } from "../lib/format";
 import type { Palette } from "../lib/palette";
 import { SCENARIO_META } from "../lib/scenarioMeta";
 import type { ScenarioKey, ScenariosData, ScenarioTotals } from "../lib/types";
+import { useInView } from "../lib/useInView";
 import { Act } from "./Act";
 
 interface Props {
   data: ScenariosData;
   scenario: ScenarioKey;
+  onChange: (k: ScenarioKey) => void;
   palette: Palette;
 }
 
@@ -14,7 +17,6 @@ interface Metric {
   id: string;
   title: string;
   unit: string;
-  noun: string;
   digits: number;
   value: (t: ScenarioTotals) => number;
 }
@@ -24,7 +26,6 @@ const METRICS: Metric[] = [
     id: "demand",
     title: "Cooling demand",
     unit: "GWh / year",
-    noun: "demand",
     digits: 0,
     value: (t) => t.E_cooling_kWh / 1e6,
   },
@@ -32,13 +33,15 @@ const METRICS: Metric[] = [
     id: "ghg",
     title: "Life-cycle emissions",
     unit: "kt CO₂-eq / year",
-    noun: "emissions",
     digits: 1,
     value: (t) => t.GHG_emissions_total_kgCO2eq / 1e6,
   },
 ];
 
-/** "Today" / "2030" / "2050 Low" — names a scenario for a chart row. */
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/** "Today" / "2030" / "2050 Low" — names a scenario for a chart row or pill. */
 function rowLabel(k: ScenarioKey): string {
   const m = SCENARIO_META[k];
   return m.kind === "future" ? `2050 ${m.short}` : m.short;
@@ -49,12 +52,40 @@ function vsToday(v: number, today: number): string {
   return `${(v / today).toFixed(1)}× today`;
 }
 
+/** Counts up to `value` once `run` turns true; instant under reduced motion. Renders the
+ *  final value on first paint so a non-scrolling capture (or no JS) shows the real number. */
+function CountUp({ value, digits, run }: { value: number; digits: number; run: boolean }) {
+  const [shown, setShown] = useState(value);
+  useEffect(() => {
+    if (!run) return;
+    if (prefersReducedMotion()) {
+      setShown(value);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const dur = 700;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / dur);
+      setShown(value * (1 - (1 - p) ** 3));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [run, value]);
+  return <>{num(shown, digits)}</>;
+}
+
 /** Act 4 — the payoff. For the two metrics that diverge most, the whole fan of futures on
  *  one axis with the chosen path lit in accent blue; today and 2030 sit as faint references.
  *  Length carries the story ("nearly doubles" / "a tenth of today"); the section's warm/cool
- *  tint commits to the chosen path. Warm colour stays reserved for the heat ramp elsewhere. */
-export function Payoff({ data, scenario, palette }: Props) {
+ *  tint commits to the chosen path. A sticky switcher keeps the choice in reach while the
+ *  bars are on screen. Warm colour stays reserved for the heat ramp elsewhere. */
+export function Payoff({ data, scenario, onChange, palette }: Props) {
   const order = data.meta.scenario_order;
+  const [chartsRef, grow] = useInView<HTMLDivElement>();
+  const meta = SCENARIO_META[scenario];
+  const isFuture = meta.kind === "future";
 
   return (
     <Act
@@ -65,13 +96,44 @@ export function Payoff({ data, scenario, palette }: Props) {
       labelledBy="payoff-h"
     >
       <h2 id="payoff-h">The difference by 2050</h2>
+
+      {/* Sticky, so the path stays switchable while the bars are in view — the fork's choice,
+          kept in reach. Its own radiogroup name so it doesn't fight the fork's native group. */}
+      <div className="payoff__switch">
+        <span className="payoff__switch-label">Path</span>
+        <fieldset className="payoff__pills">
+          <legend className="visually-hidden">Scenario shown in the payoff</legend>
+          {order.map((k) => (
+            <label key={k} className="payoff__pill" data-path={k}>
+              <input
+                type="radio"
+                name="payoff-path"
+                value={k}
+                checked={scenario === k}
+                onChange={() => onChange(k)}
+              />
+              {rowLabel(k)}
+            </label>
+          ))}
+        </fieldset>
+      </div>
+
       <p className="lede">
-        You picked <strong>{rowLabel(scenario)}</strong> —{" "}
-        {SCENARIO_META[scenario].tagline.toLowerCase()}. Here is where that path lands, against
-        today and 2030 for scale.
+        {isFuture ? (
+          <>
+            You picked <strong>{rowLabel(scenario)}</strong> — {meta.tagline.toLowerCase()}. Here is
+            where that path lands, against today and 2030 for scale.
+          </>
+        ) : (
+          <>
+            The three 2050 paths span an 18-fold range in emissions — pick one above to commit the
+            view. <strong>{rowLabel(scenario)}</strong> is highlighted, shown against the futures
+            for scale.
+          </>
+        )}
       </p>
 
-      <div className="payoff">
+      <div className={`payoff${grow ? " payoff--grow" : ""}`} ref={chartsRef}>
         {METRICS.map((m) => (
           <PayoffBars
             key={m.id}
@@ -79,6 +141,7 @@ export function Payoff({ data, scenario, palette }: Props) {
             order={order}
             data={data}
             active={scenario}
+            grow={grow}
             palette={palette}
           />
         ))}
@@ -125,12 +188,14 @@ function PayoffBars({
   order,
   data,
   active,
+  grow,
   palette,
 }: {
   metric: Metric;
   order: ScenarioKey[];
   data: ScenariosData;
   active: ScenarioKey;
+  grow: boolean;
   palette: Palette;
 }) {
   const vals = order.map((k) => ({ k, v: metric.value(data.scenarios[k].totals) }));
@@ -169,6 +234,7 @@ function PayoffBars({
               </text>
               <line className="payoff__track" x1={x(0)} x2={x(max)} y1={rowY(i)} y2={rowY(i)} />
               <rect
+                className="payoff__bar"
                 x={x(0)}
                 y={rowY(i) - BAR_H / 2}
                 width={Math.max(0, x(r.v) - x(0))}
@@ -181,7 +247,7 @@ function PayoffBars({
                 x={x(r.v) + 10}
                 y={rowY(i) + 5}
               >
-                {num(r.v, metric.digits)}
+                <CountUp value={r.v} digits={metric.digits} run={grow} />
                 {isActive && r.k !== "SQ" && (
                   <tspan className="payoff__ratio"> · {vsToday(r.v, today)}</tspan>
                 )}
