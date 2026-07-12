@@ -489,3 +489,43 @@ rule run_gis_notebook:
           --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
           {input.notebook} > {log} 2>&1
         """
+# The dashboard's precomputed JSON is committed (the site deploys without a pipeline run), so
+# this is opt-in and not part of `all`: `snakemake dashboard_data` regenerates it in place and
+# reports it as out-of-date whenever the model, parameters or results move underneath it.
+rule dashboard_data:
+    input:
+        # Pinned to the full stock (not SUBSET), like run_gis_notebook: the dashboard ships the
+        # whole city, and the build scripts resolve `*_full` filenames themselves.
+        cdm_csvs=expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_full.csv", scenario=SCENARIOS),
+        cdm_geodata=expand(
+            f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_{{scenario}}_full.gpkg",
+            scenario=SCENARIOS,
+        ),
+        # build_temporal re-runs the heat balance on a building sample, so it reads the parameters
+        # and the model directly. GeographicDivisions (build_choropleth's buurt boundaries) is the
+        # same external Zenodo geodata gis.ipynb uses: left undeclared, absent means a clear
+        # FileNotFoundError at runtime rather than an unsatisfiable DAG.
+        parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
+        scripts=[
+            "dashboard/scripts/build_scenarios.py",
+            "dashboard/scripts/build_choropleth.py",
+            "dashboard/scripts/build_temporal.py",
+        ],
+        model_src=MODEL_SRC,
+    output:
+        scenarios="dashboard/public/data/scenarios.json",
+        choropleth="dashboard/public/data/cooling_by_buurt.geojson",
+        temporal="dashboard/public/data/temporal.json",
+    log:
+        f"{LOG_DIR}/dashboard_data.log",
+    shell:
+        """
+        {{
+          python dashboard/scripts/build_scenarios.py \
+            --results-dir {RESULTS_DIR} --out {output.scenarios}
+          python dashboard/scripts/build_choropleth.py \
+            --geodata-dir {RESULTS_GEODATA_DIR} --out {output.choropleth}
+          python dashboard/scripts/build_temporal.py \
+            --geodata-dir {RESULTS_GEODATA_DIR} --out {output.temporal}
+        }} > {log} 2>&1
+        """
