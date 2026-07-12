@@ -1,7 +1,6 @@
 version: 2
 updates:
-  - &defaults
-    package-ecosystem: uv
+  - package-ecosystem: uv
     directory: /
     schedule:
       interval: monthly
@@ -11,12 +10,32 @@ updates:
     cooldown:
       default-days: 3
 
-  - <<: *defaults
-    package-ecosystem: npm
+  - package-ecosystem: npm
     directory: /dashboard
+    schedule:
+      interval: monthly
+    groups:
+      all:
+        patterns: [ "*" ]
+    cooldown:
+      default-days: 3
 
-  - <<: *defaults
-    package-ecosystem: github-actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      all:
+        patterns: [ "*" ]
+    cooldown:
+      default-days: 3
 
-  - <<: *defaults
-    package-ecosystem: docker
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      all:
+        patterns: [ "*" ]
+    cooldown:
+      default-days: 3
