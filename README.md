@@ -3,6 +3,7 @@
 **Residential and office cooling and its environmental impacts in The Hague, the Netherlands.**
 
 [![CI](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml)
+[![Dashboard](https://img.shields.io/badge/dashboard-live-brightgreen.svg)](https://simonvanlierde.github.io/msc-thesis-ie/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Data DOI](https://img.shields.io/badge/data-10.5281%2Fzenodo.8344580-blue.svg)](https://doi.org/10.5281/zenodo.8344580)
@@ -46,7 +47,7 @@ An interactive web dashboard presents these results — a choropleth of cooling 
 The Hague, the diurnal/seasonal demand profile, and the life-cycle impact breakdown, with a
 plain-language summary for non-experts. It runs entirely on real model output.
 
-<!-- Live demo: add the Cloudflare Pages URL here once deployed. -->
+**[Open the live dashboard →](https://simonvanlierde.github.io/msc-thesis-ie/)**
 
 ![Dashboard](dashboard/docs/screenshot.png)
 
@@ -55,7 +56,7 @@ cd dashboard && pnpm install && pnpm dev
 ```
 
 See [`dashboard/README.md`](dashboard/README.md) for the data-build steps, accessibility
-notes and the Cloudflare Pages deployment.
+notes and the GitHub Pages deployment.
 
 ## Repository structure
 
