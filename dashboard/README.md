@@ -16,9 +16,9 @@ without reading a chart.
 
 ![The dashboard](docs/screenshot.png)
 
-## The data is real thesis output
+## Where the data comes from
 
-Every number traces to the thesis model — nothing is invented. Three small build scripts
+Every number traces to the thesis model. Three small build scripts
 (`scripts/*.py`) convert the model outputs into web-friendly JSON/GeoJSON:
 
 | Script | Output | Source | Notes |
@@ -32,7 +32,7 @@ The spatial and temporal builds need the per-building GeoPackages from the Zenod
 the buurt boundaries come from CBS via the pipeline. The pre-built JSON in `public/data/`
 is committed, so the dashboard runs and deploys without any of it.
 
-### Caveats (kept honest)
+### Caveats
 
 - The page opens on the **2050 medium** path (the "choose your 2050" narrative pre-selects a
   future), so the map first shows that scenario; **present-day (SQ)** is one click away. Only in
@@ -104,18 +104,17 @@ pnpm dlx wrangler pages deploy dist
 
 ## Accessibility
 
-Accessibility is a first-class requirement here, matching the setup in `tide` /
-`credit-heatmap`:
+Accessibility follows the same setup as `tide` / `credit-heatmap`:
 
 - Keyboard-navigable controls (radio-group segmented controls, skip link, visible focus), each
   placed with the view it scopes rather than buried in a chart card.
 - Every chart and the map carry an accessible label, and each view has a **data-table
   fallback** — nothing is available only as a chart or only on hover.
-- A colourblind-safe palette (validated data-viz reference palette): a single-hue blue
-  sequential scale for the map, blue/orange for residential/office. Colour has one job per
-  hue — magenta is reserved for keyboard focus and used by no chart. Meaning is never
-  colour-alone — the map legend gives explicit numeric ranges, a value strip shows where
-  every neighbourhood falls, and every value is in a table.
+- A colourblind-safe palette: a single-hue blue sequential scale for the map, blue/orange
+  for residential/office. Each hue has one job; magenta is reserved for keyboard focus and
+  no chart uses it. Meaning never rides on colour alone — the map legend gives explicit
+  numeric ranges, a value strip shows where every neighbourhood falls, and every value is
+  in a table.
 - Light and dark themes, both deliberately styled (not an auto-flip) and both contrast-checked.
   The theme is stamped before first paint by a tiny inline script, so a saved override never
   flashes the other theme on load.
