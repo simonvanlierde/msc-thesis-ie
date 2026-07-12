@@ -263,7 +263,7 @@ section > h2 {
 }
 .lede {
   color: var(--text-secondary);
-  max-width: 72ch;
+  max-width: 80ch;
   margin: 0 0 1.25rem;
 }
 .card {
@@ -396,7 +396,7 @@ fieldset.segmented > legend {
   color: var(--muted);
   font-size: 0.82rem;
   margin: 0.55rem 0 0;
-  max-width: 72ch;
+  max-width: 80ch;
 }
 
 /* Chart + map frames */
@@ -750,7 +750,7 @@ footer.colophon {
   font-weight: 500;
   line-height: 1.05;
   text-wrap: balance;
-  max-width: 20ch;
+  max-width: 35ch;
   margin: 0 0 1.1rem;
 }
 .hero__headline em {
@@ -758,7 +758,7 @@ footer.colophon {
   color: var(--accent);
 }
 .hero__now {
-  max-width: 66ch;
+  max-width: 95ch;
   margin: -0.5rem 0 1.25rem;
 }
 
@@ -769,7 +769,7 @@ footer.colophon {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-width: 860px;
+  max-width: 1040px;
 }
 .chain__step {
   position: relative;
@@ -1103,7 +1103,7 @@ footer.colophon {
   border-top: 1px solid var(--border);
   padding-top: 0.55rem;
 }
-.fork__more > summary {
+details.fork__more > summary {
   cursor: pointer;
   font-size: 0.82rem;
   color: var(--text-secondary);
