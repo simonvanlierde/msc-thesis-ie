@@ -3,11 +3,13 @@
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import run_sensitivity as rs
 
 
-def test_sa_specs_are_well_formed():
+def test_sa_specs_are_well_formed() -> None:
     specs = rs.SA_SPECS
     assert len(specs) == 15
     kinds = {s.kind for s in specs}
@@ -21,7 +23,7 @@ def test_sa_specs_are_well_formed():
         assert s.start < s.end, s.variable_name
 
 
-def test_global_reference_values_pull_from_scenarios():
+def test_global_reference_values_pull_from_scenarios() -> None:
     refs = rs.reference_values_for(
         rs.SASpec("T_thresh_C", "global", 15, 30, "threshold temperature", "°C"),
         global_param_dict={"SQ": {"T_thresh_C": 24.0}, "2050_H": {"T_thresh_C": 26.0}},
@@ -29,7 +31,7 @@ def test_global_reference_values_pull_from_scenarios():
     assert refs == {"SQ": 24.0, "2050_H": 26.0}
 
 
-def test_cooling_tech_reference_values_are_the_per_scenario_mean():
+def test_cooling_tech_reference_values_are_the_per_scenario_mean() -> None:
     # The cooling-tech runner indexes on mean(variable) * multiplier, so the reference is the mean.
     refs = rs.reference_values_for(
         rs.SASpec("SEER", "cooling_tech", 0.5, 3, "SEER", "×"),
@@ -42,11 +44,9 @@ def test_cooling_tech_reference_values_are_the_per_scenario_mean():
     assert refs == {"SQ": 4.0, "2050_H": 6.0}
 
 
-def test_market_penetration_reference_is_weighted_mpr_percent():
+def test_market_penetration_reference_is_weighted_mpr_percent() -> None:
     # Weighted total market-penetration rate in percent: shares summed per building type,
     # weighted by prevalence, times 100.
-    import pandas as pd
-
     refs = rs.reference_values_for(
         rs.SASpec("market_penetration", "market_penetration", 0, 5.86, "MPR", "%"),
         global_param_dict={"SQ": {}},
