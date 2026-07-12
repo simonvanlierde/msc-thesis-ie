@@ -1,6 +1,6 @@
 // Build the social-preview card, the favicon and the apple-touch icon from the same
 // thesis output the dashboard renders — the headline stat from scenarios.json, the heat
-// band from cooling_frames.json, the silhouette from the buurt geometry.
+// band from temporal.json, the silhouette from the buurt geometry.
 //
 //   node scripts/build_og.mjs
 //
@@ -45,19 +45,48 @@ function headline(data) {
   };
 }
 
+// Meteorological seasons by month index, mirroring SEASON_OF_MONTH in build_temporal.py.
+const SEASON_OF_MONTH = [
+  "Winter",
+  "Winter",
+  "Spring",
+  "Spring",
+  "Spring",
+  "Summer",
+  "Summer",
+  "Summer",
+  "Autumn",
+  "Autumn",
+  "Autumn",
+  "Winter",
+];
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/**
+ * The 12x24 grid of citywide cooling power for a typical year: each month takes its season's
+ * diurnal shape (GW by hour), rescaled so the day's energy matches that month's total (GWh).
+ * temporal.json only carries four seasonal profiles, so months inside a season differ in
+ * magnitude but not in shape — enough for a 168 px band.
+ */
+function heatGrid(data) {
+  return SEASON_OF_MONTH.map((season, m) => {
+    const shape = data.diurnal_by_season[season].total;
+    const daily = shape.reduce((s, v) => s + v, 0);
+    const scale = daily > 0 ? data.monthly.total[m] / DAYS_IN_MONTH[m] / daily : 0;
+    return shape.map((v) => v * scale);
+  });
+}
+
 /** The 12x24 heat band: city-average cooling intensity for every hour of a typical year. */
-function heatBand(hourly, width, height) {
+function heatBand(grid, width, height) {
   const cell = { w: width / 24, h: height / 12 };
-  const rects = [];
-  for (let m = 0; m < 12; m++) {
-    for (let h = 0; h < 24; h++) {
-      const row = hourly.frames[m * 24 + h];
-      const mean = row.reduce((s, v) => s + v, 0) / row.length;
-      rects.push(
-        `<rect x="${(h * cell.w).toFixed(2)}" y="${(m * cell.h).toFixed(2)}" width="${cell.w.toFixed(2)}" height="${cell.h.toFixed(2)}" fill="${heatColor(mean, hourly.meta.vmax)}"/>`,
-      );
-    }
-  }
+  const vmax = Math.max(...grid.flat());
+  const rects = grid.flatMap((row, m) =>
+    row.map(
+      (v, h) =>
+        `<rect x="${(h * cell.w).toFixed(2)}" y="${(m * cell.h).toFixed(2)}" width="${cell.w.toFixed(2)}" height="${cell.h.toFixed(2)}" fill="${heatColor(v, vmax)}"/>`,
+    ),
+  );
   return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">${rects.join("")}</svg>`;
 }
 
@@ -113,13 +142,13 @@ async function shoot(html, width, height, out) {
 }
 
 const scenarios = readJSON("scenarios.json");
-const frames = tryJSON("cooling_frames.json");
+const temporal = tryJSON("temporal.json");
 const buurten = tryJSON("cooling_by_buurt.geojson");
 
-if (!(frames && buurten)) {
+if (!(temporal && buurten)) {
   // biome-ignore lint/suspicious/noConsole: CLI build script, this is its output
   console.log(
-    "build_og: needs cooling_frames.json and cooling_by_buurt.geojson — run `pnpm data` first.",
+    "build_og: needs temporal.json and cooling_by_buurt.geojson — run `pnpm data` first.",
   );
   process.exit(0);
 }
@@ -170,7 +199,7 @@ const card = `<!doctype html><meta charset="utf-8"><style>
     <h1>Offices fill just <em>${area}</em> of the floor area but drive <em>${ghg}</em> of cooling emissions.</h1>
   </div>
   <div class="credit">Every hour of a typical year, below · MSc Industrial Ecology thesis, Leiden University &amp; TU Delft</div>
-  <div class="band">${heatBand(frames, 1200, 168)}</div>
+  <div class="band">${heatBand(heatGrid(temporal), 1200, 168)}</div>
 </body>`;
 
 await shoot(card, 1200, 630, join(OUT, "og.png"));
