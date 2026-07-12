@@ -44,8 +44,7 @@
     Thesis = "https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a"
 
 [dependency-groups]
-  dev  = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "ty>=0.0.1a1", "pre-commit>=3.7", "nbstripout>=0.7"]
-  docs = ["mkdocs>=1.6", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
+  dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "ty>=0.0.1a1", "pre-commit>=3.7", "nbstripout>=0.7"]
 
 [tool.ruff]
   line-length    = 120
