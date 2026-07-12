@@ -35,9 +35,7 @@ export function Fork({ scenario, onChange }: Props) {
         refrigerants are phased out.
       </p>
 
-      <p className="fork__prompt">
-        Pick one; the impact charts and the map below update to match.
-      </p>
+      <p className="fork__prompt">Pick one; the impact charts and the map below update to match.</p>
 
       <fieldset className="fork">
         <legend className="visually-hidden">Path to 2050</legend>

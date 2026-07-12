@@ -239,8 +239,8 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
       <p className="lede">
         Hourly output of the thesis heat-balance model, run over {temporal.meta.weather_years}{" "}
         weather with the {rowLabel(scenario)} scenario's climate and comfort assumptions and
-        calibrated to its annual totals. Cooling concentrates in the warm months — and within them, in a few extreme
-        days: the second chart zooms into the hottest week of the record, {hwWeek}.
+        calibrated to its annual totals. Cooling concentrates in the warm months — and within them,
+        in a few extreme days: the second chart zooms into the hottest week of the record, {hwWeek}.
       </p>
 
       <div className="viewctl">
