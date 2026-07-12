@@ -77,9 +77,9 @@ def reference_values_for(
     normalises at the right point:
     - global: the scenario's own parameter value;
     - cooling_tech: the mean of the variable across cooling technologies (the runner indexes on
-      ``mean × multiplier``, so the reference is the mean, i.e. the multiplier-1 point);
+      ``mean * multiplier``, so the reference is the mean, i.e. the multiplier-1 point);
     - market_penetration: the weighted total market-penetration rate in percent (the runner
-      re-indexes its results to the measured total MPR × 100).
+      re-indexes its results to the measured total MPR * 100).
     """
     if spec.kind == "global":
         return {s: global_param_dict[s][spec.variable_name] for s in global_param_dict}
@@ -95,7 +95,13 @@ def reference_values_for(
     return refs
 
 
-def build_static_parameters(buildings, raw_weather_data, params: dict, solar: str, presence: str) -> dict:
+def build_static_parameters(
+    buildings: pd.DataFrame,
+    raw_weather_data: pd.DataFrame,
+    params: dict,
+    solar: str,
+    presence: str,
+) -> dict:
     """Assemble the static_parameters dict the cdm.sensitivity_analysis runners expect."""
     return {
         "buildings": buildings,
@@ -170,7 +176,10 @@ def main() -> None:
     # add_parameters_to_buildings. Parameterise a copy once to get the stock prevalence
     # the market-penetration SA and its reference need.
     buildings_with_type = add_parameters_to_buildings(
-        buildings.copy(), params["global"], params["building_type"], params["energy_class"],
+        buildings.copy(),
+        params["global"],
+        params["building_type"],
+        params["energy_class"],
     )
     building_type_prevalence = buildings_with_type["building_type"].value_counts(normalize=True)
     raw_weather_data = pd.read_csv(args.weather_csv, parse_dates=["date"])

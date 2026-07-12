@@ -20,7 +20,12 @@ REQUEST_INTERVAL_S = 0.1
 
 
 def fetch_features(
-    base_url: str, collection: str, bbox: str, limit: int, max_pages: int | None, timeout: int = 60,
+    base_url: str,
+    collection: str,
+    bbox: str,
+    limit: int,
+    max_pages: int | None,
+    timeout: int = 60,
 ) -> dict:
     """Fetch all pages for an OGC collection and return a FeatureCollection."""
     url = urljoin(base_url.rstrip("/") + "/", f"collections/{collection}/items")
