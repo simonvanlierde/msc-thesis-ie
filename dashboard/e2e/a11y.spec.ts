@@ -8,9 +8,9 @@ async function ready(page: import("@playwright/test").Page) {
   // full-page screenshot isn't blank below the fold.
   await page.addStyleTag({ content: ".reveal{opacity:1 !important;transform:none !important}" });
   // biome-ignore lint/performance/useTopLevelRegex: The regex is only used for a single string match, so it doesn't need to be top-level.
-  await expect(page.getByRole("heading", { name: /life-cycle environmental impact/i })).toBeVisible(
-    { timeout: 20_000 },
-  );
+  await expect(page.getByRole("heading", { name: /life-cycle climate impact/i })).toBeVisible({
+    timeout: 20_000,
+  });
   // open the disclosure tables so axe also scans them
   for (const d of await page.locator("details.datatable > summary").all()) await d.click();
 }

@@ -1,13 +1,15 @@
 import { type LineCustomSvgLayer, type LineSeries, ResponsiveLine } from "@nivo/line";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { num } from "../lib/format";
 import type { Palette } from "../lib/palette";
 import type { TemporalData } from "../lib/types";
 import { Legend } from "./Legend";
+import { Segmented } from "./Segmented";
 
 interface Props {
   temporal: TemporalData;
-  season: string;
+  /** kWh electricity per kWh cooling demand, per use (PUE × market penetration). */
+  elec: { residential: number; office: number };
   palette: Palette;
 }
 
@@ -16,6 +18,17 @@ interface Series extends LineSeries {
   color: string;
   data: readonly { x: string; y: number }[];
 }
+
+type Quantity = "cooling" | "electricity";
+
+// The profile is shown for summer only — the season the cooling story is about; the
+// other seasons' shapes added little beyond a lower plateau.
+const SEASON = "Summer";
+
+const QUANTITY_OPTIONS: { value: Quantity; label: string }[] = [
+  { value: "cooling", label: "Cooling demand" },
+  { value: "electricity", label: "Electricity use" },
+];
 
 const USE_LABEL: Record<string, string> = { residential: "Residential", office: "Office" };
 const colorForUse = (p: Palette, use: string) =>
@@ -121,8 +134,7 @@ function makeEndLabels(palette: Palette): LineCustomSvgLayer<Series> {
 }
 
 /** One annotation, on the thing the eye lands on: the day's single highest point of
- *  cooling power, whichever series and season it falls in. Computed from the data, never
- *  hardcoded — the peak moves between morning (homes) and midday (offices) by season. */
+ *  power, whichever series it falls in. Computed from the data, never hardcoded. */
 function makePeakLayer(palette: Palette): LineCustomSvgLayer<Series> {
   return ({ series, innerWidth }) => {
     let peak: { x: string; y: number; px: number; py: number; id: string } | null = null;
@@ -169,9 +181,10 @@ function makePeakLayer(palette: Palette): LineCustomSvgLayer<Series> {
   };
 }
 
-export function TemporalView({ temporal, season, palette }: Props) {
+export function TemporalView({ temporal, elec, palette }: Props) {
   const uses = temporal.uses;
   const theme = nivoTheme(palette);
+  const [quantity, setQuantity] = useState<Quantity>("cooling");
   const peakLayer = useMemo(() => makePeakLayer(palette), [palette]);
   const endLabels = useMemo(() => makeEndLabels(palette), [palette]);
   const useLegend = uses.map((u) => ({
@@ -179,19 +192,27 @@ export function TemporalView({ temporal, season, palette }: Props) {
     label: USE_LABEL[u] ?? u,
   }));
 
+  // Electricity = cooling × (PUE × market penetration), a constant per use in the model —
+  // so the toggle rescales each series rather than needing a second dataset.
+  const factor = (use: string) =>
+    quantity === "electricity" ? (use === "office" ? elec.office : elec.residential) : 1;
+  const isElec = quantity === "electricity";
+  const powerLabel = isElec ? "Electric power (GW)" : "Cooling power (GW)";
+  const energyLabel = isElec ? "Electricity (GWh)" : "Cooling energy (GWh)";
+
   const diurnal: Series[] = uses.map((use) => ({
     id: use,
     color: colorForUse(palette, use),
     data: temporal.hour_of_day.map((h) => ({
       x: `${String(h).padStart(2, "0")}:00`,
-      y: temporal.diurnal_by_season[season][use][h],
+      y: temporal.diurnal_by_season[SEASON][use][h] * factor(use),
     })),
   }));
 
   const monthly: Series[] = uses.map((use) => ({
     id: use,
     color: colorForUse(palette, use),
-    data: temporal.months.map((mo, i) => ({ x: mo, y: temporal.monthly[use][i] })),
+    data: temporal.months.map((mo, i) => ({ x: mo, y: temporal.monthly[use][i] * factor(use) })),
   }));
 
   return (
@@ -204,11 +225,26 @@ export function TemporalView({ temporal, season, palette }: Props) {
         again in the early evening.
       </p>
 
+      <div className="viewctl">
+        <Segmented
+          name="quantity"
+          legend="Shown in the profiles"
+          options={QUANTITY_OPTIONS}
+          value={quantity}
+          onChange={setQuantity}
+        />
+        <p className="scope-note">
+          Electricity is what installed equipment draws to meet the demand: cooling demand ÷
+          efficiency (SEER), scaled by the share of buildings that have cooling at all. Both
+          profiles show the present-day building stock.
+        </p>
+      </div>
+
       <figure className="figure">
         <div className="chart">
           <ResponsiveLine<Series>
             role="img"
-            ariaLabel={`Average cooling power by hour of day in ${season}, residential versus office, in gigawatts.`}
+            ariaLabel={`Average ${isElec ? "electric" : "cooling"} power by hour of a summer day, residential versus office, in gigawatts.`}
             data={diurnal}
             theme={theme}
             colors={(s) => s.color}
@@ -223,7 +259,7 @@ export function TemporalView({ temporal, season, palette }: Props) {
               tickValues: diurnal[0].data.filter((_, i) => i % 3 === 0).map((d) => d.x),
             }}
             axisLeft={{
-              legend: "Cooling power (GW)",
+              legend: powerLabel,
               legendOffset: -45,
               legendPosition: "middle",
             }}
@@ -237,14 +273,16 @@ export function TemporalView({ temporal, season, palette }: Props) {
           />
         </div>
         <Legend items={useLegend} title="Building use" />
-        <figcaption>Average cooling power through the day · {season}.</figcaption>
+        <figcaption>
+          Average {isElec ? "electric" : "cooling"} power through the day · summer.
+        </figcaption>
       </figure>
 
       <figure className="figure">
         <div className="chart">
           <ResponsiveLine<Series>
             role="img"
-            ariaLabel="Monthly cooling energy demand across the year, residential versus office, in gigawatt-hours."
+            ariaLabel={`Monthly ${isElec ? "electricity use for cooling" : "cooling energy demand"} across the year, residential versus office, in gigawatt-hours.`}
             data={monthly}
             theme={theme}
             colors={(s) => s.color}
@@ -254,7 +292,7 @@ export function TemporalView({ temporal, season, palette }: Props) {
             yScale={{ type: "linear", min: 0, max: "auto" }}
             axisBottom={{ legend: "Month", legendOffset: 40, legendPosition: "middle" }}
             axisLeft={{
-              legend: "Cooling energy (GWh)",
+              legend: energyLabel,
               legendOffset: -45,
               legendPosition: "middle",
             }}
@@ -272,13 +310,17 @@ export function TemporalView({ temporal, season, palette }: Props) {
           />
         </div>
         <Legend items={useLegend} title="Building use" />
-        <figcaption>Cooling energy by month · typical year.</figcaption>
+        <figcaption>
+          {isElec ? "Electricity for cooling" : "Cooling energy"} by month · typical year.
+        </figcaption>
       </figure>
 
       <details className="datatable">
-        <summary>Data table — monthly cooling energy (GWh)</summary>
+        <summary>Data table — monthly {isElec ? "electricity" : "cooling energy"} (GWh)</summary>
         <table>
-          <caption>Cooling energy by month and building use (GWh)</caption>
+          <caption>
+            {isElec ? "Electricity for cooling" : "Cooling energy"} by month and building use (GWh)
+          </caption>
           <thead>
             <tr>
               <th scope="col">Month</th>
@@ -287,7 +329,6 @@ export function TemporalView({ temporal, season, palette }: Props) {
                   {USE_LABEL[u] ?? u}
                 </th>
               ))}
-              <th scope="col">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -295,9 +336,8 @@ export function TemporalView({ temporal, season, palette }: Props) {
               <tr key={mo}>
                 <td>{mo}</td>
                 {uses.map((u) => (
-                  <td key={u}>{num(temporal.monthly[u][i], 1)}</td>
+                  <td key={u}>{num(temporal.monthly[u][i] * factor(u), 1)}</td>
                 ))}
-                <td>{num(temporal.monthly.total[i], 1)}</td>
               </tr>
             ))}
           </tbody>

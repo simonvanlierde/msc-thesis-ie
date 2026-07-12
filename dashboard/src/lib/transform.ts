@@ -73,6 +73,22 @@ export function share(
   return (sub[metric] as number) / total;
 }
 
+/**
+ * Electricity-per-cooling factor per building use (kWh electricity / kWh cooling demand),
+ * from a scenario's archetypes. In the model this is PUE × market penetration, both hourly
+ * constants — so scaling an hourly cooling series by the use's annual factor reproduces the
+ * hourly electricity series exactly up to the archetype mix within the use.
+ */
+export function elecFactors(archetypes: Archetype[]): { residential: number; office: number } {
+  const factor = (use: Archetype["use"]) => {
+    const rows = archetypes.filter((a) => a.use === use);
+    const cooling = rows.reduce((s, a) => s + a.E_cooling_kWh, 0);
+    const elec = rows.reduce((s, a) => s + a.electricity_kWh, 0);
+    return cooling === 0 ? 0 : elec / cooling;
+  };
+  return { residential: factor("Residential"), office: factor("Office") };
+}
+
 /** Headline framing numbers (offices: small footprint, outsized demand & emissions). */
 export function officeHeadline(archetypes: Archetype[]) {
   return {

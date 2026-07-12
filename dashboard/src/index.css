@@ -122,7 +122,7 @@ section > h2,
 }
 
 .wrap {
-  max-width: 1080px;
+  max-width: 1160px;
   margin: 0 auto;
   padding: 0 1.25rem;
 }
@@ -147,6 +147,71 @@ section > h2,
   font-size: 1.0625rem;
   margin: 0;
   font-weight: 600;
+}
+/* The page name hands off from the hero: hidden while the big wordmark is on screen,
+   sliding into the masthead once you scroll past it. Visibility swaps after the fade so
+   the hidden title is also gone for keyboard and AT. */
+.masthead__title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.5em);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease,
+    visibility 0s linear 0.35s;
+}
+.masthead--titled .masthead__title {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+.masthead__sep {
+  color: var(--muted);
+}
+/* "The Hague" reads as a quiet dropdown: same type as the title, a caret and a soft
+   underline hinting it opens. */
+.masthead__city {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0.1rem 0.15rem;
+  margin: -0.1rem 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 0.25em;
+}
+.masthead__city:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+.masthead__caret {
+  font-size: 0.7em;
+  color: var(--muted);
+  margin-left: 0.2em;
+}
+.citypop {
+  inset: auto;
+  top: 3.4rem;
+  left: max(1.25rem, calc((100vw - 1160px) / 2 + 1.25rem));
+  max-width: 38ch;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  font-size: 0.9rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+.citypop strong {
+  color: var(--text-primary);
 }
 .masthead nav {
   display: flex;
@@ -198,7 +263,7 @@ section > h2 {
 }
 .lede {
   color: var(--text-secondary);
-  max-width: 62ch;
+  max-width: 72ch;
   margin: 0 0 1.25rem;
 }
 .card {
@@ -208,31 +273,60 @@ section > h2 {
   padding: 1rem 1.1rem;
 }
 
-/* Stat tiles */
+/* Stat tiles — buttons: each opens a plain-words comparison for its number. */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.75rem;
+  align-items: start;
 }
 .tile {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.9rem 1rem;
+  transition: border-color 0.2s ease;
+}
+.tile:hover {
+  border-color: var(--accent);
+}
+.tile__hint {
+  display: block;
+  color: var(--accent);
+  font-size: 0.78rem;
+  margin-top: 0.5rem;
+}
+.tile__more {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
 }
 /* Proportional figures: tabular-nums gives every digit the width of a `0`, which makes a
    standalone number like 121 look loose at display size. It belongs in the columns below,
    where numbers must align. */
 .tile__value {
+  display: block;
   font-size: 1.7rem;
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.012em;
 }
 .tile__label {
+  display: block;
   color: var(--text-secondary);
   font-size: 0.85rem;
   margin-top: 0.15rem;
+}
+.tile__more {
+  display: block;
 }
 
 /* Controls — one row above every view they scope, never inside a chart card. */
@@ -302,6 +396,7 @@ fieldset.segmented > legend {
   color: var(--muted);
   font-size: 0.82rem;
   margin: 0.55rem 0 0;
+  max-width: 72ch;
 }
 
 /* Chart + map frames */
@@ -319,10 +414,9 @@ fieldset.segmented > legend {
 .chart {
   height: 360px;
 }
-/* Two stacked bars across the full column would be saturated slabs; the cap keeps the
-   fills reading as marks. */
-.chart--narrow {
-  max-width: 520px;
+/* Per-view control, sitting between a subsection's lede and its figure. */
+.viewctl {
+  margin: 0 0 1rem;
 }
 .map {
   height: 460px;
@@ -355,59 +449,6 @@ fieldset.segmented > legend {
 }
 .maplibregl-ctrl-attrib a {
   color: var(--text-secondary);
-}
-
-/* Time-lapse player */
-.player {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.8rem;
-  flex-wrap: wrap;
-}
-.player__play {
-  min-width: 5.5rem;
-}
-.player__label {
-  font-size: 1rem;
-}
-.player__label strong {
-  font-variant-numeric: tabular-nums;
-}
-.player__slider {
-  flex: 1 1 240px;
-  /* interactive, therefore blue — the heat reds belong to the data */
-  accent-color: var(--accent);
-  height: 1.5rem;
-}
-
-/* Carpet plot — the whole year as 12 months x 24 hours. Doubles as the scrubber. */
-.carpet {
-  margin: 0 0 1.1rem;
-}
-.carpet svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.carpet__cell {
-  cursor: pointer;
-}
-.carpet__cell:hover {
-  stroke: var(--text-primary);
-  stroke-width: 1.2;
-}
-.carpet__cursor {
-  fill: none;
-  stroke: var(--text-primary);
-  stroke-width: 1.6;
-  pointer-events: none;
-}
-.carpet__axis {
-  fill: var(--muted);
-  font-family: var(--body);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Legend */
@@ -460,38 +501,56 @@ fieldset.segmented > legend {
   font-variant-numeric: tabular-nums;
 }
 
-/* Dot plot: three impact categories, one office share each, against a 50% reference. */
-.dotplot svg {
-  display: block;
-  width: 100%;
-  height: auto;
+/* Life-cycle stacks: one stacked bar per scenario, HTML rows on the payoff grid pattern. */
+.lca__rows {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  gap: 0.6rem 0.7rem;
+  align-items: center;
+  max-width: 860px;
 }
-.dotplot__rule {
-  stroke: var(--grid);
-  stroke-width: 1;
+.lca__row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
 }
-.dotplot__ref {
-  stroke: var(--baseline);
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
+.lca__label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: right;
 }
-.dotplot__label {
-  fill: var(--text-primary);
-  font-family: var(--body);
-  font-size: 14px;
-}
-.dotplot__value {
-  fill: var(--text-primary);
-  font-family: var(--body);
-  font-size: 14px;
+.lca__row--active .lca__label {
+  color: var(--text-primary);
   font-weight: 600;
+}
+.lca__chosen {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+.lca__track {
+  display: block;
+  background: linear-gradient(var(--grid), var(--grid)) left center / 100% 1px no-repeat;
+}
+.lca__stack {
+  display: flex;
+  gap: 2px; /* the surface gap between stacked segments */
+  height: 22px;
+}
+.lca__seg {
+  display: block;
+  border-radius: 4px;
+  min-width: 2px;
+}
+.lca__value {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
 }
-.dotplot__axis {
-  fill: var(--muted);
-  font-family: var(--body);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
+.lca__row--active .lca__value {
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 /* Data table (screen-reader + everyone fallback) */
@@ -678,6 +737,47 @@ footer.colophon {
   font-style: normal;
   color: var(--accent);
 }
+.hero__now {
+  max-width: 66ch;
+  margin: -0.5rem 0 1.25rem;
+}
+
+/* The model chain — six numbered steps; the numbering is the sequence the model computes. */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.9rem;
+  counter-reset: step;
+}
+.step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem 1rem 1rem;
+}
+.step__n {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1;
+}
+.step__t {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.35rem 0 0.3rem;
+}
+.step__b {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+.steps__note {
+  margin-top: 0.9rem;
+}
 
 /* Act 2 — the near-term deltas: two before→after readings. */
 .deltas {
@@ -762,16 +862,22 @@ footer.colophon {
   --path: var(--accent);
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 1rem 1.05rem 1.1rem;
-  cursor: pointer;
+  padding: 1rem 1.05rem 0.8rem;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
     transform 0.2s ease;
+}
+/* The clickable choice: everything except the assumptions disclosure below it. */
+.fork__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 1;
+  cursor: pointer;
 }
 /* Low = calm blue, High = hot red: the card's own accent tracks the temperature story. */
 .fork__card[data-path="2050_L"] {
@@ -867,40 +973,28 @@ footer.colophon {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.fork__ref {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1rem;
+/* Full assumption list, per card. Sits under the chips, outside the radio label. */
+.fork__more {
+  margin-top: 0.7rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.55rem;
 }
-.fork__ref-label {
-  font-size: 0.85rem;
+.fork__more > summary {
+  cursor: pointer;
+  font-size: 0.82rem;
   color: var(--text-secondary);
 }
-.fork__refchip {
-  position: relative;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.85rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  cursor: pointer;
+.fork__more[open] > summary {
+  color: var(--text-primary);
 }
-.fork__refchip:has(input:checked) {
-  background: #256abf;
-  color: #fff;
-  border-color: #256abf;
+.fork__more ul {
+  margin: 0.5rem 0 0.2rem;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
 }
-.fork__refchip:has(input:focus-visible) {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-}
-.fork__refchip input {
-  position: absolute;
-  opacity: 0;
-  width: 1px;
-  height: 1px;
+.fork__more li + li {
+  margin-top: 0.3rem;
 }
 
 /* Act 4 — the payoff. Sticky path switcher, then the two fan charts. */
@@ -976,7 +1070,9 @@ footer.colophon {
    full width (so a non-scrolling capture and reduced-motion both show real bars); the .grow
    class replays the entrance. */
 .payoff__bar {
-  transform-box: fill-box;
+  display: block;
+  height: 20px;
+  border-radius: 4px;
   transform-origin: left center;
 }
 .payoff--grow .payoff__bar {
@@ -993,8 +1089,8 @@ footer.colophon {
 .payoff__chart {
   min-width: 0;
 }
-/* The two charts are grid siblings; the global .figure + .figure spacer would push the
-   second one down and break their top alignment. The grid gap already spaces them. */
+/* The charts are grid siblings; the global .figure + .figure spacer would push the
+   later ones down and break their top alignment. The grid gap already spaces them. */
 .payoff .figure + .figure {
   margin-top: 0;
 }
@@ -1007,37 +1103,47 @@ footer.colophon {
   font-weight: 400;
   font-size: 0.9rem;
 }
-.payoff__chart svg {
-  display: block;
-  width: 100%;
-  height: auto;
+/* HTML rows, not SVG: the type stays at text size on every screen instead of scaling
+   down with a viewBox. Label · track · value, one grid so the columns align across rows. */
+.payoff__rows {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  gap: 0.55rem 0.7rem;
+  align-items: center;
 }
-.payoff__track {
-  stroke: var(--grid);
-  stroke-width: 1;
+.payoff__row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
 }
 .payoff__label {
-  fill: var(--text-secondary);
-  font-family: var(--body);
-  font-size: 15px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: right;
 }
-.payoff__label--active {
-  fill: var(--text-primary);
+.payoff__row--active .payoff__label {
+  color: var(--text-primary);
   font-weight: 600;
 }
+.payoff__track {
+  display: block;
+  /* the full-axis hairline behind the bar, centred on the bar's height */
+  background: linear-gradient(var(--grid), var(--grid)) left center / 100% 1px no-repeat;
+}
 .payoff__value {
-  fill: var(--text-secondary);
-  font-family: var(--body);
-  font-size: 15px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
 }
-.payoff__value--active {
-  fill: var(--text-primary);
+.payoff__row--active .payoff__value {
+  color: var(--text-primary);
   font-weight: 700;
 }
 .payoff__ratio {
-  fill: var(--muted);
+  color: var(--muted);
   font-weight: 400;
+  font-size: 0.82rem;
 }
 
 /* Motion is opt-in: the reveal, the payoff's warmth transition, and the smooth anchor

@@ -24,8 +24,6 @@
     "prepare": "lefthook install || true"
   },
   "dependencies": {
-    "@nivo/bar": "^0.99.0",
-    "@nivo/core": "^0.99.0",
     "@nivo/line": "^0.99.0",
     "maplibre-gl": "^5.9.0",
     "react": "^19.2.7",
@@ -46,7 +44,6 @@
     "lefthook": "^2.1.9",
     "typescript": "^6.0.3",
     "vite": "^7.3.6",
-    "vitest": "^4.1.9",
-    "wrangler": "^4.107.0"
+    "vitest": "^4.1.9"
   }
 }

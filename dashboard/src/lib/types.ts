@@ -70,21 +70,6 @@ export interface TemporalData {
   monthly: Record<string, number[]>;
 }
 
-export interface HourlyFrames {
-  meta: {
-    source: string;
-    scenario: string;
-    weather_years: string;
-    metric: string;
-    vmax: number;
-    frame_order: string;
-  };
-  months: string[];
-  hours: number[];
-  buurtcodes: string[];
-  frames: number[][]; // frames[frameIndex][buurtIndex]
-}
-
 export type BuurtProps = {
   buurtcode: string;
   buurtnaam: string;

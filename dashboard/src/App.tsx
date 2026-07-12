@@ -1,13 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Act } from "./components/Act";
 import { Fork } from "./components/Fork";
+import { HowItWorks } from "./components/HowItWorks";
 import { NearTerm } from "./components/NearTerm";
+import { PathSwitch } from "./components/PathSwitch";
 import { Payoff } from "./components/Payoff";
-import { Segmented } from "./components/Segmented";
 import { TodayHero } from "./components/TodayHero";
-import type { MapMetric } from "./lib/choropleth";
 import { type Datasets, loadDatasets } from "./lib/data";
 import { getPalette } from "./lib/palette";
+import { elecFactors } from "./lib/transform";
 import type { ScenarioKey } from "./lib/types";
 import { useScrollSpy } from "./lib/useScrollSpy";
 import { useTheme } from "./lib/useTheme";
@@ -16,9 +17,6 @@ import { useTheme } from "./lib/useTheme";
 // paint immediately while the maps and charts stream in. Each gets its own Suspense
 // boundary: one shared boundary would hold the charts hostage to MapLibre's 1 MB.
 const MapView = lazy(() => import("./components/MapView").then((m) => ({ default: m.MapView })));
-const HourlyMap = lazy(() =>
-  import("./components/HourlyMap").then((m) => ({ default: m.HourlyMap })),
-);
 const TemporalView = lazy(() =>
   import("./components/TemporalView").then((m) => ({ default: m.TemporalView })),
 );
@@ -32,11 +30,6 @@ function ViewFallback({ label }: { label: string }) {
   );
 }
 
-const METRIC_OPTIONS: { value: MapMetric; label: string }[] = [
-  { value: "intensity", label: "Intensity (per m²)" },
-  { value: "total", label: "Total (GWh)" },
-];
-
 // Nav targets, in scroll order. Module-scoped so the id list is a stable ref for the spy.
 const NAV = [
   { id: "today", label: "Now" },
@@ -46,19 +39,35 @@ const NAV = [
 ];
 const NAV_IDS = NAV.map((n) => n.id);
 
+/** Two-way visibility for the hero wordmark: the masthead title shows only once the
+ *  wordmark has scrolled out, so the name appears to hand off into the header. */
+function useHeroPassed(active: boolean) {
+  const [passed, setPassed] = useState(false);
+  useEffect(() => {
+    if (!active || typeof IntersectionObserver === "undefined") return;
+    const el = document.querySelector(".wordmark");
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => setPassed(!e.isIntersecting));
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [active]);
+  return passed;
+}
+
 export function App() {
   const [data, setData] = useState<Datasets | null>(null);
   const [failed, setFailed] = useState(false);
   // Opens on the middle 2050 path so the payoff and detail land on a future, not the present —
   // the fork is pre-set, and choosing another path is the page's central interaction.
   const [scenario, setScenario] = useState<ScenarioKey>("2050_M");
-  const [metric, setMetric] = useState<MapMetric>("intensity");
-  // Resolved against the data rather than defaulted to a literal, so the control never
-  // opens on a season the build does not carry.
-  const [season, setSeason] = useState<string | null>(null);
   const [mode, toggleTheme] = useTheme();
   const palette = useMemo(() => getPalette(mode), [mode]);
   const activeSection = useScrollSpy(NAV_IDS, data !== null);
+  const heroPassed = useHeroPassed(data !== null);
+  const elec = useMemo(
+    () => (data ? elecFactors(data.scenarios.scenarios.SQ.archetypes) : null),
+    [data],
+  );
 
   useEffect(() => {
     loadDatasets()
@@ -75,9 +84,25 @@ export function App() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <header className="masthead">
+      <header className={`masthead${heroPassed ? " masthead--titled" : ""}`}>
         <div className="wrap masthead__row">
-          <h1>Cooling for Comfort · The Hague</h1>
+          <h1 className="masthead__title">
+            <span className="masthead__name">Cooling for Comfort</span>
+            <span className="masthead__sep" aria-hidden="true">
+              ·
+            </span>
+            <button type="button" className="masthead__city" popoverTarget="city-pop">
+              The Hague
+              <span aria-hidden="true" className="masthead__caret">
+                ▾
+              </span>
+            </button>
+          </h1>
+          <div id="city-pop" popover="auto" className="citypop">
+            <strong>More cities are coming.</strong> The model behind this page is being extended to
+            estimate cooling demand and its impacts for every municipality in the Netherlands. The
+            Hague is the pilot.
+          </div>
           <nav aria-label="Sections">
             {NAV.map((n) => (
               <a
@@ -106,6 +131,7 @@ export function App() {
         {data && (
           <>
             <TodayHero data={data.scenarios} />
+            <HowItWorks />
             <NearTerm data={data.scenarios} />
             <Fork scenario={scenario} onChange={setScenario} />
             <Payoff
@@ -125,52 +151,17 @@ export function App() {
               <p className="lede">
                 The full picture behind the headline: where cooling concentrates across the city,
                 how demand moves through the day and year, and the life-cycle breakdown of the
-                impact — all for the scenario you chose above.
+                climate impact — all for the path you chose above.
               </p>
 
-              {/* Controls for the views in this act only; the scenario is set by the fork above. */}
-              <search className="card controls" aria-label="Detail view controls">
-                <div className="controls__row">
-                  <Segmented
-                    name="mapmetric"
-                    legend="Shown on map"
-                    scope="map"
-                    options={METRIC_OPTIONS}
-                    value={metric}
-                    onChange={setMetric}
-                  />
-                  <Segmented
-                    name="season"
-                    legend="Season"
-                    scope="daily profile"
-                    options={data.temporal.seasons.map((s) => ({ value: s, label: s }))}
-                    value={season ?? data.temporal.seasons[0]}
-                    onChange={setSeason}
-                  />
-                </div>
-                <p className="scope-note">
-                  The time-lapse and the monthly profile always show the present-day building stock,
-                  so the chosen path does not change them.
-                </p>
-              </search>
+              {/* The fork's choice, kept switchable while deep in the detail views. */}
+              <PathSwitch name="detail-path" scenario={scenario} onChange={setScenario} />
 
               <Suspense fallback={<ViewFallback label="the map" />}>
-                <MapView
-                  buurten={data.buurten}
-                  scenario={scenario}
-                  metric={metric}
-                  palette={palette}
-                />
-              </Suspense>
-              <Suspense fallback={<ViewFallback label="the time-lapse" />}>
-                <HourlyMap buurten={data.buurten} palette={palette} />
+                <MapView buurten={data.buurten} scenario={scenario} palette={palette} />
               </Suspense>
               <Suspense fallback={<ViewFallback label="the profiles" />}>
-                <TemporalView
-                  temporal={data.temporal}
-                  season={season ?? data.temporal.seasons[0]}
-                  palette={palette}
-                />
+                {elec && <TemporalView temporal={data.temporal} elec={elec} palette={palette} />}
               </Suspense>
               <Suspense fallback={<ViewFallback label="the impact charts" />}>
                 <LcaView data={data.scenarios} scenario={scenario} palette={palette} />

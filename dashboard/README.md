@@ -1,14 +1,13 @@
 # Cooling for Comfort — dashboard
 
 An interactive dashboard for the MSc thesis model of building cooling demand and its
-life-cycle environmental impact in The Hague. It turns the thesis result files into three
+life-cycle climate impact in The Hague. It turns the thesis result files into three
 views for a mixed audience (researchers, policymakers, general public):
 
 - **Where** — a choropleth of cooling demand across the city's 112 neighbourhoods (buurten).
-- **Year** — a scrubbable hour-by-hour time-lapse: watch the city flush from pale (winter nights)
-  to deep red (summer afternoons).
-- **When** — diurnal and seasonal cooling-demand profiles.
-- **Impact** — the life-cycle greenhouse-gas breakdown and how impacts split across building use.
+- **When** — summer-day and monthly profiles, switchable between cooling demand and the
+  electricity drawn to meet it.
+- **Impact** — the life-cycle greenhouse-gas breakdown, one stacked bar per scenario.
 
 A plain-language summary panel states the headline finding up front, so the point lands
 without reading a chart.
@@ -105,19 +104,13 @@ pnpm dlx wrangler pages deploy dist
 Accessibility is a first-class requirement here, matching the setup in `tide` /
 `credit-heatmap`:
 
-- Keyboard-navigable controls (radio-group segmented controls, skip link, visible focus), gathered
-  into a single row above the views they scope rather than buried in each chart card.
+- Keyboard-navigable controls (radio-group segmented controls, skip link, visible focus), each
+  placed with the view it scopes rather than buried in a chart card.
 - Every chart and the map carry an accessible label, and each view has a **data-table
-  fallback** — nothing is available only as a chart or only on hover. The year time-lapse
-  gets two: a per-month summary and the full 12 × 24 matrix the carpet colours, in a
-  focusable scroll region so a keyboard can pan it.
-- Text set inside a coloured fill (the stacked bar's share labels) picks black or white by the
-  fill's luminance, so it always clears 4.5:1 — asserted in `src/lib/palette.test.ts`, since
-  axe cannot see SVG text.
+  fallback** — nothing is available only as a chart or only on hover.
 - A colourblind-safe palette (validated data-viz reference palette): a single-hue blue
-  sequential scale for the map, blue/orange for residential/office, a warm ramp for the
-  year's heat. Colour has one job per hue — magenta is reserved for keyboard focus and used
-  by no chart; warm saturated colour only ever means the data is hot. Meaning is never
+  sequential scale for the map, blue/orange for residential/office. Colour has one job per
+  hue — magenta is reserved for keyboard focus and used by no chart. Meaning is never
   colour-alone — the map legend gives explicit numeric ranges, a value strip shows where
   every neighbourhood falls, and every value is in a table.
 - Light and dark themes, both deliberately styled (not an auto-flip) and both contrast-checked.

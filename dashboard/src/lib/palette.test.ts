@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPalette, inkOn } from "./palette";
+import { getPalette } from "./palette";
 
 /** WCAG relative-luminance contrast ratio between two opaque hexes. */
 function contrast(a: string, b: string): number {
@@ -14,22 +14,16 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-describe("inkOn", () => {
-  // The stacked bar prints a percentage inside each life-cycle segment. The label is text,
-  // so it owes 4.5:1 against the fill it sits on — axe cannot see SVG text, so this asserts
-  // it. A hardcoded #fff used to fail here on five of the eight fills.
-  it("clears 4.5:1 on every life-cycle stage fill, in both modes", () => {
+describe("palette text tokens", () => {
+  // Chart labels and values wear the ink tokens on the page surface; they owe 4.5:1.
+  it("primary and secondary ink clear 4.5:1 on page and surface, in both modes", () => {
     for (const mode of ["light", "dark"] as const) {
-      const { stage } = getPalette(mode);
-      for (const [name, fill] of Object.entries(stage)) {
-        const ratio = contrast(inkOn(fill), fill);
-        expect(ratio, `${mode}/${name} (${fill})`).toBeGreaterThanOrEqual(4.5);
+      const p = getPalette(mode);
+      for (const ink of [p.textPrimary, p.textSecondary]) {
+        for (const bg of [p.page, p.surface]) {
+          expect(contrast(ink, bg), `${mode} ${ink} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+        }
       }
     }
-  });
-
-  it("picks white on dark fills and black on light ones", () => {
-    expect(inkOn("#000000")).toBe("#ffffff");
-    expect(inkOn("#ffffff")).toBe("#000000");
   });
 });

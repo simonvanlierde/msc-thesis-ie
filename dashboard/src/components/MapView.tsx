@@ -12,14 +12,15 @@ import {
 import { num } from "../lib/format";
 import { bbox } from "../lib/geo";
 import type { Palette } from "../lib/palette";
+import { scenarioLabel } from "../lib/scenarioMeta";
 import type { BuurtCollection, ScenarioKey } from "../lib/types";
 import { Legend } from "./Legend";
+import { Segmented } from "./Segmented";
 import { ValueStrip } from "./ValueStrip";
 
 interface Props {
   buurten: BuurtCollection | null;
   scenario: ScenarioKey;
-  metric: MapMetric;
   palette: Palette;
 }
 
@@ -28,9 +29,14 @@ export const METRIC_LABEL: Record<MapMetric, string> = {
   total: "Total cooling demand (GWh)",
 };
 const METRIC_UNIT: Record<MapMetric, string> = { intensity: "kWh/m²", total: "GWh" };
+const METRIC_OPTIONS: { value: MapMetric; label: string }[] = [
+  { value: "intensity", label: "Intensity (per m²)" },
+  { value: "total", label: "Total (GWh)" },
+];
 const fmt1 = (n: number) => num(n, 1);
 
-export function MapView({ buurten, scenario, metric, palette }: Props) {
+export function MapView({ buurten, scenario, palette }: Props) {
+  const [metric, setMetric] = useState<MapMetric>("intensity");
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
@@ -156,6 +162,16 @@ export function MapView({ buurten, scenario, metric, palette }: Props) {
         (buurten). Darker means more cooling.
       </p>
 
+      <div className="viewctl">
+        <Segmented
+          name="mapmetric"
+          legend="Shown on map"
+          options={METRIC_OPTIONS}
+          value={metric}
+          onChange={setMetric}
+        />
+      </div>
+
       {buurten && view ? (
         <figure className="figure">
           {/* biome-ignore lint/a11y/useSemanticElements: a slippy map is not a fieldset; group labels the interactive region */}
@@ -173,8 +189,8 @@ export function MapView({ buurten, scenario, metric, palette }: Props) {
             unit={METRIC_UNIT[metric]}
           />
           <figcaption>
-            {METRIC_LABEL[metric]}. Scenario shown: {scenario}. Each tick on the strip is one
-            neighbourhood; the rules are the class breaks.
+            {METRIC_LABEL[metric]}. Scenario shown: {scenarioLabel(scenario)}. Each tick on the
+            strip is one neighbourhood; the rules are the class breaks.
           </figcaption>
           <BuurtTable fc={buurten} scenario={scenario} metric={metric} />
         </figure>
@@ -207,7 +223,7 @@ function BuurtTable({
       <summary>Data table — 15 highest neighbourhoods</summary>
       <table>
         <caption>
-          {METRIC_LABEL[metric]} · scenario {scenario}
+          {METRIC_LABEL[metric]} · {scenarioLabel(scenario)}
         </caption>
         <thead>
           <tr>

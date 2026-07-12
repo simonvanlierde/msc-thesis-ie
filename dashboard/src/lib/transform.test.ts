@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lcaStages, officeHeadline, rollup, share } from "./transform";
+import { elecFactors, lcaStages, officeHeadline, rollup, share } from "./transform";
 import type { Archetype, GhgStages, Scenario } from "./types";
 
 function arch(over: Partial<Archetype>): Archetype {
@@ -64,6 +64,25 @@ describe("officeHeadline", () => {
     expect(h.areaShare).toBeCloseTo(0.13, 5);
     expect(h.demandShare).toBeCloseTo(0.34, 5);
     expect(h.ghgShare).toBeCloseTo(0.65, 5);
+  });
+});
+
+describe("elecFactors", () => {
+  it("computes electricity per unit cooling, per use, across archetypes", () => {
+    const rows: Archetype[] = [
+      arch({ use: "Residential", E_cooling_kWh: 100, electricity_kWh: 5 }),
+      arch({ use: "Residential", E_cooling_kWh: 100, electricity_kWh: 15 }),
+      arch({ use: "Office", E_cooling_kWh: 200, electricity_kWh: 100 }),
+    ];
+    const f = elecFactors(rows);
+    expect(f.residential).toBeCloseTo(0.1, 10); // (5+15)/(100+100)
+    expect(f.office).toBeCloseTo(0.5, 10);
+  });
+
+  it("returns 0 when a use has no cooling demand", () => {
+    const f = elecFactors([arch({ use: "Office", E_cooling_kWh: 0, electricity_kWh: 0 })]);
+    expect(f.office).toBe(0);
+    expect(f.residential).toBe(0);
   });
 });
 

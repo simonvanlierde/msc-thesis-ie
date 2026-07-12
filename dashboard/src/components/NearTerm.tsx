@@ -52,7 +52,7 @@ export function NearTerm({ data }: Props) {
             </span>
           </div>
           <div className="delta__note">
-            A cleaner grid (262 → 159 g CO₂/kWh) does the work, not less cooling.
+            A cleaner grid (427 → 159 g CO₂/kWh) does the work, not less cooling.
           </div>
         </div>
       </div>
