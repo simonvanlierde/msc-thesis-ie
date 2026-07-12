@@ -156,7 +156,7 @@ Other opt-in targets (also kept out of `all`):
 uv run snakemake --cores 4 data/input/geodata/UHI_effect_TheHague.tif
 
 # Execute the analysis notebooks headless, keeping the executed copies as artifacts.
-# gis needs the UHI raster above + the Zenodo GeographicDivisions; main needs a sample
+# gis needs the UHI raster above (CBS boundaries are fetched by the pipeline); main needs a sample
 # subset or ample RAM (its figures keep the full hourly time series in memory).
 uv run snakemake --cores 4 notebooks
 ```

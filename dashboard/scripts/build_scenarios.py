@@ -126,7 +126,11 @@ def build(src_dir: Path) -> dict:
 
 
 def self_check(data: dict) -> None:
-    """Reproduce the README headline findings from the built data (real numbers)."""
+    """Reproduce the README headline findings from the built data (real numbers).
+
+    Deliberate tripwire: the bounds encode The Hague's published office shares, so this fails
+    loudly if the model, parameters or city change the results. Loosen it if that is intended.
+    """
     sq = data["scenarios"]["SQ"]["archetypes"]
     area = sum(r["floor_area_m2"] for r in sq)
     demand = sum(r["E_cooling_kWh"] for r in sq)

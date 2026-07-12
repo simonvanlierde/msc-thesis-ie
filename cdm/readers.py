@@ -92,16 +92,17 @@ def read_parameter_specific_data(parameters_path: Path, scenario: str | None = N
             if row["scenario"] != scenario:  # keep only the requested scenario, then drop the marker column
                 continue
             del row["scenario"]
-            parameter_specific_data.append(
-                {
-                    key: int(value)
-                    if i == 0  # First parameter (building type, energy class or cooling technology as an integer)
-                    else str(value)
-                    if i == 1  # Second parameter (building type, energy class or cooling technology name)
-                    else json.loads(value)
-                    if key.startswith("energy_labels_included_")  # Energy label lists
-                    else float(value)  # All other parameter values
-                    for i, (key, value) in enumerate(row.items())
-                },
-            )
+            parameter_specific_data.append({key: _parse_parameter_value(key, value) for key, value in row.items()})
         return parameter_specific_data
+
+
+def _parse_parameter_value(key: str, value: str) -> int | str | list | float:
+    """Type a parameter CSV field by its column name: ``*_int`` ids, energy-label lists, floats, else the name string."""
+    if key.endswith("_int"):  # class id (building type, energy class or cooling technology as an integer)
+        return int(value)
+    if key.startswith("energy_labels_included_"):  # energy label lists
+        return json.loads(value)
+    try:
+        return float(value)
+    except ValueError:  # the class name column (e.g. "New highrise residential")
+        return value

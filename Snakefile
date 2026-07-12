@@ -82,8 +82,9 @@ rule cooling_mix:
 
 # Executed-notebook target: run both analysis notebooks headless and keep the
 # executed copies (figures, maps and sensitivity analyses embedded) as artifacts.
-# Opt-in and never part of `all` — main.ipynb's sensitivity sweeps run the full
-# model hundreds of times over the whole stock, so this is deliberately heavy.
+# Opt-in and never part of `all` — main.ipynb keeps hourly series per building
+# and the curated sensitivity sweep runs the model dozens of times, so this is
+# deliberately heavy.
 rule notebooks:
     input:
         f"{RESULTS_DIR}/notebooks/main.executed.ipynb",
@@ -490,8 +491,11 @@ rule sensitivity:
 
 rule run_main_notebook:
     input:
-        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
+        # Pinned to the sample subset regardless of SUBSET: the notebook keeps hourly series for
+        # every building it models, which the full stock cannot fit in memory (~90+ GB).
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_sample.gpkg",
         parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
+        weather=WEATHER_CSV,
         notebook="main.ipynb",
         model_src=MODEL_SRC,
     output:
@@ -499,16 +503,15 @@ rule run_main_notebook:
         # The notebook's figures now write here (repointed off the old data/output/ fork), so
         # declare the directory to make them tracked, cleanable pipeline artifacts.
         figures=directory(f"{RESULTS_DIR}/figures/main"),
-    params:
-        subset=SUBSET,
     log:
         f"{LOG_DIR}/run_main_notebook.log",
     shell:
-        # timeout=-1: the sensitivity sweeps legitimately run for a long time headless.
-        # BUILDING_SUBSET_NAME: the notebook reads it (cell 5) to pick the buildings layer, so
-        # `sample` points it at the memory-sized subset instead of OOMing on the full stock.
+        # timeout=-1: the scenario re-run legitimately takes a long time headless.
+        # BUILDING_SUBSET_NAME: the notebook reads it (cell 5) to pick the buildings layer.
+        # The notebook reads the fetched weather CSV itself (falling back to a live KNMI fetch
+        # only when it is absent), so the declared weather input keeps it hermetic.
         """
-        BUILDING_SUBSET_NAME={params.subset} \
+        BUILDING_SUBSET_NAME=sample \
         jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
           --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
           {input.notebook} > {log} 2>&1
@@ -531,6 +534,7 @@ rule dashboard_data:
         # build_temporal re-runs the heat balance on a building sample, so it reads the parameters
         # and the model directly.
         buurten=CBS_BUURTEN,
+        weather=WEATHER_CSV,
         parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
         scripts=[
             "dashboard/scripts/build_scenarios.py",
@@ -555,7 +559,8 @@ rule dashboard_data:
             --divisions {input.buurten} --city "{params.city}" \
             --geodata-dir {RESULTS_GEODATA_DIR} --out {output.choropleth}
           python dashboard/scripts/build_temporal.py \
-            --geodata-dir {RESULTS_GEODATA_DIR} --out {output.temporal}
+            --geodata-dir {RESULTS_GEODATA_DIR} --results-dir {RESULTS_DIR} \
+            --weather-csv {input.weather} --out {output.temporal}
         }} > {log} 2>&1
         """
 

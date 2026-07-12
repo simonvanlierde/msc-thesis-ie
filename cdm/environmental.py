@@ -169,7 +169,7 @@ def create_impact_summary(
         cap_percentile (int, optional): The percentile at which the peak power is capped. Defaults to 98.
 
     Returns:
-        dict[str, dict[str, float]]: A summary of the environmental impacts of the total building stock, grouped into "total_impacts" and "impacts_per_floor_area".
+        dict[str, dict[str, float]]: A summary of the environmental impacts of the total building stock, grouped into "total_impacts" and "impacts_per_floor_area". The per-floor-area intensities are unweighted means over buildings (every building counts equally, regardless of size).
     """
     # Create a brief dictionary with the total environmental impacts of the total building stock
     return {
@@ -199,7 +199,7 @@ def create_impact_summary(
             "E_cooling_capped_at_percentile_kWh_m2": round(
                 buildings[f"E_cooling_capped_at_{cap_percentile}th_percentile_Wh_m2"].mean() / 1000,
                 5,
-            ),  # Cooling energy demand intensity in GWh/m2
+            ),  # Cooling energy demand intensity in kWh/m2
             "P_cooling_peak_percentile_W_m2": round(
                 buildings[f"P_cooling_peak_{cap_percentile}th_percentile_W_m2"].mean(),
                 5,

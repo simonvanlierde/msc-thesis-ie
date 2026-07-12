@@ -71,7 +71,8 @@ def main(divisions: Path, buildings_dir: Path, out_path: Path, city: str) -> int
         if not gpkg.exists():
             print(f"  {scen}: no GPKG, skipping this scenario")
             continue
-        b = gpd.read_file(gpkg)[[*SUM_COLS, "geometry"]].to_crs(CRS_RD_NEW)
+        # columns= makes pyogrio decode only the four attributes we sum, not all ~60 per building
+        b = gpd.read_file(gpkg, columns=list(SUM_COLS)).to_crs(CRS_RD_NEW)
         b["geometry"] = b.geometry.representative_point()
         joined = gpd.sjoin(b, buurten[["buurtcode", "geometry"]], predicate="within")
         agg = joined.groupby("buurtcode")[list(SUM_COLS)].sum()
