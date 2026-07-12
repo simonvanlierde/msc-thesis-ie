@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from urllib.parse import urljoin
 
-from pdok_http import retrying_session
+from scripts.gis.pdok_http import retrying_session
 
 # The PDOK APIs allow up to 50 requests/s; stay well under it.
 REQUEST_INTERVAL_S = 0.1

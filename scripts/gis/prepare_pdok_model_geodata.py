@@ -7,6 +7,7 @@ import json
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import cast
 
 import geopandas as gpd
 import pandas as pd
@@ -145,8 +146,9 @@ def _prepare_buildings(height_tiles: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         buildings["MBR_length_m"],
     ) = zip(*buildings["MBR_geometry"].map(azimuth_rectangle), strict=True)
     # MBR_geometry was only needed to derive the azimuth/width/length; drop it so
-    # the GeoPackage keeps a single geometry column.
-    return buildings.drop(columns="MBR_geometry")
+    # the GeoPackage keeps a single geometry column. pandas ops preserve the GeoDataFrame
+    # subclass at runtime; the cast restores what the static DataFrame annotations erase.
+    return cast("gpd.GeoDataFrame", buildings.drop(columns="MBR_geometry"))
 
 
 def _prepare_residences(residences_path: Path, energy_labels_path: Path) -> gpd.GeoDataFrame:
@@ -213,9 +215,12 @@ def _join_buildings_residences(buildings: gpd.GeoDataFrame, residences: gpd.GeoD
         number_of_residences=("id_BAG_left", pd.Series.nunique),
     )
 
-    buildings = buildings.merge(mean_label, left_index=True, right_index=True, how="left")
-    buildings = buildings.merge(end_use, left_index=True, right_index=True, how="left")
-    buildings = buildings.merge(floor_area_and_count, left_index=True, right_index=True, how="left")
+    buildings = cast(
+        "gpd.GeoDataFrame",
+        buildings.merge(mean_label, left_index=True, right_index=True, how="left")
+        .merge(end_use, left_index=True, right_index=True, how="left")
+        .merge(floor_area_and_count, left_index=True, right_index=True, how="left"),
+    )
     buildings["energy_label"] = buildings["energy_label_int"].replace(
         {value: key for key, value in ENERGY_LABEL_TO_INT.items()},
     )

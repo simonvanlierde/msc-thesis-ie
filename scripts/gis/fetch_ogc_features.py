@@ -13,7 +13,8 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 import geopandas as gpd
-from pdok_http import retrying_session
+
+from scripts.gis.pdok_http import retrying_session
 
 # The PDOK BAG API allows up to 50 requests/s; stay well under it.
 REQUEST_INTERVAL_S = 0.1

@@ -16,9 +16,10 @@ from pathlib import Path
 
 import rasterio
 import requests
-from pdok_http import retrying_session
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
+
+from scripts.gis.pdok_http import retrying_session
 
 # fetch_city_boundary writes the bbox in CRS84 (lon/lat); the national raster is in
 # RD New. The bbox is reprojected to the raster CRS before windowing.

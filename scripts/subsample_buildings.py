@@ -29,6 +29,7 @@ from cdm.readers import read_buildings, read_global_parameters, read_parameter_s
 
 if TYPE_CHECKING:
     import geopandas as gpd
+    import pandas as pd
 
 PARAMETER_DIR = Path("data/input/parameters")
 PARAMETERS_TOML = PARAMETER_DIR / "parameters.toml"
@@ -43,7 +44,7 @@ STRATIFY_COLUMNS = ["building_type_int", "energy_class_int"]
 
 def draw_representative_sample(
     buildings: gpd.GeoDataFrame,
-    strata: gpd.GeoDataFrame,
+    strata: pd.DataFrame,
     sample_size: int,
     seed: int,
 ) -> gpd.GeoDataFrame:

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlparse
 
-from pdok_http import retrying_session
+from scripts.gis.pdok_http import retrying_session
 
 
 def _download(url: str, output: Path, expected_size: int | None) -> None:

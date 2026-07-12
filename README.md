@@ -273,7 +273,15 @@ uv run pytest                  # run the test suite
 ```
 
 The same checks run in CI on every push and pull request
-([workflow](.github/workflows/ci.yml)).
+([workflow](.github/workflows/ci.yml)), and locally on every commit once the hook is
+installed:
+
+```bash
+uv run pre-commit install
+```
+
+The hook runs ruff (lint + format), the test suite, and `ty` — the latter reports its
+findings without blocking, as in CI.
 
 ## Citation
 

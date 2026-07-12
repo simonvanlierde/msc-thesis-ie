@@ -1,12 +1,8 @@
 """Unit tests for the curated sensitivity-analysis spec table."""
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import run_sensitivity as rs
+from scripts import run_sensitivity as rs
 
 
 def test_sa_specs_are_well_formed() -> None:

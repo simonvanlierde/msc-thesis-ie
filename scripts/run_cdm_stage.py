@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import cast
 
 import geopandas as gpd
 import numpy as np
@@ -41,18 +42,20 @@ def _load_parameters(scenario: str) -> dict:
     }
 
 
-def _drop_array_columns(buildings: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def _drop_array_columns(buildings: pd.DataFrame) -> gpd.GeoDataFrame:
     # GeoPackage cannot serialize array-valued cells (the hourly Q_* series). Only object-dtype
     # columns can hold arrays (the geometry column has its own dtype and is left alone); scan the
     # whole column, not just iloc[0], so a column whose first cell is None but whose later cells
     # are arrays is still dropped rather than crashing the write.
+    # The input is a GeoDataFrame at runtime (pandas ops preserve the subclass), but the cdm
+    # helpers annotate plain DataFrames, so accept that and cast the subclass back for .to_file.
     array_columns = [
         column
         for column in buildings.columns
         if buildings[column].dtype == object
         and buildings[column].map(lambda value: isinstance(value, np.ndarray)).any()
     ]
-    return buildings.drop(columns=array_columns)
+    return cast("gpd.GeoDataFrame", buildings.drop(columns=array_columns))
 
 
 def run_cooling_demand(args: argparse.Namespace) -> None:

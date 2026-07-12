@@ -229,6 +229,8 @@ def test_calc_cooling_demand_percentile_sorts_each_year_descending() -> None:
 
     q_sorted, _, q_capped, _ = calc_cooling_demand_percentile(q, n_percentile=98, include_time_series=True)
 
+    assert q_sorted is not None
+    assert q_capped is not None
     assert q_sorted.shape == q.shape
     # Each year is sorted independently, largest first.
     assert np.allclose(q_sorted[:8760], np.arange(8759, -1, -1))

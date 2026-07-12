@@ -105,7 +105,7 @@ rule fetch_city_boundary:
         f"{LOG_DIR}/fetch_city_boundary.log",
     shell:
         """
-        python scripts/gis/fetch_city_boundary.py \
+        python -m scripts.gis.fetch_city_boundary \
           --base-url {params.base_url} \
           --collection {params.collection} \
           --name "{params.name}" \
@@ -127,7 +127,7 @@ rule fetch_bag_residences:
         f"{LOG_DIR}/fetch_bag_residences.log",
     shell:
         """
-        python scripts/gis/fetch_ogc_features.py \
+        python -m scripts.gis.fetch_ogc_features \
           --base-url {params.base_url} \
           --collection {params.collection} \
           --bbox $(cat {input.bbox}) \
@@ -149,7 +149,7 @@ rule discover_pdok_3d_height_tiles:
         f"{LOG_DIR}/discover_pdok_3d_height_tiles.log",
     shell:
         """
-        python scripts/gis/discover_pdok_3d_height_tiles.py \
+        python -m scripts.gis.discover_pdok_3d_height_tiles \
           --base-url {params.base_url} \
           --collection {params.collection} \
           --bbox $(cat {input.bbox}) \
@@ -169,7 +169,7 @@ rule download_pdok_3d_height_tiles:
         f"{LOG_DIR}/download_pdok_3d_height_tiles.log",
     shell:
         """
-        python scripts/gis/download_manifest_files.py \
+        python -m scripts.gis.download_manifest_files \
           --manifest {input} \
           --output-dir {output.tiles} \
           --local-manifest {output.manifest} > {log} 2>&1
@@ -195,7 +195,7 @@ rule fetch_cbs_postcode4:
         f"{LOG_DIR}/fetch_cbs_postcode4.log",
     shell:
         """
-        python scripts/gis/fetch_ogc_features.py \
+        python -m scripts.gis.fetch_ogc_features \
           --base-url {params.base_url} \
           --collection {params.collection} \
           --bbox $(cat {input.bbox}) \
@@ -218,7 +218,7 @@ rule fetch_cbs_buurten:
         f"{LOG_DIR}/fetch_cbs_buurten.log",
     shell:
         """
-        python scripts/gis/fetch_ogc_features.py \
+        python -m scripts.gis.fetch_ogc_features \
           --base-url {params.base_url} \
           --collection {params.collection} \
           --bbox $(cat {input.bbox}) \
@@ -241,7 +241,7 @@ rule fetch_uhi_raster:
         f"{LOG_DIR}/fetch_uhi_raster.log",
     shell:
         """
-        python scripts/gis/fetch_uhi_raster.py \
+        python -m scripts.gis.fetch_uhi_raster \
           --url {params.url} \
           --bbox $(cat {input.bbox}) \
           --cache-dir {params.cache_dir} \

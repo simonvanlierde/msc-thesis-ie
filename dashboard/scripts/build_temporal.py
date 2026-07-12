@@ -191,7 +191,8 @@ def main(
         typical = {use: s.reshape(n_years, HOURS_PER_YEAR).mean(axis=0) for use, s in streams.items()}
 
         dates = pd.to_datetime(ts["date"][:HOURS_PER_YEAR])
-        month = dates.month.to_numpy()
+        # DatetimeIndex field accessors are attached dynamically; invisible to ty's pandas view.
+        month = dates.month.to_numpy()  # ty: ignore[unresolved-attribute]
         uses = sorted(typical)  # e.g. ["office", "residential"]
 
         monthly = {}
@@ -203,7 +204,7 @@ def main(
         # --- heatwave week: the 7 consecutive days with the most cooling in the full record ---
         # Taken from the real (calibrated) hourly streams, not the typical year, so the peak
         # keeps its true height instead of being averaged flat across the 5 weather years.
-        total_stream = sum(streams[use] for use in uses)
+        total_stream = np.sum([streams[use] for use in uses], axis=0)
         daily = total_stream[: n_years * HOURS_PER_YEAR].reshape(-1, 24).sum(axis=1)
         week_sums = np.convolve(daily, np.ones(7), "valid")
         h0 = int(week_sums.argmax()) * 24
@@ -223,7 +224,7 @@ def main(
 
         if scen == "SQ":
             # Diurnal-by-season shapes, kept top-level for the OG-image heat band.
-            hour = dates.hour.to_numpy()
+            hour = dates.hour.to_numpy()  # ty: ignore[unresolved-attribute]  # dynamic accessor, as above
             season = np.array([SEASON_OF_MONTH[m] for m in month])
             seasons = ["Summer", "Spring", "Autumn", "Winter"]
             diurnal = {}

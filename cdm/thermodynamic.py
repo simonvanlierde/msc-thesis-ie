@@ -431,6 +431,11 @@ def calc_cooling_demand_metrics_for_chunk(
     )
 
     if include_time_series:
+        # calc_cooling_demand_percentile materialises the sorted/capped series when
+        # include_time_series is True; the check narrows their Optional return type.
+        if Q_cooling_sorted_Wh is None or Q_cooling_capped_at_percentile_Wh is None:
+            msg = "calc_cooling_demand_percentile returned no hourly series despite include_time_series=True"
+            raise AssertionError(msg)
         # Store the hourly series as one array per building, in object columns
         hourly_series = {
             "Q_cooling_demand_Wh": Q_cooling_demand_Wh,

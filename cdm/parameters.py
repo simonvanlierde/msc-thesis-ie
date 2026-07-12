@@ -62,14 +62,14 @@ def determine_building_type(
 
 def assign_parameters_by_class(
     class_ints: pd.Series,
-    parameters: list[dict[str, float]],
+    parameters: list[dict],
     class_column: str,
 ) -> pd.DataFrame:
     """Looks up the class-specific parameters for each building.
 
     Args:
         class_ints (pd.Series): The class (building type or energy class) of each building, in integer representation.
-        parameters (list[dict[str, float]]): The list containing one parameter dictionary per class.
+        parameters (list[dict]): The list containing one parameter dictionary per class.
         class_column (str): The name of the key holding the class integer in each parameter dictionary.
 
     Returns:
@@ -82,14 +82,14 @@ def assign_parameters_by_class(
 def add_building_type_data_to_buildings(
     df_buildings: pd.DataFrame,
     global_parameters: dict[str, float],
-    building_type_parameters: list[dict[str, float]],
+    building_type_parameters: list[dict],
 ) -> pd.DataFrame:
     """Adds the energy class data to the buildings DataFrame.
 
     Args:
         df_buildings (pd.DataFrame): The DataFrame containing the buildings for which the energy class data is added.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
-        building_type_parameters (list[dict[str, float]]): The list containing the building type dependant parameter dictionaries for the cooling demand model.
+        building_type_parameters (list[dict]): The list containing the building type dependant parameter dictionaries for the cooling demand model.
 
     Returns:
         pd.DataFrame: The DataFrame containing the buildings with the energy class dependent data added.
@@ -142,13 +142,13 @@ def determine_energy_label_to_class_mappings(
 
 def add_energy_class_data_to_buildings(
     df_buildings: pd.DataFrame,
-    energy_class_parameters: list[dict[str, float]],
+    energy_class_parameters: list[dict],
 ) -> pd.DataFrame:
     """Adds the energy class data to the buildings DataFrame.
 
     Args:
         df_buildings (pd.DataFrame): The DataFrame containing the buildings for which the energy class data is added.
-        energy_class_parameters (list[dict[str, float]]): The list containing the energy class parameter dictionaries for the cooling demand model.
+        energy_class_parameters (list[dict]): The list containing the energy class parameter dictionaries for the cooling demand model.
 
     Returns:
         pd.DataFrame: The DataFrame containing the buildings with the energy class dependent data added.
@@ -284,16 +284,16 @@ def add_cooling_technology_data_to_buildings(
 def add_parameters_to_buildings(
     df_buildings: pd.DataFrame,
     global_parameters: dict[str, float],
-    building_type_parameters: list[dict[str, float]],
-    energy_class_parameters: list[dict[str, float]],
+    building_type_parameters: list[dict],
+    energy_class_parameters: list[dict],
 ) -> pd.DataFrame:
     """Assigns the building type-, energy class-, and cooling technology-specific parameters to a building based on the building type, and energy class.
 
     Args:
         df_buildings (pd.DataFrame): The DataFrame containing the buildings for which the building-specific parameters are assigned.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
-        building_type_parameters (list[dict[str, float]]): The list containing the building type parameter dictionaries for the cooling demand model.
-        energy_class_parameters (list[dict[str, float]]): The list containing the energy class parameter dictionaries for the cooling demand model.
+        building_type_parameters (list[dict]): The list containing the building type parameter dictionaries for the cooling demand model.
+        energy_class_parameters (list[dict]): The list containing the energy class parameter dictionaries for the cooling demand model.
 
     Returns:
         pd.DataFrame: The DataFrame containing the buildings with the building-specific parameters assigned.

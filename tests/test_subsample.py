@@ -1,18 +1,14 @@
 """Unit tests for the representative building subsample."""
 
-import sys
-from pathlib import Path
-
 import geopandas as gpd
 import pandas as pd
 import pytest
 from shapely.geometry import Point
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from subsample_buildings import STRATIFY_COLUMNS, draw_representative_sample
+from scripts.subsample_buildings import STRATIFY_COLUMNS, draw_representative_sample
 
 
-def _make_stock(n_common: int, n_rare: int) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+def _make_stock(n_common: int, n_rare: int) -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
     """One large stratum and one single-building stratum, sharing an index."""
     types = [1] * n_common + [8]
     classes = [3] * n_common + [1]

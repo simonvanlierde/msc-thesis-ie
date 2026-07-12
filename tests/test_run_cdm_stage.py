@@ -1,13 +1,9 @@
 """Unit tests for the run_cdm_stage helpers."""
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from run_cdm_stage import _drop_array_columns
+from scripts.run_cdm_stage import _drop_array_columns
 
 
 def test_drop_array_columns_drops_a_column_whose_first_cell_is_none() -> None:

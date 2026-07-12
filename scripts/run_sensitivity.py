@@ -67,8 +67,8 @@ SA_SPECS: list[SASpec] = [
 def reference_values_for(
     spec: SASpec,
     global_param_dict: dict[str, dict],
-    cooling_tech_param_dict: dict[str, object] | None = None,
-    building_type_param_dict: dict[str, object] | None = None,
+    cooling_tech_param_dict: dict[str, list[dict]] | None = None,
+    building_type_param_dict: dict[str, list[dict]] | None = None,
     building_type_prevalence: pd.Series | None = None,
 ) -> dict[str, float]:
     """The per-scenario reference value of the swept variable, in the runner's index units.
@@ -84,8 +84,14 @@ def reference_values_for(
     if spec.kind == "global":
         return {s: global_param_dict[s][spec.variable_name] for s in global_param_dict}
     if spec.kind == "cooling_tech":
+        if cooling_tech_param_dict is None:
+            msg = "cooling_tech_param_dict is required for cooling_tech specs"
+            raise ValueError(msg)
         return {s: pd.DataFrame(cooling_tech_param_dict[s])[spec.variable_name].mean() for s in global_param_dict}
     # market_penetration
+    if building_type_param_dict is None or building_type_prevalence is None:
+        msg = "building_type_param_dict and building_type_prevalence are required for market_penetration specs"
+        raise ValueError(msg)
     refs = {}
     for s in global_param_dict:
         df = pd.DataFrame(building_type_param_dict[s]).set_index("building_type")

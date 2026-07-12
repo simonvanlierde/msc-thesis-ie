@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from urllib.parse import urljoin
 
-from pdok_http import retrying_session
+from scripts.gis.pdok_http import retrying_session
 
 
 def _bbox_from_geometry(geometry: dict) -> tuple[float, float, float, float]:
@@ -21,13 +21,17 @@ def _bbox_from_geometry(geometry: dict) -> tuple[float, float, float, float]:
     ys: list[float] = []
 
     def walk(coords: object) -> None:
-        if isinstance(coords, (list, tuple)):
-            if coords and isinstance(coords[0], (int, float)):
-                xs.append(float(coords[0]))
-                ys.append(float(coords[1]))
-            else:
-                for item in coords:
-                    walk(item)
+        if not isinstance(coords, (list, tuple)):
+            return
+        # A position is a [lon, lat, ...] pair of numbers; anything else nests further.
+        first = coords[0] if coords else None
+        second = coords[1] if len(coords) > 1 else None
+        if isinstance(first, (int, float)) and isinstance(second, (int, float)):
+            xs.append(float(first))
+            ys.append(float(second))
+        else:
+            for item in coords:
+                walk(item)
 
     walk(geometry.get("coordinates", []))
     if not xs:
