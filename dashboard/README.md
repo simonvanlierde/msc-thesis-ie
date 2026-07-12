@@ -11,7 +11,7 @@ life-cycle climate impact in The Hague. It turns the thesis result files into th
 A plain-language summary panel states the headline finding up front, so nobody has to
 read a chart to get it.
 
-<!-- Live demo: add the Cloudflare Pages URL here once deployed. -->
+**[Open the live dashboard →](https://simonvanlierde.github.io/msc-thesis-ie/)**
 
 ![The dashboard](docs/screenshot.png)
 
@@ -78,27 +78,14 @@ read from wherever the model writes. The Snakemake pipeline wires them in as a t
 snakemake dashboard_data
 ```
 
-## Deploy to Cloudflare Pages
+## Deploy
 
-The build is a static SPA (`dist/`), same pattern as the `tide` repo (`wrangler.jsonc` →
-`pages_build_output_dir`).
+The build is a static SPA (`dist/`), published to GitHub Pages by
+[`.github/workflows/dashboard.yml`](../.github/workflows/dashboard.yml) on every push to
+`main` that touches `dashboard/`. Pull requests run the same quality and accessibility
+gates without deploying.
 
-**Git integration (recommended):** in the Cloudflare dashboard, connect the repo as a
-Pages project with:
-
-- **Root directory:** `dashboard`
-- **Build command:** `pnpm build`
-- **Build output directory:** `dist`
-
-Every pull request then gets an automatic preview deployment; merges to `main` publish to
-production.
-
-**Or from the CLI:**
-
-```bash
-pnpm build
-pnpm dlx wrangler pages deploy dist
-```
+Live at <https://simonvanlierde.github.io/msc-thesis-ie/>.
 
 ## Accessibility
 
