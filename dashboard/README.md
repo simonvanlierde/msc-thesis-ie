@@ -1,16 +1,15 @@
 # Cooling for Comfort — dashboard
 
 An interactive dashboard for the MSc thesis model of building cooling demand and its
-life-cycle climate impact in The Hague. It turns the thesis result files into three
-views for a mixed audience (researchers, policymakers, general public):
+life-cycle climate impact in The Hague. It turns the thesis result files into three views:
 
 - **Where** — a choropleth of cooling demand across the city's 112 neighbourhoods (buurten).
 - **When** — summer-day and monthly profiles, switchable between cooling demand and the
   electricity drawn to meet it.
 - **Impact** — the life-cycle greenhouse-gas breakdown, one stacked bar per scenario.
 
-A plain-language summary panel states the headline finding up front, so the point lands
-without reading a chart.
+A plain-language summary panel states the headline finding up front, so nobody has to
+read a chart to get it.
 
 <!-- Live demo: add the Cloudflare Pages URL here once deployed. -->
 
@@ -25,7 +24,7 @@ Every number traces to the thesis model. Three small build scripts
 | --- | --- | --- | --- |
 | `build_scenarios.py` | `public/data/scenarios.json` (~47 kB) | `data/output/CDM_results_*.csv` (committed) | Per-archetype cooling + LCA totals for all 5 scenarios. A self-check reproduces the README headline (offices: 13% area, 34% demand, 65% GHG) from the built data. |
 | `build_choropleth.py` | `public/data/cooling_by_buurt.geojson` (~127 kB) | per-building GPKG + CBS buurten (fetched by the `fetch_cbs_buurten` rule) | 59,381 buildings aggregated to 112 buurten by centroid, geometry simplified and reprojected to WGS84. Buurt sums match the archetype totals to 0.00% for the present-day (SQ) scenario. |
-| `build_temporal.py` | `public/data/temporal.json` (~33 kB) | per-building GPKGs + committed weather/parameter CSVs | Re-runs the thesis heat-balance model on a stratified building sample, once per scenario (the scenario parameters carry the climate boosts, UHI, comfort threshold and renovation), averages 2021–2025 weather into a typical year and exports the hottest week of the record hour by hour. Calibrated per use to the citywide archetype totals, so the magnitudes include projected building-stock growth. Validated: per-building annual `E_cooling` reproduces the published value to **~0.03% median error** (SQ; ~0.8% for 2050 M). |
+| `build_temporal.py` | `public/data/temporal.json` (~33 kB) | per-building GPKGs + committed weather/parameter CSVs | Re-runs the thesis heat-balance model on a stratified building sample, once per scenario (climate, UHI, comfort threshold and renovation come from the scenario parameters), averages 2021–2025 weather into a typical year and exports the hottest week hour by hour. Calibrated per use to the citywide archetype totals, so the magnitudes include projected building-stock growth. Per-building annual `E_cooling` reproduces the published value to ~0.03% median error (SQ; ~0.8% for 2050 M). |
 
 The spatial and temporal builds need the per-building GeoPackages from the Zenodo dataset
 ([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)), which are git-ignored;
@@ -34,17 +33,16 @@ is committed, so the dashboard runs and deploys without any of it.
 
 ### Caveats
 
-- The page opens on the **2050 medium** path (the "choose your 2050" narrative pre-selects a
-  future), so the map first shows that scenario; **present-day (SQ)** is one click away. Only in
+- The page opens on the **2050 medium** path, so the map first shows that scenario;
+  **present-day (SQ)** is one click away. Only in
   SQ do the per-building geometry and the archetype totals share the same underlying stock and
   agree exactly. Future scenarios add building-stock growth in the archetype totals that the
   current per-building geometry does not carry, so their map sums run ~10–12% below the scenario
   total — shown but labelled.
 - The temporal profiles use representative building geometry (only the footprint MBR is
   reconstructed; the physics is the thesis code, unchanged). Today's stock sets each
-  profile's shape; the magnitude is calibrated per use to the scenario's citywide archetype
-  totals, which include projected building-stock growth — the same totals as the impact
-  charts, so the sections agree. To swap in an exact hourly export from a notebook run,
+  profile's shape; the magnitude is calibrated per use to the same citywide totals as the
+  impact charts, so the sections agree. To swap in an exact hourly export from a notebook run,
   replace `temporal.json`.
 
 ## Run it locally
@@ -85,8 +83,8 @@ snakemake dashboard_data
 The build is a static SPA (`dist/`), same pattern as the `tide` repo (`wrangler.jsonc` →
 `pages_build_output_dir`).
 
-**Git integration (recommended — gives free PR previews):** in the Cloudflare dashboard,
-connect the repo as a Pages project with:
+**Git integration (recommended):** in the Cloudflare dashboard, connect the repo as a
+Pages project with:
 
 - **Root directory:** `dashboard`
 - **Build command:** `pnpm build`
@@ -116,7 +114,7 @@ Accessibility follows the same setup as `tide` / `credit-heatmap`:
   numeric ranges, a value strip shows where every neighbourhood falls, and every value is
   in a table.
 - Light and dark themes, both deliberately styled (not an auto-flip) and both contrast-checked.
-  The theme is stamped before first paint by a tiny inline script, so a saved override never
+  The theme is stamped before first paint by an inline script, so a saved override never
   flashes the other theme on load.
 - `@axe-core/playwright` runs against the production build in **both themes** (`pnpm test:e2e`),
   asserting zero serious/critical WCAG 2 A/AA violations.

@@ -22,7 +22,7 @@ function buildSteps(d: ScenariosData): Step[] {
   return [
     {
       title: "Heat piles up",
-      body: "Every building gains heat: sun through windows, warm outside air, people, appliances. The model runs an hourly heat balance per building; whatever pushes one past its comfort threshold — 25 °C today — becomes cooling demand, surplus heat that must be removed. The urban heat island makes it much worse: without it, the city's cooling demand would be roughly a third of what it is.",
+      body: "Every building gains heat: sun through windows, warm outside air, people, appliances. The model runs an hourly heat balance per building; whatever pushes one past its comfort threshold (25 °C today) becomes cooling demand, surplus heat that must be removed. The urban heat island makes it much worse: without it, the city's cooling demand would be roughly a third of what it is.",
       fig: "+8.6 °C",
       figCap: "central The Hague vs its rural surroundings, measured on a hot day",
       flow: `${num(t.E_cooling_kWh / 1e6, 0)} GWh of cooling demand a year`,
@@ -36,7 +36,7 @@ function buildSteps(d: ScenariosData): Step[] {
     },
     {
       title: "Cooling costs electricity",
-      body: "Each technology needs electricity to move heat out: demand divided by its seasonal efficiency (SEER), improving in every future scenario.",
+      body: "Each technology needs electricity to move heat out: demand divided by its seasonal efficiency (SEER), which improves in every future scenario.",
       fig: "2.5–7.5",
       figCap: "SEER today, from portable AC to water-source heat pump",
       flow: "demand ÷ efficiency",

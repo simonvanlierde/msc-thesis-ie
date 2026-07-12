@@ -199,7 +199,7 @@ export function MapView({ buurten, scenario, palette }: Props) {
           <figcaption>
             {METRIC_LABEL[metric]}. Scenario shown: {scenarioLabel(scenario)}. The colour scale is
             fixed across all scenarios, so the maps compare directly. Each tick on the strip is one
-            neighbourhood; the rules are the class breaks.
+            neighbourhood; the taller lines mark the class breaks.
           </figcaption>
           <BuurtTable fc={buurten} scenario={scenario} metric={metric} />
         </figure>

@@ -58,7 +58,7 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
     short: "Low",
     tagline: "The adaptive path",
     blurb:
-      "Stringent adaptation meets aggressive decarbonisation: people accept a slightly warmer indoors, the grid runs near-clean, and refrigerants go zero-GWP. Even in a warming climate, cooling demand falls and emissions drop to a tenth of today's.",
+      "People accept a slightly warmer indoors, the grid runs near-clean, and refrigerants go zero-GWP. Even in a warming climate, cooling demand falls and emissions drop to a tenth of today's.",
     assumptions: {
       warming: "+0.6 °C summer",
       comfort: "Adapts up to 26 °C",
@@ -100,7 +100,7 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
     short: "High",
     tagline: "Business as usual",
     blurb:
-      "Summers run +1.3 °C hotter with the worst urban-heat-island effect, and people expect more cooling, not less. Decarbonisation stalls — the grid stays as dirty as 2030 and high-GWP refrigerants return. Cooling demand nearly doubles; emissions hit 83.6 kt, challenging the Netherlands' net-zero goal.",
+      "Summers run +1.3 °C hotter with the worst urban-heat-island effect, and people expect more cooling, not less. Decarbonisation stalls — the grid stays as dirty as 2030 and high-GWP refrigerants return. Cooling demand nearly doubles; emissions hit 83.6 kt, hard to square with the Netherlands' net-zero goal.",
     assumptions: {
       warming: "+1.3 °C summer",
       comfort: "Falls to 23 °C",

@@ -36,7 +36,7 @@ export function Fork({ scenario, onChange }: Props) {
       </p>
 
       <p className="fork__prompt">
-        Choose a 2050 — the impact below and the map update to the path you pick.
+        Pick one; the impact charts and the map below update to match.
       </p>
 
       <fieldset className="fork">

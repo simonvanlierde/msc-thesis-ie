@@ -28,7 +28,7 @@ export function ValueStrip({ values, breaks, fmt, unit }: Props) {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`Distribution of ${values.length} neighbourhoods, from ${fmt(min)} to ${fmt(max)} ${unit}. Vertical rules mark the colour class breaks.`}
+        aria-label={`Distribution of ${values.length} neighbourhoods, from ${fmt(min)} to ${fmt(max)} ${unit}. Taller vertical lines mark the colour class breaks.`}
       >
         <line className="valuestrip__break" x1={0} x2={W} y1={BASE_Y} y2={BASE_Y} />
         {breaks.map((b) => (

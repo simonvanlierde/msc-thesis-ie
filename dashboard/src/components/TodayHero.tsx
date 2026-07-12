@@ -37,13 +37,13 @@ export function TodayHero({ data }: Props) {
       id: "demand",
       value: gwh(s.totals.E_cooling_kWh),
       label: "Cooling demand / year",
-      more: `The heat the city's buildings would need to shed to stay comfortable — an amount of energy equal to the annual electricity use of about ${num(Math.round(demandHouseholds / 1000) * 1000)} households, more than every home in The Hague combined. Most of it is never met.`,
+      more: `The heat the city's buildings would need to shed to stay comfortable — equal to the annual electricity use of about ${num(Math.round(demandHouseholds / 1000) * 1000)} households, more than every home in The Hague combined. Most of it is never met.`,
     },
     {
       id: "electricity",
       value: gwh(s.totals.electricity_kWh),
       label: "Electricity for cooling / year",
-      more: `What the cooling equipment that does exist draws from the grid — the annual electricity of roughly ${num(Math.round(elecHouseholds / 1000) * 1000)} households. On a hot afternoon it peaks near 69 MW, about half the capacity of the nearby Luchterduinen offshore wind park — real load on a grid already running near its limits.`,
+      more: `What the cooling equipment that does exist draws from the grid: the annual electricity of roughly ${num(Math.round(elecHouseholds / 1000) * 1000)} households. On a hot afternoon it peaks near 69 MW, about half the capacity of the nearby Luchterduinen offshore wind park — real load on a grid already running near its limits.`,
     },
     {
       id: "ghg",
@@ -55,7 +55,7 @@ export function TodayHero({ data }: Props) {
       id: "unmet",
       value: "77%",
       label: "Of cooling demand goes unmet",
-      more: "About 85% of Hague homes have no cooling at all, so the heat simply stays indoors as discomfort — worst in the lower-income neighbourhoods where the heat island runs strongest. That 860 GWh gap is where future growth sits: as cooling spreads, unmet demand becomes electricity and emissions.",
+      more: "About 85% of Hague homes have no cooling at all, so the heat stays indoors as discomfort — worst in the lower-income neighbourhoods where the heat island runs strongest. That 860 GWh gap is where future growth sits: as cooling spreads, unmet demand becomes electricity and emissions.",
     },
   ];
 
@@ -77,7 +77,7 @@ export function TodayHero({ data }: Props) {
         It is getting hotter, and the world is reaching for cooling: global cooling electricity is
         on course to triple by 2050. The Netherlands is warming at twice the global average, yet
         comes to this late — heat waves used to be rare here, and air-conditioning went from 1.5% of
-        homes in 2000 to 30% in 2023. Today cooling's footprint is still modest. How big it gets is
+        homes in 2000 to 30% in 2023. Today cooling's footprint is still modest; how big it gets is
         a choice.
       </p>
       <p className="lede">{SCENARIO_META.SQ.blurb}</p>

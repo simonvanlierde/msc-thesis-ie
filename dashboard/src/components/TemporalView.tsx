@@ -237,9 +237,9 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
     <section id="when" aria-labelledby="when-h">
       <h2 id="when-h">When cooling is needed</h2>
       <p className="lede">
-        Reconstructed from the thesis heat-balance model over {temporal.meta.weather_years} weather
-        under the {rowLabel(scenario)} scenario's climate and comfort assumptions, calibrated to its
-        annual totals. Cooling concentrates in the warm months — and within them, in a few extreme
+        Hourly output of the thesis heat-balance model, run over {temporal.meta.weather_years}{" "}
+        weather with the {rowLabel(scenario)} scenario's climate and comfort assumptions and
+        calibrated to its annual totals. Cooling concentrates in the warm months — and within them, in a few extreme
         days: the second chart zooms into the hottest week of the record, {hwWeek}.
       </p>
 
