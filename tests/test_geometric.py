@@ -1,26 +1,18 @@
 """Unit tests for geometric helper functions."""
 
-import math
-
 import numpy as np
 import pandas as pd
 import pytest
+from shapely.geometry import Polygon
 
-from functions.geometric import (
+from cdm.geometric import (
     azimuth_line,
+    azimuth_rectangle,
     calc_facade_area_per_orientation,
+    calc_window_and_wall_areas,
+    calc_window_and_wall_areas_vectorised,
     determine_orientation_class,
-    dist,
 )
-
-
-def test_dist_pythagorean_triple() -> None:
-    assert dist((0.0, 0.0), (3.0, 4.0)) == pytest.approx(5.0)
-
-
-def test_dist_is_symmetric() -> None:
-    a, b = (1.0, 2.0), (4.0, 6.0)
-    assert dist(a, b) == pytest.approx(dist(b, a))
 
 
 def test_azimuth_line_due_north_is_zero() -> None:
@@ -69,5 +61,70 @@ def test_calc_facade_area_per_orientation_rejects_bad_class(bad_class: int) -> N
         calc_facade_area_per_orientation(building, orientation_class_int=bad_class)
 
 
-def test_dist_matches_math_hypot() -> None:
-    assert dist((2.0, -1.0), (-2.0, 2.0)) == pytest.approx(math.hypot(-4.0, 3.0))
+def test_azimuth_rectangle_for_axis_aligned_rectangle() -> None:
+    # A 20 (east-west) by 10 (north-south) axis-aligned rectangle.
+    rectangle = Polygon([(0.0, 0.0), (20.0, 0.0), (20.0, 10.0), (0.0, 10.0)])
+    azimuth, width, length = azimuth_rectangle(rectangle)
+
+    # The long axis runs due east, the short side is 10 m and the long side is 20 m.
+    assert azimuth == pytest.approx(90.0)
+    assert width == pytest.approx(10.0)
+    assert length == pytest.approx(20.0)
+
+
+def test_calc_window_and_wall_areas_splits_facade_by_factor() -> None:
+    building = pd.Series(
+        {
+            "MBR_azimuth": 30.0,  # -> orientation class 2 (NE-SW)
+            "MBR_width_m": 10.0,
+            "MBR_length_m": 20.0,
+            "height_m": 15.0,
+            "f_wall": 0.7,
+            "f_window": 0.3,
+        },
+    )
+    window_per_orientation, window_total, wall_total = calc_window_and_wall_areas(building)
+
+    total_facade = 2 * (10.0 + 20.0) * 15.0  # perimeter * height
+    assert window_total == pytest.approx(total_facade * 0.3)
+    assert wall_total == pytest.approx(total_facade * 0.7)
+    assert window_per_orientation.sum() == pytest.approx(window_total)
+
+
+def test_calc_window_and_wall_areas_vectorised_matches_the_per_row_form() -> None:
+    """The whole-stock vectorised form must equal the per-row reference, bit for bit.
+
+    Covers all four orientation classes plus the >157.5 deg wrap-around back to class 1.
+    """
+    buildings = pd.DataFrame(
+        {
+            "MBR_azimuth": [10.0, 30.0, 90.0, 130.0, 170.0],  # classes 1, 2, 3, 4, then wrap -> 1
+            "MBR_width_m": [10.0, 12.0, 8.0, 15.0, 9.0],
+            "MBR_length_m": [20.0, 18.0, 25.0, 16.0, 30.0],
+            "height_m": [15.0, 9.0, 30.0, 12.0, 6.0],
+            "f_wall": [0.7, 0.6, 0.8, 0.65, 0.75],
+            "f_window": [0.3, 0.4, 0.2, 0.35, 0.25],
+        },
+    )
+    wpo_vec, wt_vec, wall_vec = calc_window_and_wall_areas_vectorised(buildings)
+
+    for i, (_, building) in enumerate(buildings.iterrows()):
+        wpo_ref, wt_ref, wall_ref = calc_window_and_wall_areas(building)
+        assert np.array_equal(wpo_vec[i], wpo_ref)
+        assert wt_vec[i] == wt_ref
+        assert wall_vec[i] == wall_ref
+
+
+def test_calc_window_and_wall_areas_vectorised_rejects_out_of_range_azimuth() -> None:
+    buildings = pd.DataFrame(
+        {
+            "MBR_azimuth": [30.0, 200.0],
+            "MBR_width_m": [10.0, 10.0],
+            "MBR_length_m": [20.0, 20.0],
+            "height_m": [15.0, 15.0],
+            "f_wall": [0.7, 0.7],
+            "f_window": [0.3, 0.3],
+        },
+    )
+    with pytest.raises(ValueError, match="between 0 and 180"):
+        calc_window_and_wall_areas_vectorised(buildings)

@@ -8,14 +8,16 @@ Run from the repository root:
     uv run python docs/make_overview_figure.py
 """
 
+import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = REPO_ROOT / "data" / "output"
-FIGURE_PATH = Path(__file__).resolve().parent / "scenario_overview.png"
+# Defaults reproduce the committed README figure from the reference results.
+DEFAULT_INPUT_DIR = REPO_ROOT / "data" / "output"
+DEFAULT_FIGURE_PATH = Path(__file__).resolve().parent / "scenario_overview.png"
 
 # Scenario file suffix -> human-readable label (in display order).
 SCENARIOS = {
@@ -27,24 +29,34 @@ SCENARIOS = {
 }
 
 
-def load_scenario_totals() -> pd.DataFrame:
+def load_scenario_totals(input_dir: Path) -> pd.DataFrame:
     """Aggregate each scenario's results into stock-wide totals."""
     rows = []
     for suffix, label in SCENARIOS.items():
-        df = pd.read_csv(OUTPUT_DIR / f"CDM_results_{suffix}_full.csv")
+        df = pd.read_csv(input_dir / f"CDM_results_{suffix}_full.csv")
         rows.append(
             {
                 "scenario": label,
                 "cooling_demand_GWh": df["E_cooling_capped_at_98th_percentile_kWh"].sum() / 1e6,
                 "ghg_emissions_ktonne": df["GHG_emissions_total_kgCO2eq"].sum() / 1e6,
-            }
+            },
         )
     return pd.DataFrame(rows)
 
 
 def main() -> None:
     """Build the two-panel scenario-overview figure and save it as a PNG."""
-    totals = load_scenario_totals()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=DEFAULT_INPUT_DIR,
+        help="Directory holding the CDM_results_*.csv files.",
+    )
+    parser.add_argument("--output", type=Path, default=DEFAULT_FIGURE_PATH, help="Output PNG path.")
+    args = parser.parse_args()
+
+    totals = load_scenario_totals(args.input_dir)
 
     fig, (ax_demand, ax_ghg) = plt.subplots(1, 2, figsize=(10, 4.2))
 
@@ -66,8 +78,9 @@ def main() -> None:
         fontweight="bold",
     )
     fig.tight_layout()
-    fig.savefig(FIGURE_PATH, dpi=150, bbox_inches="tight")
-    print(f"Saved figure to {FIGURE_PATH.relative_to(REPO_ROOT)}")
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(args.output, dpi=150, bbox_inches="tight")
+    print(f"Saved figure to {args.output}")
 
 
 if __name__ == "__main__":

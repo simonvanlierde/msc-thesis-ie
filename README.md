@@ -3,6 +3,7 @@
 **Residential and office cooling and its environmental impacts in The Hague, the Netherlands.**
 
 [![CI](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml)
+[![Dashboard](https://img.shields.io/badge/dashboard-live-brightgreen.svg)](https://simonvanlierde.github.io/msc-thesis-ie/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Data DOI](https://img.shields.io/badge/data-10.5281%2Fzenodo.8344580-blue.svg)](https://doi.org/10.5281/zenodo.8344580)
@@ -40,6 +41,23 @@ The pipeline combines three layers:
 The full method and discussion are in the
 [thesis](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a).
 
+## Interactive dashboard
+
+An interactive web dashboard presents these results — a choropleth of cooling demand across
+The Hague, the diurnal/seasonal demand profile, and the life-cycle impact breakdown, with a
+plain-language summary for non-experts. It runs entirely on real model output.
+
+**[Open the live dashboard →](https://simonvanlierde.github.io/msc-thesis-ie/)**
+
+![Dashboard](dashboard/docs/screenshot.png)
+
+```bash
+cd dashboard && pnpm install && pnpm dev
+```
+
+See [`dashboard/README.md`](dashboard/README.md) for the data-build steps, accessibility
+notes and the GitHub Pages deployment.
+
 ## Repository structure
 
 | Path | Description |
@@ -51,6 +69,7 @@ The full method and discussion are in the
 | `data/output/` | Aggregated model results per building type and energy label. |
 | `docs/` | The headline figure and the script that regenerates it. |
 | `tests/` | Unit tests for the geometric, thermodynamic and environmental functions. |
+| `dashboard/` | Interactive web dashboard communicating the results (see below). |
 
 Inside `functions/`:
 
@@ -87,13 +106,160 @@ pip install .
 jupyter lab
 ```
 
-Then download the spatial datasets from Zenodo into `data/input/geodata/` before running
-`gis.ipynb`.
+The Snakemake workflow below acquires the spatial inputs from official PDOK APIs and
+the EP-Online energy-label export (the latter needs a free API key, see below).
 
 ### Regenerating the headline figure
 
 ```bash
 uv run python docs/make_overview_figure.py
+```
+
+## Reproducible Snakemake Pipeline
+
+The existing notebook analysis is also declared as a Snakemake workflow. The
+workflow wraps the same `cdm/` model code and notebook outputs; it does
+not replace the scientific calculations with new implementations.
+
+![Snakemake workflow DAG](docs/pipeline_dag.svg)
+
+Create the runner environment once. `uv` installs the pinned dependencies from
+`uv.lock` and the `cdm` package itself, so no `PYTHONPATH` juggling is needed.
+
+```bash
+uv sync
+```
+
+Then reproduce the declared outputs (scenario results + overview figure) with one command:
+
+```bash
+uv run snakemake --cores 4
+```
+
+For a fast end-to-end check, run the smoke profile (a tiny municipality, one
+weather year — finishes in minutes):
+
+```bash
+uv run snakemake --configfile config/smoke.yaml --cores 4
+```
+
+The heavy cooling-technology-mix sensitivity is **opt-in** (30 tech pairs × a
+20-step model sweep), kept out of the default target:
+
+```bash
+uv run snakemake --cores 4 cooling_mix
+```
+
+Other opt-in targets (also kept out of `all`):
+
+```bash
+# Clip the RIVM urban-heat-island raster to the city (downloads a ~1.95 GB national ZIP once)
+uv run snakemake --cores 4 data/input/geodata/UHI_effect_TheHague.tif
+
+# Execute the analysis notebooks headless, keeping the executed copies as artifacts.
+# gis needs the UHI raster above (CBS boundaries are fetched by the pipeline); main needs a sample
+# subset or ample RAM (its figures keep the full hourly time series in memory).
+uv run snakemake --cores 4 notebooks
+```
+
+Alternatively, a hermetic container bundles the pinned environment:
+
+```bash
+docker build -t cooling-demand .
+docker run --rm -e EP_ONLINE_API_KEY -v "$PWD:/work" cooling-demand snakemake --cores 4
+```
+
+The pipeline stages are:
+
+| Rule | Existing analysis step | Main inputs | Main outputs |
+| --- | --- | --- | --- |
+| `fetch_city_boundary` | Municipal extent by name | PDOK Bestuurlijke gebieden OGC API `gemeentegebied` | city boundary GeoJSON + CRS84 bbox |
+| `fetch_bag_residences` | Official BAG residence/use acquisition | PDOK BAG OGC API `verblijfsobject`, city bbox | `data/raw/pdok_bag/verblijfsobject_{city}.gpkg` |
+| `discover_pdok_3d_height_tiles` | Height-tile discovery | PDOK 3D Basisvoorziening OGC API `hoogtestatistieken_gebouwen`, city bbox | height-tile manifest |
+| `download_pdok_3d_height_tiles` | Official height geodata acquisition | PDOK 3D Basisvoorziening tile download links | local GeoPackage ZIP tiles and manifest |
+| `provide_ep_online_energy_labels` | Credentialed energy-label source boundary | EP-Online public export | `data/raw/ep_online/current/energy_labels.csv` |
+| `fetch_weather` | KNMI weather-series retrieval | KNMI hourly API (station + year window), committed backup fallback | `results/weather/knmi_{station}_{start}_{end}.csv` |
+| `prepare_bag_geodata` | Scripted replacement for the BAG/geodata joins in `gis.ipynb` | PDOK BAG residences, PDOK 3D height tiles, EP-Online labels, city boundary (clip) | `results/geodata/BAG_buildings_with_residence_data_full.gpkg` |
+| `thermodynamic_model` | cooling-demand model from `main.ipynb` | processed BAG geodata, `parameters.toml` (per scenario), weather CSV, load-factor inputs | `results/intermediate/buildings_with_cooling_demand_{scenario}_full.gpkg` |
+| `lca` | environmental-impact and aggregation steps from `main.ipynb` | cooling-demand geodata and scenario parameters | `results/CDM_results_{scenario}_full.csv` and CDM geodata |
+| `scenario_overview_figure` | README headline figure script | scenario result CSVs | `results/figures/scenario_overview.png` |
+| `cooling_mix_sensitivity` (opt-in) | cooling-technology-mix sensitivity cells in `main.ipynb`, extracted to `scripts/run_cooling_mix_sensitivity.py` | processed BAG geodata, SQ parameters, weather CSV | `results/cooling_mix_elasticities_table.csv` |
+| `fetch_uhi_raster` (opt-in) | RIVM urban-heat-island raster, previously a manual download | national UHI ZIP (RIVM), city bbox | `data/input/geodata/UHI_effect_TheHague.tif` (clipped) |
+| `run_main_notebook` / `run_gis_notebook` (opt-in) | execute the analysis notebooks headless; keep the executed copy | pipeline outputs the notebook reads, `cdm/`, the notebook | `results/notebooks/{main,gis}.executed.ipynb` |
+
+Each rule writes a log under `results/logs/` and the model stages a runtime
+benchmark under `results/benchmarks/`. Large raw spatial inputs are not
+committed. PDOK data is licensed under Public Domain Mark 1.0 (BAG, boundaries)
+and CC BY 4.0 (3D Basisvoorziening).
+
+### Configuring the city and weather window
+
+The active city and weather window are declared in `config/sources.yaml`:
+
+```yaml
+city:
+  name: "'s-Gravenhage" # official municipality name (fetched from PDOK)
+  weather_station: 330 # nearest KNMI station
+weather:
+  start_year: 2018
+  end_year: 2022
+```
+
+The municipal boundary and bounding box are fetched from PDOK by name, so
+switching cities is just a name change (plus the nearest KNMI station). Buildings
+are clipped to the boundary, so results cover exactly that municipality. Override
+without editing the file, e.g. `snakemake --config city='{name: Rotterdam, weather_station: 344}' --cores 4`.
+
+### Where outputs go
+
+The pipeline writes everything it generates under `results/` (configurable via
+`results_dir` in `config/sources.yaml`), leaving the committed reference results
+in `data/output/` and `docs/` untouched. This makes a pipeline run safe to
+repeat and lets you check reproduction directly:
+
+```bash
+diff results/CDM_results_SQ_full.csv data/output/CDM_results_SQ_full.csv
+```
+
+`results/` and the fetched `data/raw/` inputs are git-ignored. To refresh the
+committed README figure from the reference results, run the figure script with
+its defaults: `uv run python docs/make_overview_figure.py`.
+
+### EP-Online energy labels
+
+`provide_ep_online_energy_labels` downloads the full public label export via the
+EP-Online v5 API. Put your key in a `.env` file at the repo root:
+
+```bash
+EP_ONLINE_API_KEY=your-key-here
+```
+
+The rule resolves the signed download URL, streams the ZIP, and extracts the CSV
+to `data/raw/ep_online/current/energy_labels.csv` (~1.5 GB uncompressed). It
+skips the download when a valid file is already present. The key is read from the
+environment or `.env` and is never committed. Request a key at
+<https://www.ep-online.nl/PublicData>.
+
+Notes:
+
+- PDOK 3D height-attribute column names were verified against a 2025
+  `hoogtestatistieken_gebouwen` tile (`identificatie`, `status`,
+  `oorspronkelijkbouwjaar`, `rf_h_ground`, `rf_h_roof_70p`). If a future
+  vintage changes the schema, `scripts/gis/prepare_pdok_model_geodata.py` fails
+  loudly listing the available columns instead of guessing.
+- The cooling-technology-mix sensitivity is a heavy stage: 30 ordered
+  technology pairs, each a 20-step mix sweep running the full model over the
+  building stock. Lower `--calculation-steps` in the rule for a faster,
+  coarser table.
+
+To refresh the committed DAG after editing `Snakefile`, run:
+
+```bash
+# Reproduces the committed SVG (no Graphviz binary required)
+uv run snakemake --dag | uv run python scripts/dot_to_simple_svg.py > docs/pipeline_dag.svg
+
+# Alternative, if Graphviz `dot` is installed (styled differently)
+uv run snakemake --dag | dot -Tsvg > docs/pipeline_dag.svg
 ```
 
 ## Development
@@ -108,7 +274,15 @@ uv run pytest                  # run the test suite
 ```
 
 The same checks run in CI on every push and pull request
-([workflow](.github/workflows/ci.yml)).
+([workflow](.github/workflows/ci.yml)), and locally on every commit once the hook is
+installed:
+
+```bash
+uv run pre-commit install
+```
+
+The hook runs ruff (lint + format), the test suite, and `ty` — the latter reports its
+findings without blocking, as in CI.
 
 ## Citation
 

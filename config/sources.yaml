@@ -1,0 +1,77 @@
+# Root for all pipeline-generated outputs. Kept separate from the committed
+# reference results in data/output/ so a pipeline run never overwrites the
+# originals (diff results/ against data/output/ to check reproduction).
+results_dir: results
+
+# Active city (single). Its municipal boundary and bbox are fetched from PDOK by
+# name, so switching cities is just a name change (+ nearest KNMI station).
+city:
+  name: "'s-Gravenhage" # official municipality name (PDOK Bestuurlijke gebieden)
+  weather_station: 330 # nearest KNMI station (330 = Hoek van Holland, near The Hague)
+
+# Weather series window (the status-quo climate baseline).
+weather:
+  start_year: 2021
+  end_year: 2025
+
+pdok_boundary:
+  base_url: https://api.pdok.nl/kadaster/bestuurlijkegebieden/ogc/v1
+  collection: gemeentegebied
+  license: Public Domain Mark 1.0
+
+pdok_bag:
+  base_url: https://api.pdok.nl/kadaster/bag/ogc/v2
+  collections:
+    buildings: pand
+    residences: verblijfsobject
+  license: Public Domain Mark 1.0
+  source_url: https://api.pdok.nl/kadaster/bag/ogc/v2/api
+
+pdok_3d_basisvoorziening:
+  base_url: https://api.pdok.nl/kadaster/3d-basisvoorziening/ogc/v1
+  height_collection: hoogtestatistieken_gebouwen
+  year: 2025
+  license: CC BY 4.0
+  source_url: https://api.pdok.nl/kadaster/3d-basisvoorziening/ogc/v1/api
+
+ep_online:
+  # EP-Online public files require an API key/export. The pipeline validates and
+  # consumes this file once supplied; it does not commit credentials or mirror
+  # the national label export.
+  energy_labels_csv: data/raw/ep_online/current/energy_labels.csv
+  source_url: https://www.ep-online.nl/PublicData
+
+cbs_postcode4:
+  # 4-digit postcode areas with CBS statistics. gis.ipynb's UHI-vs-income analysis uses the
+  # median household-income band (mediaan_inkomen_huishouden): CBS suppresses mean income at
+  # this level (-99997 on every Hague postcode) and no longer publishes income on the 100m grid.
+  base_url: https://api.pdok.nl/cbs/postcode4/ogc/v1
+  collection: postcode4
+  license: CC BY 4.0
+  source_url: https://api.pdok.nl/cbs/postcode4/ogc/v1/api
+
+cbs_wijken_en_buurten:
+  # Neighbourhoods (buurten) used by the per-neighbourhood maps.
+  base_url: https://api.pdok.nl/cbs/wijken-en-buurten-2025/ogc/v1
+  collection: buurten
+  license: CC BY 4.0
+  source_url: https://api.pdok.nl/cbs/wijken-en-buurten-2025/ogc/v1/api
+
+rivm_uhi:
+  # National urban-heat-island raster (RIVM / Atlas Natuurlijk Kapitaal). Published
+  # only as a ~1.95 GB ZIP of one national GeoTIFF -- no WCS -- so the pipeline
+  # downloads it once and clips it to the city bbox. Only needed by run_gis_notebook.
+  zip_url: https://data.rivm.nl/data/ank/Stedelijk_hitte_eiland_effect_01062022_v2.zip
+  license: CC BY 4.0
+  source_url: https://nationaalgeoregister.nl/geonetwork/srv/dut/catalog.search#/metadata/c9aa9109-3f32-4f65-84e5-bb1c9ebdfbec
+
+# Building subset the model runs on (layer suffix in the prepared GeoPackage).
+# "full" = the whole stock; "sample" = a representative stratified subset, used for the
+# memory-bound notebook figures. sample_size/sample_seed only apply to "sample".
+building_subset: full
+sample_size: 2500
+sample_seed: 0
+
+# Sensitivity-analysis resolution (steps per sweep) for the `sensitivity` rule. Coarse by
+# default; the curated SA set runs on the sample subset, so a fine sweep is not needed.
+sa_steps: 21

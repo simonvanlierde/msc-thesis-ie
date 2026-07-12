@@ -1,0 +1,1291 @@
+/* Design tokens. One declaration per token via light-dark(); src/lib/palette.ts mirrors
+   the hexes for MapLibre and nivo, which need concrete colours in JavaScript.
+
+   Colour rule, and it holds everywhere:
+     magenta  — keyboard focus. Appears nowhere in the data, ever.
+     blue     — ink, links, anything interactive.
+     warm     — the office series against its residential blue (Okabe-Ito, kept
+                for colourblind safety).
+   Before adding a colour, decide which of those three it is. */
+
+@font-face {
+  /* Newsreader: an editorial serif drawn for on-screen reading — legible where Fraunces's
+     high contrast was not. The weight-axis subset (no opsz) keeps the file to ~58 kB. */
+  font-family: "Newsreader";
+  src: url("/fonts/newsreader-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2212;
+}
+@font-face {
+  font-family: "Public Sans";
+  src: url("/fonts/public-sans-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2122, U+2212;
+}
+
+:root {
+  /* color-scheme drives light-dark(); the inline script in index.html stamps
+     data-theme before first paint, so this pair is only the no-JS fallback. */
+  color-scheme: light dark;
+
+  --surface: light-dark(#fcfcfb, #1a1a19);
+  --page: light-dark(#f9f9f7, #0d0d0d);
+  /* pre-mixed rather than color-mix(): light-dark() nested in color-mix() is fragile */
+  --page-veil: light-dark(rgba(249, 249, 247, 0.86), rgba(13, 13, 13, 0.86));
+  --text-primary: light-dark(#0b0b0b, #ffffff);
+  --text-secondary: light-dark(#52514e, #c3c2b7);
+  --muted: light-dark(#6f6d68, #9b998f);
+  --grid: light-dark(#e1e0d9, #2c2c2a);
+  --baseline: light-dark(#c3c2b7, #383835);
+  --border: light-dark(rgba(11, 11, 11, 0.1), rgba(255, 255, 255, 0.1));
+  --accent: light-dark(#256abf, #86b6ef);
+  --accent-wash: light-dark(rgba(37, 106, 191, 0.13), rgba(134, 182, 239, 0.16));
+  /* Reserved for focus. 5.5:1 on light paper, 6.8:1 on dark. Never a data colour. */
+  --focus: light-dark(#c4007a, #ff6bc4);
+
+  --display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --body: "Public Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ctrl-icon-filter: invert(1);
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: var(--body);
+  font-synthesis: none;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: var(--accent);
+}
+
+/* Display face, used with restraint: the wordmark, section titles and the headline.
+   Nothing else — and never a figure. A serif on a hero number reads as decoration, so the
+   stat-tile values wear the body sans like every other number on the page. */
+.masthead h1,
+section > h2,
+.hero__headline,
+.wordmark {
+  font-family: var(--display);
+  letter-spacing: -0.012em;
+}
+
+/* Visible keyboard focus everywhere — accessibility baseline. Always drawn outside the
+   element, so it never lands on a filled control and disappears. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* Header */
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--page-veil);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.masthead__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  padding: 0.45rem 0;
+}
+.masthead h1 {
+  font-size: 1.0625rem;
+  margin: 0;
+  font-weight: 600;
+}
+/* The page name hands off from the hero: hidden while the big wordmark is on screen,
+   sliding into the masthead once you scroll past it. Visibility swaps after the fade so
+   the hidden title is also gone for keyboard and AT. */
+.masthead__title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.5em);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease,
+    visibility 0s linear 0.35s;
+}
+.masthead--titled .masthead__title {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+.masthead__sep {
+  color: var(--muted);
+}
+/* "The Hague" reads as a quiet dropdown: same type as the title, a caret and a soft
+   underline hinting it opens. */
+.masthead__city {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0.1rem 0.15rem;
+  margin: -0.1rem 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 0.25em;
+}
+.masthead__city:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+.masthead__caret {
+  font-size: 0.7em;
+  color: var(--muted);
+  margin-left: 0.2em;
+}
+.citypop {
+  inset: auto;
+  top: 3rem;
+  left: max(1.25rem, calc((100vw - 1160px) / 2 + 1.25rem));
+  max-width: 38ch;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  font-size: 0.9rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+.citypop strong {
+  color: var(--text-primary);
+}
+.masthead nav {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+.masthead nav a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.masthead nav a:hover {
+  background: var(--accent-wash);
+  color: var(--text-primary);
+}
+/* Scroll-spy: the act currently under the top of the viewport. */
+.masthead nav a[aria-current="true"] {
+  background: var(--accent-wash);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.iconbtn {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.iconbtn:hover {
+  border-color: var(--accent);
+}
+
+/* Sections & cards */
+section {
+  padding: 2.5rem 0 0.5rem;
+  scroll-margin-top: 4.5rem;
+}
+section > h2 {
+  font-size: clamp(1.5rem, 2.6vw, 1.95rem);
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0 0 0.35rem;
+}
+.lede {
+  color: var(--text-secondary);
+  max-width: 80ch;
+  margin: 0 0 1.25rem;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+/* Stat tiles — buttons: each opens a plain-words comparison for its number. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+.tile {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  transition: border-color 0.2s ease;
+}
+.tile:hover {
+  border-color: var(--accent);
+}
+.tile__hint {
+  display: block;
+  color: var(--accent);
+  font-size: 0.78rem;
+  margin-top: 0.5rem;
+}
+.tile__more {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+/* Proportional figures: tabular-nums gives every digit the width of a `0`, which makes a
+   standalone number like 121 look loose at display size. It belongs in the columns below,
+   where numbers must align. */
+.tile__value {
+  display: block;
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.012em;
+}
+.tile__label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+.tile__more {
+  display: block;
+}
+
+/* Controls — one row above every view they scope, never inside a chart card. */
+.controls {
+  margin-top: 1.5rem;
+}
+.controls__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.5rem;
+}
+fieldset.segmented {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+fieldset.segmented > legend {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 0;
+  margin-bottom: 0.35rem;
+}
+/* Each control names the view it drives, so a control can sit far from its chart. */
+.segmented__scope {
+  color: var(--muted);
+}
+.segmented__row {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.segmented__row label {
+  position: relative;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-left: 1px solid var(--border);
+}
+.segmented__row label:first-of-type {
+  border-left: 0;
+  border-radius: 7px 0 0 7px;
+}
+.segmented__row label:last-of-type {
+  border-radius: 0 7px 7px 0;
+}
+.segmented__row label:has(input:checked) {
+  /* Fixed mid-blue (not the theme accent) so white text clears 4.5:1 in both modes. */
+  background: #256abf;
+  color: #fff;
+}
+.segmented__row input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+/* Ring on the outside, so it survives being drawn against the selected blue fill. */
+.segmented__row label:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+  z-index: 1;
+}
+
+.scope-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.55rem 0 0;
+  max-width: 80ch;
+}
+
+/* Chart + map frames */
+.figure {
+  margin: 0;
+}
+.figure figcaption {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: 0.6rem;
+}
+.figure + .figure {
+  margin-top: 1.75rem;
+}
+.chart {
+  height: 360px;
+}
+/* Per-view control, sitting between a subsection's lede and its figure. */
+.viewctl {
+  margin: 0 0 1rem;
+}
+.map {
+  height: 460px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+/* MapLibre puts tabindex on the inner <canvas>, so the container never matches
+   :focus-visible on its own. */
+.map:has(canvas:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* MapLibre chrome, themed. */
+.maplibregl-ctrl-group {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--border);
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: var(--ctrl-icon-filter, none);
+}
+.maplibregl-ctrl-attrib {
+  background: var(--page-veil);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--text-secondary);
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.legend__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+/* Value strip: one tick per neighbourhood, so the reader sees the distribution the
+   quantile bins were cut from — not only the bins. */
+.valuestrip {
+  margin-top: 0.5rem;
+}
+.valuestrip svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.valuestrip__tick {
+  stroke: var(--text-primary);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+}
+.valuestrip__break {
+  stroke: var(--baseline);
+  stroke-width: 1;
+}
+.valuestrip__axis {
+  fill: var(--muted);
+  font-family: var(--body);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Life-cycle stacks: one stacked bar per scenario, HTML rows on the payoff grid pattern. */
+.lca__rows {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  gap: 0.6rem 0.7rem;
+  align-items: center;
+  max-width: 860px;
+}
+.lca__row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+}
+.lca__label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: right;
+}
+.lca__row--active .lca__label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.lca__chosen {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+.lca__track {
+  display: block;
+  background: linear-gradient(var(--grid), var(--grid)) left center / 100% 1px no-repeat;
+}
+.lca__stack {
+  display: flex;
+  gap: 2px; /* the surface gap between stacked segments */
+  height: 22px;
+}
+.lca__seg {
+  display: block;
+  border-radius: 4px;
+  min-width: 2px;
+  position: relative;
+}
+/* Hover tooltip: the segment's stage, value and share, styled like the chart tooltips.
+   The bars are aria-hidden decoration — the same numbers live in the data table below. */
+.lca__seg:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 5;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+.lca__value {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.lca__row--active .lca__value {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* Data table (screen-reader + everyone fallback) */
+details.datatable {
+  margin-top: 0.75rem;
+}
+details.datatable > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+/* The 12x24 hour matrix is wider than the column: it scrolls inside itself, never
+   pushing the page sideways. */
+.datatable__scroll {
+  overflow-x: auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+}
+th,
+td {
+  text-align: right;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums;
+}
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+caption {
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+.datatable__scroll table {
+  min-width: 46rem;
+}
+/* Month stays visible while the 24 hour columns scroll past it. The table sits straight on
+   the page, not on a card, so the sticky cell wears the page colour. */
+.datatable__scroll th[scope="row"] {
+  position: sticky;
+  left: 0;
+  background: var(--page);
+}
+
+.tooltip {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+.tooltip strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.note {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+footer.colophon {
+  margin: 3rem 0 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.loading {
+  padding: 4rem 0;
+  color: var(--text-secondary);
+}
+.errbox {
+  padding: 4rem 0;
+  color: var(--text-primary);
+}
+
+/* ── Scroll acts: the "choose your 2050" narrative ──────────────────────────────
+   Each act is a full-bleed band whose tint carries the page's emotional temperature.
+   It rises as you descend (today = cool blue → the fork = neutral) and, in the payoff,
+   COMMITS to the chosen path: Low stays cool, High goes warm. This reuses the one colour
+   rule already in force — saturated warm means "hot" — and gives it a second job.
+   Tints are low-chroma washes UNDER the unchanged ink tokens, so contrast never drops. */
+.act {
+  position: relative;
+  padding-block: clamp(2.75rem, 6vw, 5rem);
+  background: var(--tint, var(--page));
+}
+.act + .act {
+  /* Bands butt against each other; a hairline keeps the temperature step legible. */
+  border-top: 1px solid var(--border);
+}
+.act__inner > :first-child {
+  margin-top: 0;
+}
+.act__eyebrow {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.6rem;
+}
+
+.act--today {
+  --tint: light-dark(#eef3fb, #0e141c);
+}
+.act--near {
+  --tint: light-dark(#f1f5fb, #0d1017);
+}
+/* The decision point and the detail are deliberately neutral — no thumb on the scale. */
+.act--fork,
+.act--detail {
+  --tint: var(--page);
+}
+/* The payoff commits to the chosen path. Cool → warm as impact climbs. */
+.act--payoff {
+  transition: background 0.6s ease;
+}
+.act--payoff[data-path="SQ"],
+.act--payoff[data-path="2030"],
+.act--payoff[data-path="2050_L"] {
+  --tint: light-dark(#eef4fb, #0e141c);
+}
+.act--payoff[data-path="2050_M"] {
+  --tint: light-dark(#fbf3e9, #17120b);
+}
+.act--payoff[data-path="2050_H"] {
+  --tint: light-dark(#fbede7, #1c0f0a);
+}
+
+/* Reveal on scroll (useInView adds .in-view). One-way; motion-only, so reduced-motion
+   below turns it off and the content is simply present. */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease;
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: none;
+}
+
+/* Act 1 — the wordmark lockup + hero headline. The lockup is the thesis's identity: a
+   refined title that sits above the hero finding, deliberately smaller so the finding (the
+   most characteristic thing in the subject's world) stays the hero and the two serif blocks
+   don't compete. */
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.04;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 1.6rem;
+}
+.wordmark span {
+  font-size: clamp(1.3rem, 3.2vw, 1.95rem);
+}
+/* The thesis's second half rides the High-path red: business-as-usual is what warms the world. */
+.wordmark__warm {
+  color: light-dark(#c0281c, #f2765f);
+}
+.hero__headline {
+  font-family: var(--display);
+  letter-spacing: -0.02em;
+  font-size: clamp(2rem, 4.6vw, 3.3rem);
+  font-weight: 500;
+  line-height: 1.05;
+  text-wrap: balance;
+  max-width: 35ch;
+  margin: 0 0 1.1rem;
+}
+.hero__headline em {
+  font-style: normal;
+  color: var(--accent);
+}
+.hero__now {
+  max-width: 95ch;
+  margin: -0.5rem 0 1.25rem;
+}
+
+/* The model chain — six numbered steps on one vertical spine; the numbering is the
+   sequence the model computes, and the quantity each step hands to the next is written
+   between them, ending in the result node the rest of the page tracks. */
+.chain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 1040px;
+}
+.chain__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) 12rem;
+  gap: 0.15rem 1.1rem;
+  padding-bottom: 0.6rem;
+}
+/* The spine, running behind the number markers from step to step. */
+.chain__step::before {
+  content: "";
+  position: absolute;
+  left: calc(1.2rem - 1px);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.chain__step:first-child::before {
+  top: 0.5rem;
+}
+.chain__n {
+  position: relative;
+  grid-row: 1;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: var(--display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.chain__text {
+  grid-column: 2;
+  grid-row: 1;
+}
+.chain__t {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.45rem 0 0.3rem;
+}
+.chain__b {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+/* The step's one number, pulled out as an aside so the chain scans at a glance. */
+.chain__fig {
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0.45rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.chain__fig strong {
+  font-family: var(--display);
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1.05;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.chain__fig span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+/* What flows down the spine to the next step. */
+.chain__flow {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 1.1rem;
+  margin: 0.55rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.chain__flow > span {
+  width: 2.4rem;
+  text-align: center;
+  color: var(--accent);
+  font-weight: 700;
+}
+/* Where the chain ends: the number every chart on the page starts from. */
+.chain__result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: fit-content;
+  margin: 0.4rem 0 0 3.5rem;
+  padding: 0.85rem 1.15rem;
+  background: var(--accent-wash);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.chain__result strong {
+  font-family: var(--display);
+  font-size: 1.55rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 700px) {
+  .chain__step {
+    grid-template-columns: 2.4rem minmax(0, 1fr);
+  }
+  .chain__fig {
+    grid-column: 2;
+    grid-row: 2;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+  }
+  .chain__flow {
+    grid-row: 3;
+  }
+  .chain__result {
+    margin-left: 0;
+  }
+}
+.steps__note {
+  margin-top: 0.9rem;
+}
+
+/* Act 2 — the near-term deltas: two before→after readings. */
+.deltas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+  max-width: 720px;
+}
+.delta {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+.delta__metric {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.delta__row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.3rem 0 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+.delta__from {
+  color: var(--muted);
+}
+.delta__arrow {
+  color: var(--muted);
+}
+.delta__to {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.delta__pct {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.delta__pct--down {
+  color: light-dark(#0f7a52, #4bbf8c);
+}
+.delta__pct--flat {
+  color: var(--muted);
+}
+.delta__note {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Act 3 — the fork. Three 2050 paths as cards you commit to; one radiogroup underneath. */
+
+/* A plain-spoken cue that this is the interaction — the cards are choices, and choosing
+   drives the rest of the page. */
+.fork__prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.fork__prompt::before {
+  content: "↓";
+  color: var(--accent);
+  font-weight: 700;
+}
+.fork {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+.fork__paths {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.9rem;
+}
+.fork__card {
+  --path: var(--accent);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 1.05rem 0.8rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+/* The clickable choice: everything except the assumptions disclosure below it. */
+.fork__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 1;
+  cursor: pointer;
+}
+/* Low = calm blue, High = hot red: the card's own accent tracks the temperature story. */
+.fork__card[data-path="2050_L"] {
+  --path: light-dark(#256abf, #86b6ef);
+}
+.fork__card[data-path="2050_M"] {
+  /* Amber dark enough to clear 4.5:1 as title text on the card surface (light mode). */
+  --path: light-dark(#a05e0d, #f0a83a);
+}
+.fork__card[data-path="2050_H"] {
+  --path: light-dark(#c0281c, #f2765f);
+}
+.fork__card:hover {
+  border-color: var(--path);
+  transform: translateY(-2px);
+}
+.fork__card:has(input:checked) {
+  border-color: var(--path);
+  box-shadow: inset 0 0 0 1px var(--path);
+}
+.fork__card:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.fork__card input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.fork__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+/* Visible radio, so a glance reads "these are options — one is picked, pick another". */
+.fork__radio {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--muted);
+  position: relative;
+}
+.fork__card:hover .fork__radio {
+  border-color: var(--path);
+}
+.fork__card:has(input:checked) .fork__radio {
+  border-color: var(--path);
+}
+.fork__card:has(input:checked) .fork__radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--path);
+}
+.fork__short {
+  font-family: var(--display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--path);
+}
+.fork__tag {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.fork__card:has(input:checked) .fork__tag {
+  color: var(--text-primary);
+}
+.fork__blurb {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.fork__chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-top: auto;
+}
+.chip {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.chip__k {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* Full assumption list, per card. Sits under the chips, outside the radio label. */
+.fork__more {
+  margin-top: 0.7rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.55rem;
+}
+details.fork__more > summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.fork__more[open] > summary {
+  color: var(--text-primary);
+}
+.fork__more ul {
+  margin: 0.5rem 0 0.2rem;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.fork__more li + li {
+  margin-top: 0.3rem;
+}
+
+/* Act 4 — the payoff. Sticky path switcher, then the two fan charts. */
+
+/* Sticky switcher: the fork's choice, kept in reach while the bars are on screen. It pins
+   under the masthead as you scroll the payoff, with clear air below the header bar. */
+.payoff__switch {
+  position: sticky;
+  top: 3.7rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--page-veil);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+}
+.payoff__switch-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-left: 0.3rem;
+}
+.payoff__pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+.payoff__pill {
+  position: relative;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.payoff__pill:hover {
+  color: var(--text-primary);
+}
+.payoff__pill:has(input:checked) {
+  background: #256abf;
+  color: #fff;
+  font-weight: 600;
+}
+.payoff__pill:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.payoff__pill input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.payoff {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem 2rem;
+}
+/* Bars grow from the baseline the first time the charts scroll into view. Default state is
+   full width (so a non-scrolling capture and reduced-motion both show real bars); the .grow
+   class replays the entrance. */
+.payoff__bar {
+  display: block;
+  height: 20px;
+  border-radius: 4px;
+  transform-origin: left center;
+}
+.payoff--grow .payoff__bar {
+  animation: bar-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.payoff__chart {
+  min-width: 0;
+}
+/* The charts are grid siblings; the global .figure + .figure spacer would push the
+   later ones down and break their top alignment. The grid gap already spaces them. */
+.payoff .figure + .figure {
+  margin-top: 0;
+}
+.payoff__title {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.payoff__unit {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+/* HTML rows, not SVG: the type stays at text size on every screen instead of scaling
+   down with a viewBox. Label · track · value, one grid so the columns align across rows. */
+.payoff__rows {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  gap: 0.55rem 0.7rem;
+  align-items: center;
+}
+.payoff__row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+}
+.payoff__label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: right;
+}
+.payoff__row--active .payoff__label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.payoff__track {
+  display: block;
+  /* the full-axis hairline behind the bar, centred on the bar's height */
+  background: linear-gradient(var(--grid), var(--grid)) left center / 100% 1px no-repeat;
+}
+.payoff__value {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.payoff__row--active .payoff__value {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.payoff__ratio {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.82rem;
+}
+
+/* Motion is opt-in: the reveal, the payoff's warmth transition, and the smooth anchor
+   scroll all fall back to instant when the visitor asks for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .act--payoff,
+  .fork__card {
+    transition: none;
+  }
+  .payoff--grow .payoff__bar {
+    animation: none;
+  }
+}

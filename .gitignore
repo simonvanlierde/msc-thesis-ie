@@ -135,9 +135,6 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
-# mkdocs documentation
-/site
-
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -185,7 +182,14 @@ Temporary Items
 # Ruff
 .ruff_cache/
 
+# Snakemake
+.snakemake/
+
 # Large geodata files and images
 data/input/geodata/*
 data/output/geodata/*
 data/output/images/*
+
+# Pipeline-generated outputs and fetched raw data (reproduced, not committed)
+/results/
+data/raw/
