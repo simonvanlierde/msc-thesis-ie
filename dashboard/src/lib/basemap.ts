@@ -57,8 +57,7 @@ function tooltipNode(title: string, value: string): HTMLElement {
  * leaves when the cursor does. On touch there is no cursor and no mouseleave, so a tap
  * opens a popup that has a close button and dismisses when you tap elsewhere.
  *
- * `text` receives the whole feature, because the year map keeps its value in feature
- * state rather than in the feature's properties.
+ * `text` receives the whole feature and maps it to the popup's [title, value] pair.
  */
 export function attachTooltip(
   map: maplibregl.Map,

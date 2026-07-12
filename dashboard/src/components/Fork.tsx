@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PATHS_2050, SCENARIO_META } from "../lib/scenarioMeta";
 import type { ScenarioKey } from "../lib/types";
 import { Act } from "./Act";
@@ -21,6 +22,9 @@ type ScenarioMetaAssumptions = (typeof SCENARIO_META)[ScenarioKey]["assumptions"
  *  own path and assumptions. The full assumption list sits in a disclosure per card,
  *  outside the radio label so opening it never re-fires the selection. */
 export function Fork({ scenario, onChange }: Props) {
+  // One state for all three cards: opening "All assumptions" anywhere opens it everywhere,
+  // so the paths stay comparable line by line.
+  const [assumptionsOpen, setAssumptionsOpen] = useState(false);
   return (
     <Act id="fork" variant="fork" eyebrow="2050 · your choice" labelledBy="fork-h">
       <h2 id="fork-h">Choose the path to 2050</h2>
@@ -67,7 +71,11 @@ export function Fork({ scenario, onChange }: Props) {
                   </span>
                 </label>
                 {m.details && (
-                  <details className="fork__more">
+                  <details
+                    className="fork__more"
+                    open={assumptionsOpen}
+                    onToggle={(e) => setAssumptionsOpen(e.currentTarget.open)}
+                  >
                     <summary>All assumptions</summary>
                     <ul>
                       {m.details.map((d) => (

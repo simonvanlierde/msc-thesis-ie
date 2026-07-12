@@ -48,12 +48,20 @@ export function MapView({ buurten, scenario, palette }: Props) {
   const hasBasemap = useRef(false);
 
   // Compute per-feature value + colour + the legend for the current scenario/metric/theme.
+  // Class breaks pool every scenario's values, so the colour scale holds still when the
+  // scenario switches and the maps compare directly.
   const view = useMemo(() => {
     if (!buurten) return null;
+    const allScenarios = buurten.metadata.scenarios as ScenarioKey[];
+    const pooled = buurten.features.flatMap((f) =>
+      allScenarios
+        .map((s) => metricValue(f.properties, s, metric))
+        .filter((v): v is number => v !== null),
+    );
     const values = buurten.features
       .map((f) => metricValue(f.properties, scenario, metric))
       .filter((v): v is number => v !== null);
-    const breaks = quantileBreaks(values, palette.sequential.length);
+    const breaks = quantileBreaks(pooled, palette.sequential.length);
     const features = buurten.features.map((f) => {
       const v = metricValue(f.properties, scenario, metric);
       const color = v === null ? palette.grid : palette.sequential[binIndex(v, breaks)];
@@ -189,8 +197,9 @@ export function MapView({ buurten, scenario, palette }: Props) {
             unit={METRIC_UNIT[metric]}
           />
           <figcaption>
-            {METRIC_LABEL[metric]}. Scenario shown: {scenarioLabel(scenario)}. Each tick on the
-            strip is one neighbourhood; the rules are the class breaks.
+            {METRIC_LABEL[metric]}. Scenario shown: {scenarioLabel(scenario)}. The colour scale is
+            fixed across all scenarios, so the maps compare directly. Each tick on the strip is one
+            neighbourhood; the rules are the class breaks.
           </figcaption>
           <BuurtTable fc={buurten} scenario={scenario} metric={metric} />
         </figure>

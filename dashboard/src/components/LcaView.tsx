@@ -66,7 +66,7 @@ export function LcaView({ data, scenario, palette }: Props) {
                         key={st}
                         className="lca__seg"
                         style={{ flexGrow: r.stages[st], background: palette.stage[st] }}
-                        title={`${stageLabels[st]} — ${num(r.stages[st] / 1e6, 1)} kt CO₂-eq (${pct(r.stages[st] / 1e6, r.total, 0)})`}
+                        data-tip={`${stageLabels[st]} · ${num(r.stages[st] / 1e6, 1)} kt CO₂-eq (${pct(r.stages[st] / 1e6, r.total, 0)})`}
                       />
                     ))}
                   </span>

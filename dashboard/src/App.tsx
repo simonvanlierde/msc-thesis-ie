@@ -64,9 +64,10 @@ export function App() {
   const palette = useMemo(() => getPalette(mode), [mode]);
   const activeSection = useScrollSpy(NAV_IDS, data !== null);
   const heroPassed = useHeroPassed(data !== null);
+  // Per-scenario: SEER and market penetration both move between the paths.
   const elec = useMemo(
-    () => (data ? elecFactors(data.scenarios.scenarios.SQ.archetypes) : null),
-    [data],
+    () => (data ? elecFactors(data.scenarios.scenarios[scenario].archetypes) : null),
+    [data, scenario],
   );
 
   useEffect(() => {
@@ -131,7 +132,7 @@ export function App() {
         {data && (
           <>
             <TodayHero data={data.scenarios} />
-            <HowItWorks />
+            <HowItWorks data={data.scenarios} />
             <NearTerm data={data.scenarios} />
             <Fork scenario={scenario} onChange={setScenario} />
             <Payoff
@@ -154,14 +155,29 @@ export function App() {
                 climate impact — all for the path you chose above.
               </p>
 
-              {/* The fork's choice, kept switchable while deep in the detail views. */}
-              <PathSwitch name="detail-path" scenario={scenario} onChange={setScenario} />
+              {/* The fork's choice, kept switchable while deep in the detail views. Unlike the
+                  impact act, the map and LCA show one scenario at a time down here, so Today
+                  and 2030 are selectable too. */}
+              <PathSwitch
+                name="detail-path"
+                scenario={scenario}
+                onChange={setScenario}
+                keys={data.scenarios.meta.scenario_order}
+                label="Scenario"
+              />
 
               <Suspense fallback={<ViewFallback label="the map" />}>
                 <MapView buurten={data.buurten} scenario={scenario} palette={palette} />
               </Suspense>
               <Suspense fallback={<ViewFallback label="the profiles" />}>
-                {elec && <TemporalView temporal={data.temporal} elec={elec} palette={palette} />}
+                {elec && (
+                  <TemporalView
+                    temporal={data.temporal}
+                    scenario={scenario}
+                    elec={elec}
+                    palette={palette}
+                  />
+                )}
               </Suspense>
               <Suspense fallback={<ViewFallback label="the impact charts" />}>
                 <LcaView data={data.scenarios} scenario={scenario} palette={palette} />

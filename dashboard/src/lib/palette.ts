@@ -4,13 +4,13 @@
 //
 // The rule the page holds to:
 //   focus   — magenta. Reserved for keyboard focus, used by no chart, ever.
-//   accent  — blue. Ink, links, anything interactive (including the year slider).
-//   data    — the sequential blue ramp, the warm heat ramp, and the categorical hues.
-//             Saturated warm colour only ever means "the data is hot", or (in the
-//             office/residential pair) "this series is the office one".
+//   accent  — blue. Ink, links, anything interactive.
+//   data    — the sequential blue ramp and the categorical hues. Saturated warm
+//             colour only ever means (in the office/residential pair) "this series
+//             is the office one".
 //
 // Residential/office stay blue+orange: it is the canonical colourblind-safe two-category
-// pair, and those two charts never share a viewport with the heat ramp.
+// pair.
 
 export type Mode = "light" | "dark";
 

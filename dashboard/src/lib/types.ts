@@ -56,18 +56,27 @@ export interface ScenariosData {
 export interface TemporalData {
   meta: {
     source: string;
-    scenario: string;
     weather_years: string;
     sample_buildings: number;
     validation: string;
-    units: { diurnal: string; monthly: string };
+    units: { diurnal: string; monthly: string; heatwave: string };
   };
   hour_of_day: number[];
   months: string[];
   seasons: string[];
   uses: string[];
+  /** Present-day (SQ) profiles, kept top-level for the OG-image build. */
   diurnal_by_season: Record<string, Record<string, number[]>>;
   monthly: Record<string, number[]>;
+  /** Per-scenario profiles — what the dashboard charts. The heatwave is the hottest
+   *  7 consecutive days of the weather record, hourly; dates are local ISO hours. */
+  by_scenario: Record<
+    ScenarioKey,
+    {
+      monthly: Record<string, number[]>;
+      heatwave: { dates: string[]; series: Record<string, number[]> };
+    }
+  >;
 }
 
 export type BuurtProps = {

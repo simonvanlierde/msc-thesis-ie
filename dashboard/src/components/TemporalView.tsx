@@ -2,13 +2,16 @@ import { type LineCustomSvgLayer, type LineSeries, ResponsiveLine } from "@nivo/
 import { useMemo, useState } from "react";
 import { num } from "../lib/format";
 import type { Palette } from "../lib/palette";
-import type { TemporalData } from "../lib/types";
+import { scenarioLabel as rowLabel } from "../lib/scenarioMeta";
+import type { ScenarioKey, TemporalData } from "../lib/types";
 import { Legend } from "./Legend";
 import { Segmented } from "./Segmented";
 
 interface Props {
   temporal: TemporalData;
-  /** kWh electricity per kWh cooling demand, per use (PUE × market penetration). */
+  scenario: ScenarioKey;
+  /** kWh electricity per kWh cooling demand, per use (PUE × market penetration),
+   *  for the selected scenario. */
   elec: { residential: number; office: number };
   palette: Palette;
 }
@@ -20,10 +23,6 @@ interface Series extends LineSeries {
 }
 
 type Quantity = "cooling" | "electricity";
-
-// The profile is shown for summer only — the season the cooling story is about; the
-// other seasons' shapes added little beyond a lower plateau.
-const SEASON = "Summer";
 
 const QUANTITY_OPTIONS: { value: Quantity; label: string }[] = [
   { value: "cooling", label: "Cooling demand" },
@@ -43,6 +42,18 @@ const LEADER_X = 12; // horizontal run of the leader line before it meets the la
 // The right margin has to clear LEADER_X plus the widest series name ("Residential"), or
 // nivo clips the end-labels. Widen the two together.
 const MARGIN = { top: 20, right: 124, bottom: 50, left: 55 };
+
+/** "2023-06-09T14:00" → "9 Jun 14:00" (unique per hour, so it can be nivo's point x). */
+function hourLabel(iso: string, months: string[]): string {
+  return `${Number(iso.slice(8, 10))} ${months[Number(iso.slice(5, 7)) - 1]} ${iso.slice(11, 16)}`;
+}
+
+/** "9–15 June 2023", from the heatwave's first and last ISO hours. */
+function weekLabel(dates: string[], months: string[]): string {
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  return `${Number(first.slice(8, 10))}–${Number(last.slice(8, 10))} ${months[Number(first.slice(5, 7)) - 1]} ${first.slice(0, 4)}`;
+}
 
 function nivoTheme(p: Palette) {
   return {
@@ -133,7 +144,7 @@ function makeEndLabels(palette: Palette): LineCustomSvgLayer<Series> {
   };
 }
 
-/** One annotation, on the thing the eye lands on: the day's single highest point of
+/** One annotation, on the thing the eye lands on: the week's single highest point of
  *  power, whichever series it falls in. Computed from the data, never hardcoded. */
 function makePeakLayer(palette: Palette): LineCustomSvgLayer<Series> {
   return ({ series, innerWidth }) => {
@@ -151,7 +162,7 @@ function makePeakLayer(palette: Palette): LineCustomSvgLayer<Series> {
     const color = peak.id === "office" ? palette.use.Office : palette.use.Residential;
     const who = USE_LABEL[peak.id] ?? peak.id;
     const text = `${who} peak · ${peak.x}, ${num(peak.y, 2)} GW`;
-    const tx = Math.min(Math.max(peak.px, 100), innerWidth - 100);
+    const tx = Math.min(Math.max(peak.px, 130), innerWidth - 130);
     return (
       <g pointerEvents="none">
         <circle
@@ -181,8 +192,9 @@ function makePeakLayer(palette: Palette): LineCustomSvgLayer<Series> {
   };
 }
 
-export function TemporalView({ temporal, elec, palette }: Props) {
+export function TemporalView({ temporal, scenario, elec, palette }: Props) {
   const uses = temporal.uses;
+  const profiles = temporal.by_scenario[scenario];
   const theme = nivoTheme(palette);
   const [quantity, setQuantity] = useState<Quantity>("cooling");
   const peakLayer = useMemo(() => makePeakLayer(palette), [palette]);
@@ -200,29 +212,35 @@ export function TemporalView({ temporal, elec, palette }: Props) {
   const powerLabel = isElec ? "Electric power (GW)" : "Cooling power (GW)";
   const energyLabel = isElec ? "Electricity (GWh)" : "Cooling energy (GWh)";
 
-  const diurnal: Series[] = uses.map((use) => ({
-    id: use,
-    color: colorForUse(palette, use),
-    data: temporal.hour_of_day.map((h) => ({
-      x: `${String(h).padStart(2, "0")}:00`,
-      y: temporal.diurnal_by_season[SEASON][use][h] * factor(use),
-    })),
-  }));
-
   const monthly: Series[] = uses.map((use) => ({
     id: use,
     color: colorForUse(palette, use),
-    data: temporal.months.map((mo, i) => ({ x: mo, y: temporal.monthly[use][i] * factor(use) })),
+    data: temporal.months.map((mo, i) => ({ x: mo, y: profiles.monthly[use][i] * factor(use) })),
   }));
+
+  // The hottest week of the weather record, hour by hour — the stress case the summer
+  // builds towards, and what the "sized for 98% of hours" systems must ride out.
+  const hw = profiles.heatwave;
+  const hwWeek = weekLabel(hw.dates, temporal.months);
+  const heatwave: Series[] = uses.map((use) => ({
+    id: use,
+    color: colorForUse(palette, use),
+    data: hw.dates.map((d, i) => ({
+      x: hourLabel(d, temporal.months),
+      y: hw.series[use][i] * factor(use),
+    })),
+  }));
+  // One tick per midnight; the tick label drops the redundant "00:00".
+  const hwTicks = heatwave[0].data.filter((_, i) => i % 24 === 0).map((d) => d.x);
 
   return (
     <section id="when" aria-labelledby="when-h">
       <h2 id="when-h">When cooling is needed</h2>
       <p className="lede">
-        Reconstructed from the thesis heat-balance model over {temporal.meta.weather_years} weather,
-        calibrated to the published annual totals. Cooling concentrates in the warm months. Offices
-        hold a steady plateau through working hours; homes swing higher, peaking in the morning and
-        again in the early evening.
+        Reconstructed from the thesis heat-balance model over {temporal.meta.weather_years} weather
+        under the {rowLabel(scenario)} scenario's climate and comfort assumptions, calibrated to its
+        annual totals. Cooling concentrates in the warm months — and within them, in a few extreme
+        days: the second chart zooms into the hottest week of the record, {hwWeek}.
       </p>
 
       <div className="viewctl">
@@ -235,48 +253,12 @@ export function TemporalView({ temporal, elec, palette }: Props) {
         />
         <p className="scope-note">
           Electricity is what installed equipment draws to meet the demand: cooling demand ÷
-          efficiency (SEER), scaled by the share of buildings that have cooling at all. Both
-          profiles show the present-day building stock.
+          efficiency (SEER), scaled by the share of buildings that have cooling at all — both
+          improve along the 2050 paths. Today's buildings set the profiles' shape; each scenario's
+          magnitude is calibrated to its citywide totals, including the projected growth of the
+          building stock.
         </p>
       </div>
-
-      <figure className="figure">
-        <div className="chart">
-          <ResponsiveLine<Series>
-            role="img"
-            ariaLabel={`Average ${isElec ? "electric" : "cooling"} power by hour of a summer day, residential versus office, in gigawatts.`}
-            data={diurnal}
-            theme={theme}
-            colors={(s) => s.color}
-            layers={[...LAYERS, endLabels, peakLayer]}
-            margin={MARGIN}
-            xScale={{ type: "point" }}
-            yScale={{ type: "linear", min: 0, max: "auto" }}
-            axisBottom={{
-              legend: "Hour of day",
-              legendOffset: 40,
-              legendPosition: "middle",
-              tickValues: diurnal[0].data.filter((_, i) => i % 3 === 0).map((d) => d.x),
-            }}
-            axisLeft={{
-              legend: powerLabel,
-              legendOffset: -45,
-              legendPosition: "middle",
-            }}
-            enablePoints={false}
-            enableGridX={false}
-            lineWidth={2}
-            useMesh
-            animate={false}
-            yFormat={(v) => `${num(Number(v), 3)} GW`}
-            tooltip={({ point }) => <Tooltip point={point} />}
-          />
-        </div>
-        <Legend items={useLegend} title="Building use" />
-        <figcaption>
-          Average {isElec ? "electric" : "cooling"} power through the day · summer.
-        </figcaption>
-      </figure>
 
       <figure className="figure">
         <div className="chart">
@@ -311,7 +293,48 @@ export function TemporalView({ temporal, elec, palette }: Props) {
         </div>
         <Legend items={useLegend} title="Building use" />
         <figcaption>
-          {isElec ? "Electricity for cooling" : "Cooling energy"} by month · typical year.
+          {isElec ? "Electricity for cooling" : "Cooling energy"} by month · typical year ·{" "}
+          {rowLabel(scenario)}.
+        </figcaption>
+      </figure>
+
+      <figure className="figure">
+        <div className="chart">
+          <ResponsiveLine<Series>
+            role="img"
+            ariaLabel={`Hourly ${isElec ? "electric" : "cooling"} power through the hottest week of the weather record, ${hwWeek}, residential versus office, in gigawatts.`}
+            data={heatwave}
+            theme={theme}
+            colors={(s) => s.color}
+            layers={[...LAYERS, endLabels, peakLayer]}
+            margin={MARGIN}
+            xScale={{ type: "point" }}
+            yScale={{ type: "linear", min: 0, max: "auto" }}
+            axisBottom={{
+              legend: `Heatwave week · ${hwWeek}`,
+              legendOffset: 40,
+              legendPosition: "middle",
+              tickValues: hwTicks,
+              format: (v) => String(v).replace(" 00:00", ""),
+            }}
+            axisLeft={{
+              legend: powerLabel,
+              legendOffset: -45,
+              legendPosition: "middle",
+            }}
+            enablePoints={false}
+            enableGridX={false}
+            lineWidth={2}
+            useMesh
+            animate={false}
+            yFormat={(v) => `${num(Number(v), 3)} GW`}
+            tooltip={({ point }) => <Tooltip point={point} />}
+          />
+        </div>
+        <Legend items={useLegend} title="Building use" />
+        <figcaption>
+          Hourly {isElec ? "electric" : "cooling"} power · heatwave of {hwWeek} ·{" "}
+          {rowLabel(scenario)}.
         </figcaption>
       </figure>
 
@@ -320,6 +343,7 @@ export function TemporalView({ temporal, elec, palette }: Props) {
         <table>
           <caption>
             {isElec ? "Electricity for cooling" : "Cooling energy"} by month and building use (GWh)
+            · {rowLabel(scenario)}
           </caption>
           <thead>
             <tr>
@@ -336,7 +360,7 @@ export function TemporalView({ temporal, elec, palette }: Props) {
               <tr key={mo}>
                 <td>{mo}</td>
                 {uses.map((u) => (
-                  <td key={u}>{num(temporal.monthly[u][i] * factor(u), 1)}</td>
+                  <td key={u}>{num(profiles.monthly[u][i] * factor(u), 1)}</td>
                 ))}
               </tr>
             ))}

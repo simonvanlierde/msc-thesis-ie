@@ -82,7 +82,7 @@ function CountUp({ value, digits, run }: { value: number; digits: number; run: b
  *  one axis with the chosen path lit in accent blue; today and 2030 sit as faint references.
  *  Length carries the story ("nearly doubles" / "a tenth of today"); the section's warm/cool
  *  tint commits to the chosen path. A sticky switcher keeps the choice in reach while the
- *  bars are on screen. Warm colour stays reserved for the heat ramp elsewhere. */
+ *  bars are on screen. */
 export function Payoff({ data, scenario, onChange, palette }: Props) {
   const order = data.meta.scenario_order;
   const [chartsRef, grow] = useInView<HTMLDivElement>();
