@@ -1,18 +1,22 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+const LCA_HEADING = /life-cycle climate impact/i;
+const FORK_HEADING = /choose the path to 2050/i;
+
 // The dashboard is one page; wait until the async data has rendered all three views.
 async function ready(page: import("@playwright/test").Page) {
   await page.goto("/");
   // Scroll acts reveal on intersection; force them present so axe scans every act and the
   // full-page screenshot isn't blank below the fold.
   await page.addStyleTag({ content: ".reveal{opacity:1 !important;transform:none !important}" });
-  // biome-ignore lint/performance/useTopLevelRegex: The regex is only used for a single string match, so it doesn't need to be top-level.
-  await expect(page.getByRole("heading", { name: /life-cycle climate impact/i })).toBeVisible({
+  await expect(page.getByRole("heading", { name: LCA_HEADING })).toBeVisible({
     timeout: 20_000,
   });
   // open the disclosure tables so axe also scans them
-  for (const d of await page.locator("details.datatable > summary").all()) await d.click();
+  await page.locator("details.datatable").evaluateAll((tables) => {
+    for (const t of tables) t.setAttribute("open", "");
+  });
 }
 
 for (const colorScheme of ["light", "dark"] as const) {
@@ -33,7 +37,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 test("reduced motion disables the reveal and bar-grow", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /choose the path to 2050/i })).toBeVisible({
+  await expect(page.getByRole("heading", { name: FORK_HEADING })).toBeVisible({
     timeout: 20_000,
   });
   // A below-the-fold reveal act is fully opaque without being scrolled into view.
@@ -55,12 +59,39 @@ test("reduced motion disables the reveal and bar-grow", async ({ page }) => {
 });
 
 test("captures a screenshot for the README", async ({ page }) => {
-  await page.setViewportSize({ width: 1200, height: 900 });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await ready(page);
-  // Un-stick the header so it doesn't overlap content in the full-page capture.
+  // Un-stick the header so it doesn't overlap content in the capture.
   await page.addStyleTag({ content: ".masthead{position:static !important}" });
   // Wait for the CARTO basemap tiles and both maps' polygons to settle before capture.
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(2500);
-  await page.screenshot({ path: "docs/screenshot.png", fullPage: true });
+
+  // ready() force-opens the disclosure tables so axe can scan them. The figure encloses its
+  // table, so leaving it open would drag 15 rows into the crop — collapse them again.
+  await page.locator("details.datatable").evaluateAll((tables) => {
+    for (const t of tables) t.removeAttribute("open");
+  });
+
+  // The map view, not the whole page: a full-page capture is a ~9,000px ribbon that renders in
+  // the README as a strip nobody scrolls. Clip in document coordinates (hence fullPage) — a
+  // viewport clip would depend on where the page happened to be scrolled, which is not stable.
+  const clip = await page.evaluate(() => {
+    const PAD = 24;
+    const section = document.querySelector("#map")?.getBoundingClientRect();
+    const heading = document.querySelector("#map-h")?.getBoundingClientRect();
+    const figure = document.querySelector("#map .figure")?.getBoundingClientRect();
+    if (!(section && heading && figure)) throw new Error("map section not found");
+    // Top edge on the heading, not the section: the section's padding reaches up into the
+    // sticky scenario switcher above it, which would bleed a sliver into the crop.
+    const top = heading.top + window.scrollY;
+    const bottom = figure.bottom + window.scrollY;
+    return {
+      x: Math.round(section.left - PAD),
+      y: Math.round(top - PAD),
+      width: Math.round(section.width + PAD * 2),
+      height: Math.round(bottom - top + PAD * 2),
+    };
+  });
+  await page.screenshot({ path: "docs/screenshot.png", fullPage: true, clip });
 });

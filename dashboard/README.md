@@ -13,7 +13,7 @@ read a chart to get it.
 
 **[Open the live dashboard →](https://simonvanlierde.github.io/msc-thesis-ie/)**
 
-![The dashboard](docs/screenshot.png)
+![The dashboard's map view: cooling demand across The Hague's 112 neighbourhoods, shown on the 2050 Medium scenario](docs/screenshot.png)
 
 ## Where the data comes from
 
@@ -110,7 +110,8 @@ Accessibility follows the same setup as `tide` / `credit-heatmap`:
 
 Vite + React + TypeScript, [nivo](https://nivo.rocks) charts, [MapLibre GL](https://maplibre.org)
 map, [Biome](https://biomejs.dev) (lint/format), Vitest (unit tests for the data transforms),
-Playwright + axe (a11y), lefthook (git hooks). Vite is pinned to 7.x: Vite 8's rolldown
+Playwright + axe (a11y). `pnpm check` also runs pre-commit, via the repo-root
+[pre-commit](../.pre-commit-config.yaml) config. Vite is pinned to 7.x: Vite 8's rolldown
 bundler currently breaks MapLibre's GeoJSON web worker in production builds.
 
 Type is self-hosted: [Newsreader](https://fonts.google.com/specimen/Newsreader) (variable, for the
