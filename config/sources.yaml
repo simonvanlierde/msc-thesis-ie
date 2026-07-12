@@ -41,6 +41,22 @@ ep_online:
   energy_labels_csv: data/raw/ep_online/current/energy_labels.csv
   source_url: https://www.ep-online.nl/PublicData
 
+cbs_postcode4:
+  # 4-digit postcode areas with CBS statistics. gis.ipynb's UHI-vs-income analysis uses the
+  # median household-income band (mediaan_inkomen_huishouden): CBS suppresses mean income at
+  # this level (-99997 on every Hague postcode) and no longer publishes income on the 100m grid.
+  base_url: https://api.pdok.nl/cbs/postcode4/ogc/v1
+  collection: postcode4
+  license: CC BY 4.0
+  source_url: https://api.pdok.nl/cbs/postcode4/ogc/v1/api
+
+cbs_wijken_en_buurten:
+  # Neighbourhoods (buurten) used by the per-neighbourhood maps.
+  base_url: https://api.pdok.nl/cbs/wijken-en-buurten-2025/ogc/v1
+  collection: buurten
+  license: CC BY 4.0
+  source_url: https://api.pdok.nl/cbs/wijken-en-buurten-2025/ogc/v1/api
+
 rivm_uhi:
   # National urban-heat-island raster (RIVM / Atlas Natuurlijk Kapitaal). Published
   # only as a ~1.95 GB ZIP of one national GeoTIFF -- no WCS -- so the pipeline

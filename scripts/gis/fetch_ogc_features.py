@@ -19,7 +19,9 @@ from pdok_http import retrying_session
 REQUEST_INTERVAL_S = 0.1
 
 
-def fetch_features(base_url: str, collection: str, bbox: str, limit: int, max_pages: int | None) -> dict:
+def fetch_features(
+    base_url: str, collection: str, bbox: str, limit: int, max_pages: int | None, timeout: int = 60
+) -> dict:
     """Fetch all pages for an OGC collection and return a FeatureCollection."""
     url = urljoin(base_url.rstrip("/") + "/", f"collections/{collection}/items")
     params: dict[str, str | int] = {"f": "json", "limit": limit, "bbox": bbox}
@@ -31,7 +33,7 @@ def fetch_features(base_url: str, collection: str, bbox: str, limit: int, max_pa
     while url:
         if page:
             time.sleep(REQUEST_INTERVAL_S)
-        response = session.get(url, params=params, timeout=60)
+        response = session.get(url, params=params, timeout=timeout)
         response.raise_for_status()
         payload = response.json()
         page += 1
@@ -84,10 +86,16 @@ def main() -> None:
     parser.add_argument("--bbox", required=True, help="CRS84 bbox as minx,miny,maxx,maxy")
     parser.add_argument("--output", required=True)
     parser.add_argument("--limit", type=int, default=10000)
+    parser.add_argument(
+        "--timeout", type=int, default=60,
+        help="Per-request read timeout (s). Some PDOK collections are slow to serve large pages.",
+    )
     parser.add_argument("--max-pages", type=int)
     args = parser.parse_args()
 
-    collection = fetch_features(args.base_url, args.collection, args.bbox, args.limit, args.max_pages)
+    collection = fetch_features(
+        args.base_url, args.collection, args.bbox, args.limit, args.max_pages, args.timeout
+    )
     if not collection["features"]:
         msg = f"No features returned for collection {args.collection!r} in bbox {args.bbox}."
         raise SystemExit(msg)

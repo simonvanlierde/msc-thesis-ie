@@ -49,6 +49,9 @@ PDOK_3D_YEAR = int(config["pdok_3d_basisvoorziening"]["year"])
 PDOK_3D_DIR = f"{RAW_DIR}/pdok_3d_basisvoorziening/{CITY_SLUG}/{PDOK_3D_YEAR}"
 EP_ONLINE_LABELS = config["ep_online"]["energy_labels_csv"]
 
+CBS_POSTCODE4 = f"{RAW_DIR}/cbs/postcode4_{CITY_SLUG}.gpkg"
+CBS_BUURTEN = f"{RAW_DIR}/cbs/buurten_{CITY_SLUG}.gpkg"
+
 RIVM_UHI_ZIP_URL = config["rivm_uhi"]["zip_url"]
 RIVM_UHI_CACHE_DIR = f"{RAW_DIR}/rivm_uhi"
 # gis.ipynb reads this exact path (a clip of the national raster). The rule
@@ -169,6 +172,56 @@ rule download_pdok_3d_height_tiles:
           --manifest {input} \
           --output-dir {output.tiles} \
           --local-manifest {output.manifest} > {log} 2>&1
+        """
+
+
+# CBS geographic divisions for gis.ipynb. Together with the city boundary (fetch_city_boundary)
+# these replace the committed GeographicDivisions GeoPackage, so gis has no un-reproducible input.
+rule fetch_cbs_postcode4:
+    retries: NETWORK_RETRIES
+    input:
+        bbox=BBOX_FILE,
+    output:
+        CBS_POSTCODE4,
+    params:
+        base_url=config["cbs_postcode4"]["base_url"],
+        collection=config["cbs_postcode4"]["collection"],
+        # The postcode polygons are detailed and this collection is slow to serve: page small and
+        # allow a long read timeout, or the request dies before the response completes.
+        limit=200,
+        timeout=300,
+    log:
+        f"{LOG_DIR}/fetch_cbs_postcode4.log",
+    shell:
+        """
+        python scripts/gis/fetch_ogc_features.py \
+          --base-url {params.base_url} \
+          --collection {params.collection} \
+          --bbox $(cat {input.bbox}) \
+          --limit {params.limit} \
+          --timeout {params.timeout} \
+          --output {output} > {log} 2>&1
+        """
+
+
+rule fetch_cbs_buurten:
+    retries: NETWORK_RETRIES
+    input:
+        bbox=BBOX_FILE,
+    output:
+        CBS_BUURTEN,
+    params:
+        base_url=config["cbs_wijken_en_buurten"]["base_url"],
+        collection=config["cbs_wijken_en_buurten"]["collection"],
+    log:
+        f"{LOG_DIR}/fetch_cbs_buurten.log",
+    shell:
+        """
+        python scripts/gis/fetch_ogc_features.py \
+          --base-url {params.base_url} \
+          --collection {params.collection} \
+          --bbox $(cat {input.bbox}) \
+          --output {output} > {log} 2>&1
         """
 
 
@@ -462,33 +515,6 @@ rule run_main_notebook:
         """
 
 
-rule run_gis_notebook:
-    input:
-        # gis.ipynb pins SCENARIO="SQ". The UHI raster is produced by fetch_uhi_raster,
-        # so it is declared. GeographicDivisions is external Zenodo geodata the pipeline
-        # cannot produce; left undeclared so the DAG stays inspectable, and the notebook
-        # raises a clear FileNotFoundError at runtime if it is absent.
-        # Pinned to the full stock (not SUBSET): the maps are spatial aggregations, not memory-bound
-        # time series, so they want complete coverage. Only main.ipynb needs the sample subset.
-        cdm_csv=f"{RESULTS_DIR}/CDM_results_SQ_full.csv",
-        cdm_geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_full.gpkg",
-        uhi_raster=UHI_RASTER,
-        notebook="gis.ipynb",
-        model_src=MODEL_SRC,
-    output:
-        notebook=f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
-        figures=directory(f"{RESULTS_DIR}/figures/gis"),
-    log:
-        f"{LOG_DIR}/run_gis_notebook.log",
-    shell:
-        # BUILDING_SUBSET_NAME=full: the notebook reads it (cell 31) to pick the CDM layer, matching
-        # the full-stock inputs declared above.
-        """
-        BUILDING_SUBSET_NAME=full \
-        jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
-          --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
-          {input.notebook} > {log} 2>&1
-        """
 # The dashboard's precomputed JSON is committed (the site deploys without a pipeline run), so
 # this is opt-in and not part of `all`: `snakemake dashboard_data` regenerates it in place and
 # reports it as out-of-date whenever the model, parameters or results move underneath it.
@@ -528,4 +554,35 @@ rule dashboard_data:
           python dashboard/scripts/build_temporal.py \
             --geodata-dir {RESULTS_GEODATA_DIR} --out {output.temporal}
         }} > {log} 2>&1
+        """
+
+
+rule run_gis_notebook:
+    input:
+        # gis.ipynb pins SCENARIO="SQ". Every input it reads is now produced by a rule -- the UHI
+        # raster, the CBS postcode areas (income) and buurten (neighbourhoods), and the municipal
+        # boundary (the city outline). The committed GeographicDivisions GeoPackage is gone.
+        # Pinned to the full stock (not SUBSET): the maps are spatial aggregations, not memory-bound
+        # time series, so they want complete coverage. Only main.ipynb needs the sample subset.
+        cdm_csv=f"{RESULTS_DIR}/CDM_results_SQ_full.csv",
+        cdm_geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_full.gpkg",
+        uhi_raster=UHI_RASTER,
+        postcode4=CBS_POSTCODE4,
+        buurten=CBS_BUURTEN,
+        boundary=BOUNDARY_GEOJSON,
+        notebook="gis.ipynb",
+        model_src=MODEL_SRC,
+    output:
+        notebook=f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
+        figures=directory(f"{RESULTS_DIR}/figures/gis"),
+    log:
+        f"{LOG_DIR}/run_gis_notebook.log",
+    shell:
+        # BUILDING_SUBSET_NAME=full: the notebook reads it (cell 31) to pick the CDM layer, matching
+        # the full-stock inputs declared above.
+        """
+        BUILDING_SUBSET_NAME=full \
+        jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
+          --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
+          {input.notebook} > {log} 2>&1
         """
