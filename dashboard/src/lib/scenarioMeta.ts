@@ -45,7 +45,7 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
     short: "2030",
     tagline: "Close, and mostly locked in",
     blurb:
-      "Summers run about 0.3 °C warmer, but a cleaner grid more than offsets it: emissions fall to 25.1 kt even as demand holds flat. The near future bends downward on its own — 2050 is where the paths fork.",
+      "Summers run about 0.3 °C warmer, but a cleaner grid more than offsets it: emissions fall to 25.1 kt even as demand holds flat. The real choices come at 2050.",
     assumptions: {
       warming: "+0.3 °C summer",
       comfort: "Cools at 25 °C",
