@@ -1,0 +1,11 @@
+.git
+.venv
+data
+results
+docs
+tests
+*.ipynb
+*.jpeg
+dashboard
+.snakemake
+__pycache__
