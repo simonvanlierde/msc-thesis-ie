@@ -17,7 +17,7 @@ mpl.use("Agg")  # headless: the SA plot helpers call plt.show(); Agg makes that 
 
 import pandas as pd
 
-import cdm.figures_sensitivity as figures_sensitivity
+from cdm import figures_sensitivity
 from cdm.constants import SCENARIOS
 from cdm.figures_sensitivity import post_process_SA_results
 from cdm.parameters import add_parameters_to_buildings
@@ -170,7 +170,7 @@ def main() -> None:
     # add_parameters_to_buildings. Parameterise a copy once to get the stock prevalence
     # the market-penetration SA and its reference need.
     buildings_with_type = add_parameters_to_buildings(
-        buildings.copy(), params["global"], params["building_type"], params["energy_class"]
+        buildings.copy(), params["global"], params["building_type"], params["energy_class"],
     )
     building_type_prevalence = buildings_with_type["building_type"].value_counts(normalize=True)
     raw_weather_data = pd.read_csv(args.weather_csv, parse_dates=["date"])

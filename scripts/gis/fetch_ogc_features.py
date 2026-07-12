@@ -20,7 +20,7 @@ REQUEST_INTERVAL_S = 0.1
 
 
 def fetch_features(
-    base_url: str, collection: str, bbox: str, limit: int, max_pages: int | None, timeout: int = 60
+    base_url: str, collection: str, bbox: str, limit: int, max_pages: int | None, timeout: int = 60,
 ) -> dict:
     """Fetch all pages for an OGC collection and return a FeatureCollection."""
     url = urljoin(base_url.rstrip("/") + "/", f"collections/{collection}/items")
@@ -87,15 +87,15 @@ def main() -> None:
     parser.add_argument("--output", required=True)
     parser.add_argument("--limit", type=int, default=10000)
     parser.add_argument(
-        "--timeout", type=int, default=60,
+        "--timeout",
+        type=int,
+        default=60,
         help="Per-request read timeout (s). Some PDOK collections are slow to serve large pages.",
     )
     parser.add_argument("--max-pages", type=int)
     args = parser.parse_args()
 
-    collection = fetch_features(
-        args.base_url, args.collection, args.bbox, args.limit, args.max_pages, args.timeout
-    )
+    collection = fetch_features(args.base_url, args.collection, args.bbox, args.limit, args.max_pages, args.timeout)
     if not collection["features"]:
         msg = f"No features returned for collection {args.collection!r} in bbox {args.bbox}."
         raise SystemExit(msg)

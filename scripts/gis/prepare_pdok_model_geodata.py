@@ -93,9 +93,7 @@ def _read_height_tiles(manifest_path: Path, boundary: gpd.GeoDataFrame | None = 
                 msg = f"No GeoPackage found in {local_path}"
                 raise ValueError(msg)
             # Let OGR drop out-of-city features before they ever reach pandas.
-            frames.extend(
-                gpd.read_file(gpkg_path, bbox=_tile_bbox(gpkg_path, boundary)) for gpkg_path in gpkg_paths
-            )
+            frames.extend(gpd.read_file(gpkg_path, bbox=_tile_bbox(gpkg_path, boundary)) for gpkg_path in gpkg_paths)
 
     if not frames:
         msg = "No PDOK 3D height tile data was loaded."

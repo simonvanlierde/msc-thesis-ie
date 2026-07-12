@@ -237,5 +237,3 @@ def plot_cooling_loads_for_end_use(
         filename_group="end_use",
         filename_id=str(building["end_use"]),
     )
-
-
