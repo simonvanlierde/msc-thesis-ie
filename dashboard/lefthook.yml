@@ -1,9 +1,0 @@
-pre-commit:
-  parallel: true
-  commands:
-    lint:
-      glob: "*.{ts,tsx,json,jsonc}"
-      run: pnpm biome check --no-errors-on-unmatched {staged_files}
-    typecheck:
-      glob: "*.{ts,tsx}"
-      run: pnpm typecheck

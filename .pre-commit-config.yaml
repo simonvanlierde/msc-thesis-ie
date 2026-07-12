@@ -1,5 +1,8 @@
 # Mirrors the CI checks in .github/workflows/ci.yml.
 # Install once with: uv run pre-commit install
+# Fast linters/formatters run on commit; tests and the dashboard build run on push.
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
@@ -17,6 +20,13 @@ repos:
         types_or: [python, pyi, jupyter]
         require_serial: true
 
+      - id: biome
+        name: biome format + check (dashboard)
+        entry: pnpm --dir dashboard format
+        language: system
+        files: ^dashboard/
+        pass_filenames: false
+
       # Informational, like the type-check job in CI: the scientific code annotates with
       # `np.array` in many places, which ty flags. Reported, never blocking.
       - id: ty
@@ -33,3 +43,12 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+        stages: [pre-push]
+
+      - id: dashboard-check
+        name: pnpm check (dashboard)
+        entry: pnpm --dir dashboard check
+        language: system
+        files: ^dashboard/
+        pass_filenames: false
+        stages: [pre-push]

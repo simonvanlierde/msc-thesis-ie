@@ -20,8 +20,7 @@
     "test:e2e": "playwright test",
     "check": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build",
     "data": "python scripts/build_scenarios.py && python scripts/build_choropleth.py && python scripts/build_temporal.py",
-    "og": "node scripts/build_og.mjs",
-    "prepare": "lefthook install || true"
+    "og": "node scripts/build_og.mjs"
   },
   "dependencies": {
     "@nivo/line": "^0.99.0",
@@ -41,7 +40,6 @@
     "@vitejs/plugin-react": "^5.1.4",
     "@vitest/coverage-v8": "^4.1.9",
     "jsdom": "^29.1.1",
-    "lefthook": "^2.1.9",
     "typescript": "^6.0.3",
     "vite": "^7.3.6",
     "vitest": "^4.1.9"
