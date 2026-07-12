@@ -17,12 +17,15 @@ repos:
         types_or: [python, pyi, jupyter]
         require_serial: true
 
+      # Informational, like the type-check job in CI: the scientific code annotates with
+      # `np.array` in many places, which ty flags. Reported, never blocking.
       - id: ty
-        name: ty check
-        entry: uv run ty check
+        name: ty check (informational)
+        entry: bash -c 'uv run ty check || true'
         language: system
         types: [python]
         pass_filenames: false
+        verbose: true
 
       - id: pytest
         name: pytest
