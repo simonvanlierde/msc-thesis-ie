@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gwh, ktCO2, num, pct } from "./format";
+import { compact, gwh, ktCO2, num, pct } from "./format";
 
 describe("format helpers", () => {
   it("gwh converts kWh to GWh", () => {
@@ -14,5 +14,9 @@ describe("format helpers", () => {
   });
   it("num adds thousands separators", () => {
     expect(num(59381)).toBe("59,381");
+  });
+  it("compact shortens, with an optional unit", () => {
+    expect(compact(1_200_000)).toBe("1.2M");
+    expect(compact(34_000, "m²")).toBe("34K m²");
   });
 });
