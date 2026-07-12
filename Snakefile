@@ -527,10 +527,10 @@ rule dashboard_data:
             f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_{{scenario}}_full.gpkg",
             scenario=SCENARIOS,
         ),
+        # build_choropleth aggregates the buildings to the same CBS buurten gis.ipynb uses, and
         # build_temporal re-runs the heat balance on a building sample, so it reads the parameters
-        # and the model directly. GeographicDivisions (build_choropleth's buurt boundaries) is the
-        # same external Zenodo geodata gis.ipynb uses: left undeclared, absent means a clear
-        # FileNotFoundError at runtime rather than an unsatisfiable DAG.
+        # and the model directly.
+        buurten=CBS_BUURTEN,
         parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
         scripts=[
             "dashboard/scripts/build_scenarios.py",
@@ -542,6 +542,8 @@ rule dashboard_data:
         scenarios="dashboard/public/data/scenarios.json",
         choropleth="dashboard/public/data/cooling_by_buurt.geojson",
         temporal="dashboard/public/data/temporal.json",
+    params:
+        city=CITY_NAME,
     log:
         f"{LOG_DIR}/dashboard_data.log",
     shell:
@@ -550,6 +552,7 @@ rule dashboard_data:
           python dashboard/scripts/build_scenarios.py \
             --results-dir {RESULTS_DIR} --out {output.scenarios}
           python dashboard/scripts/build_choropleth.py \
+            --divisions {input.buurten} --city "{params.city}" \
             --geodata-dir {RESULTS_GEODATA_DIR} --out {output.choropleth}
           python dashboard/scripts/build_temporal.py \
             --geodata-dir {RESULTS_GEODATA_DIR} --out {output.temporal}

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Aggregate per-building cooling results to neighbourhood (buurt) level for the map.
 
-Inputs (git-ignored, dropped in locally from the Zenodo dataset 10.5281/zenodo.8344580):
+Inputs:
   data/output/geodata/buildings_with_CDM_results_{scenario}_full.gpkg  — 59k building polygons
-  data/input/geodata/GeographicDivisions_TheHague.gpkg (layer Neighbourhoods_TheHague) — 114 buurten
+    (git-ignored, dropped in locally from the Zenodo dataset 10.5281/zenodo.8344580)
+  data/raw/cbs/buurten_{city}.gpkg — CBS neighbourhoods, produced by the fetch_cbs_buurten rule
 
 Output:
   dashboard/public/data/cooling_by_buurt.geojson — one FeatureCollection, geometry per
@@ -25,12 +26,14 @@ import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-DIVISIONS = REPO / "data" / "input" / "geodata" / "GeographicDivisions_TheHague.gpkg"
+DIVISIONS = REPO / "data" / "raw" / "cbs" / "buurten_s-gravenhage.gpkg"
 BUILDINGS = REPO / "data" / "output" / "geodata"
 OUT = REPO / "dashboard" / "public" / "data" / "cooling_by_buurt.geojson"
 
+CITY = "'s-Gravenhage"  # CBS gemeentenaam; the fetch is by bbox, so it also pulls in the neighbours
+CRS_RD_NEW = "EPSG:28992"  # metric, and what the building GPKGs use — simplify and sjoin need it
 SCENARIOS = ["SQ", "2030", "2050_L", "2050_M", "2050_H"]
-SIMPLIFY_M = 15  # geometry simplification tolerance, metres (source CRS EPSG:28992 is metric)
+SIMPLIFY_M = 15  # geometry simplification tolerance, metres (CRS_RD_NEW is metric)
 COORD_DP = 5  # ~1 m; plenty for a city choropleth, and keeps the file small
 
 # Per-building GPKG field -> output property name; all summed within each buurt.
@@ -42,7 +45,7 @@ SUM_COLS = {
 }
 
 
-def main(divisions: Path, buildings_dir: Path, out_path: Path) -> int:
+def main(divisions: Path, buildings_dir: Path, out_path: Path, city: str) -> int:
     import geopandas as gpd
     from shapely.geometry import mapping
 
@@ -51,7 +54,13 @@ def main(divisions: Path, buildings_dir: Path, out_path: Path) -> int:
         return 0
 
     # --- load buurten (the aggregation units) ---
-    buurten = gpd.read_file(divisions, layer="Neighbourhoods_TheHague")[["buurtcode", "buurtnaam", "geometry"]]
+    # CBS ships WGS84 and the fetch is bbox-based, so reproject to metric RD New and keep only
+    # this city's buurten — the bbox overlaps Rijswijk, Wassenaar, Delft and six more.
+    buurten = gpd.read_file(divisions, layer="buurten").to_crs(CRS_RD_NEW)
+    buurten = buurten[buurten["gemeentenaam"] == city][["buurtcode", "buurtnaam", "geometry"]]
+    if buurten.empty:
+        msg = f"no buurten with gemeentenaam == {city!r} in {divisions}"
+        raise SystemExit(msg)
     values: dict[str, dict] = {
         r.buurtcode: {"buurtcode": r.buurtcode, "buurtnaam": r.buurtnaam} for r in buurten.itertuples()
     }
@@ -62,7 +71,7 @@ def main(divisions: Path, buildings_dir: Path, out_path: Path) -> int:
         if not gpkg.exists():
             print(f"  {scen}: no GPKG, skipping this scenario")
             continue
-        b = gpd.read_file(gpkg)[[*SUM_COLS, "geometry"]]
+        b = gpd.read_file(gpkg)[[*SUM_COLS, "geometry"]].to_crs(CRS_RD_NEW)
         b["geometry"] = b.geometry.representative_point()
         joined = gpd.sjoin(b, buurten[["buurtcode", "geometry"]], predicate="within")
         agg = joined.groupby("buurtcode")[list(SUM_COLS)].sum()
@@ -89,8 +98,8 @@ def main(divisions: Path, buildings_dir: Path, out_path: Path) -> int:
     fc = {
         "type": "FeatureCollection",
         "metadata": {
-            "source": "buildings_with_CDM_results_*.gpkg aggregated to CBS buurten",
-            "doi_data": "10.5281/zenodo.8344580",
+            "source": "buildings_with_CDM_results_*.gpkg aggregated to CBS buurten (wijken en buurten)",
+            "doi_data": "10.5281/zenodo.8344580",  # the building stock; the buurt geometry is CBS
             "scenarios": SCENARIOS,
             "note": "values are per-buurt sums of building-level model output",
         },
@@ -116,8 +125,9 @@ if __name__ == "__main__":
     import argparse
 
     ap = argparse.ArgumentParser(description="Aggregate per-building cooling results to buurt GeoJSON.")
-    ap.add_argument("--divisions", type=Path, default=DIVISIONS, help="GeographicDivisions GPKG")
+    ap.add_argument("--divisions", type=Path, default=DIVISIONS, help="CBS buurten GPKG")
     ap.add_argument("--geodata-dir", type=Path, default=BUILDINGS, help="dir with buildings_with_CDM_results_*.gpkg")
     ap.add_argument("--out", type=Path, default=OUT, help="output GeoJSON path")
+    ap.add_argument("--city", default=CITY, help="CBS gemeentenaam to keep")
     args = ap.parse_args()
-    raise SystemExit(main(args.divisions, args.geodata_dir, args.out))
+    raise SystemExit(main(args.divisions, args.geodata_dir, args.out, args.city))

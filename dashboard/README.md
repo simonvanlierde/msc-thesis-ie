@@ -25,13 +25,13 @@ Every number traces to the thesis model — nothing is invented. Three small bui
 | Script | Output | Source | Notes |
 | --- | --- | --- | --- |
 | `build_scenarios.py` | `public/data/scenarios.json` (~47 kB) | `data/output/CDM_results_*.csv` (committed) | Per-archetype cooling + LCA totals for all 5 scenarios. A self-check reproduces the README headline (offices: 13% area, 34% demand, 65% GHG) from the built data. |
-| `build_choropleth.py` | `public/data/cooling_by_buurt.geojson` (~127 kB) | per-building GPKG + CBS buurt boundaries (git-ignored, from Zenodo) | 59,381 buildings aggregated to 112 buurten by centroid, geometry simplified and reprojected to WGS84. Buurt sums match the archetype totals to 0.00% for the present-day (SQ) scenario. |
+| `build_choropleth.py` | `public/data/cooling_by_buurt.geojson` (~127 kB) | per-building GPKG + CBS buurten (fetched by the `fetch_cbs_buurten` rule) | 59,381 buildings aggregated to 112 buurten by centroid, geometry simplified and reprojected to WGS84. Buurt sums match the archetype totals to 0.00% for the present-day (SQ) scenario. |
 | `build_temporal.py` | `public/data/temporal.json` (~3 kB) | per-building GPKG + committed weather/parameter CSVs | Re-runs the thesis heat-balance model on a stratified building sample, averages 2018–2022 weather into a typical year, calibrated to the published annual totals. Validated: per-building annual `E_cooling` reproduces the published value to **~0.03% median error**. |
 
-The spatial and temporal builds need the Zenodo geodata
-([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)); the GeoPackages are
-git-ignored. The pre-built JSON in `public/data/` is committed, so the dashboard runs and
-deploys without them.
+The spatial and temporal builds need the per-building GeoPackages from the Zenodo dataset
+([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)), which are git-ignored;
+the buurt boundaries come from CBS via the pipeline. The pre-built JSON in `public/data/`
+is committed, so the dashboard runs and deploys without any of it.
 
 ### Caveats (kept honest)
 
