@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: monthly
     groups:
-      all:
+      python:
         patterns: [ "*" ]
     cooldown:
       default-days: 3
@@ -15,7 +15,7 @@ updates:
     schedule:
       interval: monthly
     groups:
-      all:
+      node:
         patterns: [ "*" ]
     cooldown:
       default-days: 3
@@ -25,7 +25,7 @@ updates:
     schedule:
       interval: monthly
     groups:
-      all:
+      github-actions:
         patterns: [ "*" ]
     cooldown:
       default-days: 3
@@ -35,7 +35,7 @@ updates:
     schedule:
       interval: monthly
     groups:
-      all:
+      docker:
         patterns: [ "*" ]
     cooldown:
       default-days: 3
