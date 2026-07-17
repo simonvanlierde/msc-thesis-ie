@@ -49,7 +49,9 @@ SA_SPECS: list[SASpec] = [
     SASpec("carbon_intensity_electric_grid_kgCO2eq_kWh", "global", 0, 1, "grid carbon intensity", "kgCO2eq/kWh"),
     SASpec("gwp_refrigerant_kgCO2eq_kg", "global", 0, 20000, "refrigerant GWP", "kgCO2eq/kg"),
     SASpec("carbon_intensity_production_kgCO2eq_kg", "global", 1, 10, "production carbon intensity", "kgCO2eq/kg"),
-    SASpec("carbon_intensity_EoL_kgCO2eq_kg", "global", 1, 10, "end-of-life carbon intensity", "kgCO2eq/kg"),
+    # range must bracket the 0.3 kgCO2eq/kg reference: the elasticity is read at the sweep row
+    # closest to the reference, and the first row of a sweep is always NaN (pct_change)
+    SASpec("carbon_intensity_EoL_kgCO2eq_kg", "global", 0, 3, "end-of-life carbon intensity", "kgCO2eq/kg"),
     SASpec("people_density_office", "global", 0.04, 0.2, "office people density", "people/m2"),
     SASpec("int_heat_gain_light_W_m2", "global", 0.5, 25, "lighting internal heat gain", "W/m2"),
     SASpec("T_thresh_C", "global", 15, 30, "cooling threshold temperature", "degC"),
