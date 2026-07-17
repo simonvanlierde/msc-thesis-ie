@@ -74,6 +74,48 @@ rule all:
         f"{RESULTS_DIR}/figures/scenario_overview.png",
 
 
+# Journal-paper artifacts: main-text figures F1/F2/F5 and the manuscript numbers
+# report. Opt-in target so `all` stays lean: `snakemake paper`.
+rule paper:
+    input:
+        f"{RESULTS_DIR}/figures/F2_contribution_by_type.png",
+        f"{RESULTS_DIR}/paper_numbers.json",
+
+
+rule paper_figures:
+    input:
+        csv=f"{RESULTS_DIR}/CDM_results_SQ_{SUBSET}.csv",
+        geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
+        script="scripts/make_paper_figures.py",
+    output:
+        f"{RESULTS_DIR}/figures/F1_pipeline_schematic.png",
+        f"{RESULTS_DIR}/figures/F2_contribution_by_type.png",
+        f"{RESULTS_DIR}/figures/F5_intensity_distribution.png",
+    log:
+        f"{LOG_DIR}/paper_figures.log",
+    shell:
+        "python scripts/make_paper_figures.py --input-dir {RESULTS_DIR} --figures-dir {RESULTS_DIR}/figures > {log} 2>&1"
+
+
+# The JSON is the artifact (unrounded); the txt is the rendered report the draft is
+# re-synced against by hand.
+rule paper_numbers:
+    input:
+        csvs=expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_{SUBSET}.csv", scenario=SCENARIOS),
+        script="scripts/paper_numbers.py",
+    output:
+        json=f"{RESULTS_DIR}/paper_numbers.json",
+        txt=f"{RESULTS_DIR}/paper_numbers.txt",
+    log:
+        f"{LOG_DIR}/paper_numbers.log",
+    shell:
+        """
+        python scripts/paper_numbers.py \
+          --results-dir {RESULTS_DIR} \
+          --json-output {output.json} > {output.txt} 2> {log}
+        """
+
+
 # Heavy opt-in target (30 tech pairs x 20 model runs); not part of `all`.
 rule cooling_mix:
     input:
