@@ -13,6 +13,7 @@ import geopandas as gpd
 import pandas as pd
 import pyogrio
 import rasterio
+import rasterio.windows
 
 from cdm.geometric import azimuth_rectangle
 
