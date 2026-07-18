@@ -59,7 +59,9 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     # Define parameters for the KNMI API request
     start_time = f"{start_year}010101"  # Start time for KNMI API request
     end_time = f"{end_year}123124"  # End time for KNMI API request
-    weather_measurements = "T:Q"  # Temperature (in tenths of °C) and solar radiation (in J/cm2)
+    weather_measurements = (
+        "T:Q:FH"  # Temperature (in tenths of °C), solar radiation (in J/cm2), and hourly mean wind (in tenths of m/s)
+    )
 
     knmi_url = "https://www.daggegevens.knmi.nl/klimatologie/uurgegevens"  # KNMI API url
     knmi_params = {
@@ -99,6 +101,12 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
 
     # Convert the raw temperature data to numeric and divide by 10 to get °C
     weather_series_df["T_outdoor_raw_C"] = pd.to_numeric(weather_series_df["T"], errors="coerce").astype("float") / 10
+
+    # Convert the raw wind speed data from 0.1 m/s to m/s (if available)
+    if "FH" in weather_series_df.columns:
+        weather_series_df["wind_speed_m_s"] = (
+            pd.to_numeric(weather_series_df["FH"], errors="coerce").astype("float") / 10
+        )
 
     # Read in string as datetime
     weather_series_df["date"] = pd.to_datetime(
