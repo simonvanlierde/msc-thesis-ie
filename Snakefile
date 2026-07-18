@@ -358,22 +358,20 @@ rule fetch_weather:
 
 
 # Always builds the full stock. The optional `sample` subset is a downstream selection
-# (subsample_buildings), so this output is pinned to `_full` regardless of SUBSET.
+# (subsample_buildings), so this output is pinned to `_full` regardless of SUBSET. UHI is
+# added by a separate rule below so cdm/*.py edits (model_src) don't retrigger raster sampling.
 rule prepare_bag_geodata:
     input:
         height_manifest=f"{PDOK_3D_DIR}/height_tiles_local_manifest.json",
         residences=BAG_RESIDENCES,
         energy_labels=EP_ONLINE_LABELS,
         boundary=BOUNDARY_GEOJSON,
-        uhi_habib="data/input/geodata/UHImax_habib_TheHague_5m.tif",
         script="scripts/gis/prepare_pdok_model_geodata.py",
         model_src=MODEL_SRC,
     output:
-        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_nouhi_full.gpkg",
     params:
         layer="BAG_buildings_full",
-        uhi_fallback_c=config.get("uhi_fallback_c", 1.0),
-        uhi_buffer_m=config.get("uhi_buffer_m", 30),
     log:
         f"{LOG_DIR}/prepare_bag_geodata.log",
     benchmark:
@@ -386,6 +384,35 @@ rule prepare_bag_geodata:
           --bag-residences {input.residences} \
           --energy-labels {input.energy_labels} \
           --boundary {input.boundary} \
+          --output {output.buildings} \
+          --layer {params.layer} > {log} 2>&1
+        """
+
+
+# Split out from prepare_bag_geodata (2026-07-18): the windowed UHI sampling made that rule
+# take 30+ min, and it re-ran on every cdm/*.py edit via model_src. This rule depends only on
+# the Habib raster and its own script -- not model_src -- so model iteration stays fast.
+rule add_uhi_to_buildings:
+    input:
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_nouhi_full.gpkg",
+        uhi_habib="data/input/geodata/UHImax_habib_TheHague_5m.tif",
+        script="scripts/gis/add_uhi_to_buildings.py",
+    output:
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
+    params:
+        layer="BAG_buildings_full",
+        uhi_fallback_c=config.get("uhi_fallback_c", 1.0),
+        uhi_buffer_m=config.get("uhi_buffer_m", 30),
+    log:
+        f"{LOG_DIR}/add_uhi_to_buildings.log",
+    benchmark:
+        f"{BENCHMARK_DIR}/add_uhi_to_buildings.tsv"
+    threads: 1
+    shell:
+        """
+        python scripts/gis/add_uhi_to_buildings.py \
+          --buildings {input.buildings} \
+          --buildings-layer {params.layer} \
           --uhi-raster {input.uhi_habib} \
           --uhi-fallback-c {params.uhi_fallback_c} \
           --uhi-buffer-m {params.uhi_buffer_m} \

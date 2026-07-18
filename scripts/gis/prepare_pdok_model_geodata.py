@@ -12,8 +12,6 @@ from typing import cast
 import geopandas as gpd
 import pandas as pd
 import pyogrio
-import rasterio
-import rasterio.windows
 
 from cdm.geometric import azimuth_rectangle
 
@@ -237,41 +235,6 @@ def _clip_to_boundary(buildings: gpd.GeoDataFrame, boundary: gpd.GeoDataFrame) -
     return buildings[inside].reset_index(drop=True)
 
 
-def sample_uhi_max(
-    buildings_gdf: gpd.GeoDataFrame,
-    raster_path: Path,
-    fallback_c: float,
-    buffer_m: float,
-) -> gpd.GeoDataFrame:
-    """Sample the UHImax raster in a neighbourhood around each building's representative point.
-
-    The Habib raster defines UHImax on outdoor (street-canyon / pedestrian-level) cells only,
-    not on building footprints, so a point sample at the representative point almost always
-    lands on nodata (verified 2026-07-18: 199/200 sample-building points hit nodata, but
-    200/200 had a valid cell within 30 m). This instead averages the valid cells in a square
-    window of +/- ``buffer_m`` around the point -- also the physically relevant quantity, since
-    it is the ambient air UHI immediately surrounding the building. Do not "simplify" this back
-    to a point sample. Buildings whose window contains no valid cell at all (other
-    municipalities, raster edges) receive ``fallback_c`` -- the citywide mean air UHI -- so the
-    model keeps working for cities the Habib dataset does not cover.
-    """
-    points = [geom.representative_point() for geom in buildings_gdf.geometry]
-    with rasterio.open(raster_path) as src:
-        values = []
-        for point in points:
-            window = rasterio.windows.from_bounds(
-                point.x - buffer_m,
-                point.y - buffer_m,
-                point.x + buffer_m,
-                point.y + buffer_m,
-                transform=src.transform,
-            )
-            arr = src.read(1, window=window, masked=True, boundless=True)
-            values.append(float(arr.mean()) if arr.count() > 0 else fallback_c)
-    buildings_gdf["UHI_max_C"] = values
-    return buildings_gdf
-
-
 def main() -> None:
     """Prepare model input geodata."""
     parser = argparse.ArgumentParser()
@@ -279,19 +242,6 @@ def main() -> None:
     parser.add_argument("--bag-residences", required=True)
     parser.add_argument("--energy-labels", required=True)
     parser.add_argument("--boundary", help="City boundary GeoJSON; buildings outside it are dropped.")
-    parser.add_argument("--uhi-raster", required=True, help="Per-building UHImax GeoTIFF (Habib et al. 2025).")
-    parser.add_argument(
-        "--uhi-fallback-c",
-        type=float,
-        required=True,
-        help="UHImax for buildings outside raster coverage.",
-    )
-    parser.add_argument(
-        "--uhi-buffer-m",
-        type=float,
-        default=30,
-        help="Radius (m) of the square window averaged around each building for UHImax sampling.",
-    )
     parser.add_argument("--output", required=True)
     parser.add_argument("--layer", required=True)
     args = parser.parse_args()
@@ -306,12 +256,6 @@ def main() -> None:
     buildings = _prepare_buildings(height_tiles)
     residences = _prepare_residences(Path(args.bag_residences), Path(args.energy_labels))
     prepared = _join_buildings_residences(buildings, residences)
-    prepared = sample_uhi_max(
-        prepared,
-        Path(args.uhi_raster),
-        fallback_c=args.uhi_fallback_c,
-        buffer_m=args.uhi_buffer_m,
-    )
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

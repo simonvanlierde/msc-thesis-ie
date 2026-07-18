@@ -10,7 +10,7 @@ import pytest
 import rasterio
 from shapely.geometry import Point
 
-from scripts.gis.prepare_pdok_model_geodata import sample_uhi_max
+from scripts.gis.add_uhi_to_buildings import sample_uhi_max
 
 RASTER = Path("data/input/geodata/UHImax_habib_TheHague_5m.tif")
 FALLBACK = 1.0
@@ -81,3 +81,53 @@ def test_sample_window_inside_raster_but_all_nodata_uses_fallback(tmp_path: Path
     gdf = gpd.GeoDataFrame(geometry=[Point(150, 100)], crs="EPSG:28992")
     out = sample_uhi_max(gdf, raster_path, fallback_c=FALLBACK, buffer_m=BUFFER_M)
     assert float(out["UHI_max_C"].iloc[0]) == FALLBACK
+
+
+def test_sample_uhi_max_matches_manual_window_mean(tmp_path: Path) -> None:
+    """The vectorized (uniform_filter) window mean matches a plain-numpy windowed mean.
+
+    Regression guard for the 2026-07-18 vectorization: builds a 20x20, 5 m-pixel raster with
+    ~30% of cells randomly set to nodata, then checks 4 hand-placed points (interior, two
+    near-edge, one off-center) against a mean computed by directly slicing the raw array and
+    excluding nodata cells -- an independent computation path from ``sample_uhi_max`` itself.
+    """
+    rng = np.random.default_rng(0)
+    size = 20
+    res = 5.0
+    nodata = -9999.0
+    array = rng.uniform(0.0, 5.0, size=(size, size)).astype("float32")
+    array[rng.random((size, size)) < 0.3] = nodata
+
+    raster_path = tmp_path / "synthetic_mixed.tif"
+    transform = rasterio.transform.from_origin(west=0, north=size * res, xsize=res, ysize=res)
+    with rasterio.open(
+        raster_path,
+        "w",
+        driver="GTiff",
+        height=size,
+        width=size,
+        count=1,
+        dtype="float32",
+        crs="EPSG:28992",
+        transform=transform,
+        nodata=nodata,
+    ) as dst:
+        dst.write(array, 1)
+
+    buffer_m = 10.0  # window_size = 2*round(10/5)+1 = 5 -> half-width of 2 pixels
+    half = round(buffer_m / res)
+    points_rc = [(10, 10), (1, 1), (18, 18), (5, 15)]  # interior, two near-edge, off-center
+    fallback_c = -1.0  # sentinel, distinct from any real sampled value
+
+    expected = []
+    for row, col in points_rc:
+        window = array[max(row - half, 0) : row + half + 1, max(col - half, 0) : col + half + 1]
+        valid = window != nodata
+        expected.append(float(window[valid].mean()) if valid.any() else fallback_c)
+
+    xs, ys = rasterio.transform.xy(transform, [rc[0] for rc in points_rc], [rc[1] for rc in points_rc])
+    gdf = gpd.GeoDataFrame(geometry=[Point(x, y) for x, y in zip(xs, ys, strict=True)], crs="EPSG:28992")
+
+    out = sample_uhi_max(gdf, raster_path, fallback_c=fallback_c, buffer_m=buffer_m)
+    for actual, exp in zip(out["UHI_max_C"], expected, strict=True):
+        assert actual == pytest.approx(exp, abs=1e-3)
