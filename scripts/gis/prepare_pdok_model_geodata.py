@@ -12,6 +12,7 @@ from typing import cast
 import geopandas as gpd
 import pandas as pd
 import pyogrio
+import rasterio
 
 from cdm.geometric import azimuth_rectangle
 
@@ -235,6 +236,30 @@ def _clip_to_boundary(buildings: gpd.GeoDataFrame, boundary: gpd.GeoDataFrame) -
     return buildings[inside].reset_index(drop=True)
 
 
+_PLAUSIBLE_UHI_MAX_C = 50  # sanity bound; a real UHImax sample never approaches this
+
+
+def sample_uhi_max(buildings_gdf: gpd.GeoDataFrame, raster_path: Path, fallback_c: float) -> gpd.GeoDataFrame:
+    """Sample the UHImax raster at each building's representative point.
+
+    Buildings outside the raster's coverage (other municipalities, nodata cells)
+    receive ``fallback_c`` -- the citywide mean air UHI -- so the model keeps
+    working for cities the Habib dataset does not cover.
+    """
+    points = [(geom.representative_point().x, geom.representative_point().y) for geom in buildings_gdf.geometry]
+    with rasterio.open(raster_path) as src:
+        nodata = src.nodata
+        sampled = [v[0] for v in src.sample(points)]
+    values = [
+        fallback_c
+        if (v is None or (nodata is not None and v == nodata) or not (0 <= v < _PLAUSIBLE_UHI_MAX_C))
+        else float(v)
+        for v in sampled
+    ]
+    buildings_gdf["UHI_max_C"] = values
+    return buildings_gdf
+
+
 def main() -> None:
     """Prepare model input geodata."""
     parser = argparse.ArgumentParser()
@@ -242,6 +267,13 @@ def main() -> None:
     parser.add_argument("--bag-residences", required=True)
     parser.add_argument("--energy-labels", required=True)
     parser.add_argument("--boundary", help="City boundary GeoJSON; buildings outside it are dropped.")
+    parser.add_argument("--uhi-raster", required=True, help="Per-building UHImax GeoTIFF (Habib et al. 2025).")
+    parser.add_argument(
+        "--uhi-fallback-c",
+        type=float,
+        required=True,
+        help="UHImax for buildings outside raster coverage.",
+    )
     parser.add_argument("--output", required=True)
     parser.add_argument("--layer", required=True)
     args = parser.parse_args()
@@ -256,6 +288,7 @@ def main() -> None:
     buildings = _prepare_buildings(height_tiles)
     residences = _prepare_residences(Path(args.bag_residences), Path(args.energy_labels))
     prepared = _join_buildings_residences(buildings, residences)
+    prepared = sample_uhi_max(prepared, Path(args.uhi_raster), fallback_c=args.uhi_fallback_c)
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

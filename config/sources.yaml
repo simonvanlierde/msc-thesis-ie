@@ -14,6 +14,10 @@ weather:
   start_year: 2021
   end_year: 2025
 
+# Fallback UHImax (K) for buildings outside the Habib raster's coverage (e.g. the smoke
+# municipality). The RIVM air-UHI raster's Hague mean (paper_project.md D7).
+uhi_fallback_c: 1.0
+
 pdok_boundary:
   base_url: https://api.pdok.nl/kadaster/bestuurlijkegebieden/ogc/v1
   collection: gemeentegebied

@@ -365,12 +365,14 @@ rule prepare_bag_geodata:
         residences=BAG_RESIDENCES,
         energy_labels=EP_ONLINE_LABELS,
         boundary=BOUNDARY_GEOJSON,
+        uhi_habib="data/input/geodata/UHImax_habib_TheHague_5m.tif",
         script="scripts/gis/prepare_pdok_model_geodata.py",
         model_src=MODEL_SRC,
     output:
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
     params:
         layer="BAG_buildings_full",
+        uhi_fallback_c=config.get("uhi_fallback_c", 1.0),
     log:
         f"{LOG_DIR}/prepare_bag_geodata.log",
     benchmark:
@@ -383,6 +385,8 @@ rule prepare_bag_geodata:
           --bag-residences {input.residences} \
           --energy-labels {input.energy_labels} \
           --boundary {input.boundary} \
+          --uhi-raster {input.uhi_habib} \
+          --uhi-fallback-c {params.uhi_fallback_c} \
           --output {output.buildings} \
           --layer {params.layer} > {log} 2>&1
         """
