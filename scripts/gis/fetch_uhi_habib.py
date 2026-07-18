@@ -11,37 +11,83 @@ paper's data statement).
 from __future__ import annotations
 
 import argparse
-import json
 import shutil
-import urllib.request
 import zipfile
 from pathlib import Path
 
 import rasterio
+import requests
+from rasterio.crs import CRS
 from rasterio.warp import Resampling, calculate_default_transform, reproject
 
-RD_NEW = "EPSG:28992"
+from scripts.gis.pdok_http import retrying_session
+
 RD_NEW_EPSG = 28992
+RD_NEW = CRS.from_epsg(RD_NEW_EPSG)
 
 
 def download_file(files_api: str, file_name: str, dest: Path) -> None:
-    """Resolve file_name via the 4TU files API and download it to dest."""
-    with urllib.request.urlopen(files_api) as resp:  # noqa: S310 -- fixed https endpoint from config
-        files = json.load(resp)
+    """Resolve file_name via the 4TU files API and download it to dest.
+
+    Skips re-download only when a cached copy's size already matches the
+    server-reported size, mirrors fetch_uhi_raster.py's ``_download``. A truncated
+    prior download is otherwise indistinguishable from a complete one, which would
+    make the Snakefile's ``retries: NETWORK_RETRIES`` re-invoke and immediately hit
+    a ``BadZipFile`` instead of healing.
+    """
+    session = retrying_session()
+    response = session.get(files_api, timeout=60)
+    response.raise_for_status()
+    files = response.json()
     matches = [f for f in files if f["name"] == file_name]
     if not matches:
         msg = f"{file_name!r} not in 4TU file list: {[f['name'] for f in files]}"
         raise FileNotFoundError(msg)
+    url = matches[0]["download_url"]
+
+    expected: int | None = None
+    try:  # HEAD is a cheap size probe; if it fails, fall through to a full download.
+        head = session.head(url, timeout=60, allow_redirects=True)
+        head.raise_for_status()
+        expected = int(head.headers.get("content-length", 0)) or None
+    except requests.RequestException:
+        expected = None
+
+    if dest.exists() and expected is not None and dest.stat().st_size == expected:
+        return
+
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(matches[0]["download_url"]) as resp, dest.open("wb") as fh:  # noqa: S310
-        shutil.copyfileobj(resp, fh)
+    tmp = dest.with_name(dest.name + ".part")
+    with session.get(url, stream=True, timeout=600) as resp:
+        resp.raise_for_status()
+        with tmp.open("wb") as fh:
+            for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    fh.write(chunk)
+
+    if expected is not None and tmp.stat().st_size != expected:
+        size = tmp.stat().st_size
+        tmp.unlink()
+        msg = f"download size mismatch for {file_name!r}: expected {expected}, got {size}"
+        raise RuntimeError(msg)
+
+    tmp.rename(dest)
 
 
 def extract_member(archive_path: Path, member: str, dest: Path) -> None:
-    """Extract a single member (The Hague's UHImax GeoTIFF) from the national zip."""
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(archive_path) as zf, zf.open(member) as src, dest.open("wb") as fh:
-        shutil.copyfileobj(src, fh)
+    """Extract a single member (The Hague's UHImax GeoTIFF) from the national zip.
+
+    Skips re-extraction only when a cached dest already matches the member's
+    uncompressed size, so a partial extract from an interrupted run is redone
+    rather than treated as valid.
+    """
+    with zipfile.ZipFile(archive_path) as zf:
+        info = zf.getinfo(member)
+        if dest.exists() and dest.stat().st_size == info.file_size:
+            return
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(member) as src, dest.open("wb") as fh:
+            shutil.copyfileobj(src, fh)
 
 
 def ensure_rd_new(src_path: Path, out_path: Path) -> None:
@@ -73,12 +119,10 @@ def main() -> None:
     args = parser.parse_args()
 
     archive = args.cache_dir / args.archive_file_name
-    if not archive.exists():
-        download_file(args.files_api, args.archive_file_name, archive)
+    download_file(args.files_api, args.archive_file_name, archive)
 
     extracted = args.cache_dir / Path(args.zip_member).name
-    if not extracted.exists():
-        extract_member(archive, args.zip_member, extracted)
+    extract_member(archive, args.zip_member, extracted)
 
     ensure_rd_new(extracted, args.output)
 
