@@ -8,6 +8,11 @@ nocturnal-phased diurnal profile. The product, UHI_fraction in [0, 1], is the
 share of a building's ceiling realized in a given hour:
 
     T_outdoor(b, h) = T_base(h) + UHI_max_C(b) * uhi_scale * UHI_fraction(h)
+
+Kernel form confirmed against a secondary reproduction (Tygron support wiki
+MathML, citing Theeuwes et al. 2016) because the primary PDF was inaccessible
+(Wiley 403, no OA copy indexed) -- pending the author's own primary-source
+check once the paper is in Zotero.
 """
 
 from __future__ import annotations
@@ -68,11 +73,14 @@ def add_UHI_fraction(weather_df: pd.DataFrame, uhi_day_fraction: float) -> pd.Da
             (canopy UHI peaks at night; daytime is small but non-zero).
 
     Returns:
-        The same DataFrame with UHI_fraction in [0, 1].
+        The same DataFrame with UHI_fraction in [0, 1], always finite.
     """
     kernel = theeuwes_weather_factor(weather_df)
     norm = np.percentile(kernel.to_numpy(), _KERNEL_NORM_PERCENTILE)
-    daily_factor = (kernel / norm).clip(0.0, 1.0)
+    # Degenerate period (norm <= 0, e.g. all-zero DTR/radiation): no day has
+    # any UHI-favourable weather, so realizing 0% of the ceiling everywhere is
+    # the physically sensible result -- not 0/0 = NaN.
+    daily_factor = (kernel / norm).clip(0.0, 1.0) if norm > 0 and np.isfinite(norm) else kernel * 0.0
 
     day = weather_df["date"].dt.date
     factor_by_hour = day.map(daily_factor).astype(float)

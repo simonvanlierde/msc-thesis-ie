@@ -85,6 +85,19 @@ def test_partial_nan_wind_day_does_not_poison_series() -> None:
     assert float(out["UHI_fraction"].max()) <= 1.0
 
 
+def test_degenerate_all_zero_kernel_is_zero_not_nan() -> None:
+    """A period with zero DTR and zero radiation on every day (p98 kernel == 0) yields all-zero, finite fractions."""
+    days = [_day(f"2021-05-{d:02d}", t_amp=0, q_mid=0, wind=4.0) for d in range(1, 6)]
+    weather = pd.concat(days, ignore_index=True)
+    out = add_UHI_fraction(weather, uhi_day_fraction=0.25)
+    frac = out["UHI_fraction"]
+    assert frac.notna().all()
+    assert np.isfinite(frac.to_numpy()).all()
+    assert float(frac.min()) >= 0.0
+    assert float(frac.max()) <= 1.0
+    assert (frac == 0.0).all()
+
+
 def test_full_nan_wind_column_falls_back_gracefully() -> None:
     """Backup-weather fallback path (no FH at all): wind_speed_m_s is NaN for every row."""
     weather = _year_like()
