@@ -100,6 +100,9 @@ def _load_sq_inputs(monkeypatch: pytest.MonkeyPatch) -> dict:
     with pytest.warns(UserWarning, match="backup"):
         raw_weather_data = get_raw_weather_data(global_parameters)
 
+    # Verify wind_speed_m_s column exists even on backup fallback (contract: column always present)
+    assert "wind_speed_m_s" in raw_weather_data.columns
+
     return {
         "global_parameters": global_parameters,
         "building_type_parameters": read_parameter_specific_data(

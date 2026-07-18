@@ -102,11 +102,13 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
     # Convert the raw temperature data to numeric and divide by 10 to get °C
     weather_series_df["T_outdoor_raw_C"] = pd.to_numeric(weather_series_df["T"], errors="coerce").astype("float") / 10
 
-    # Convert the raw wind speed data from 0.1 m/s to m/s (if available)
+    # Convert the raw wind speed data from 0.1 m/s to m/s (NaN if not available)
     if "FH" in weather_series_df.columns:
         weather_series_df["wind_speed_m_s"] = (
             pd.to_numeric(weather_series_df["FH"], errors="coerce").astype("float") / 10
         )
+    else:
+        weather_series_df["wind_speed_m_s"] = np.nan
 
     # Read in string as datetime
     weather_series_df["date"] = pd.to_datetime(
