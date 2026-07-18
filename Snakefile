@@ -58,6 +58,14 @@ RIVM_UHI_CACHE_DIR = f"{RAW_DIR}/rivm_uhi"
 # materialises it, so the notebook's one external raster becomes reproducible.
 UHI_RASTER = "data/input/geodata/UHI_effect_TheHague.tif"
 
+HABIB_UHI_FILES_API = config["habib_uhi"]["files_api"]
+HABIB_UHI_ARCHIVE_FILE_NAME = config["habib_uhi"]["archive_file_name"]
+HABIB_UHI_ZIP_MEMBER = config["habib_uhi"]["uhimax_zip_member"]
+HABIB_UHI_CACHE_DIR = f"{RAW_DIR}/habib_uhi"
+# Per-building UHImax raster (Habib et al. 2025); Task 3 samples it, replacing the
+# flawed citywide RIVM uplift above.
+HABIB_UHI_RASTER = "data/input/geodata/UHImax_habib_TheHague_5m.tif"
+
 # The model rules call ``cdm`` through a shell command, so Snakemake's ``code``
 # rerun-trigger (which only hashes run:/script: bodies) cannot see it. Declare the
 # model sources as inputs so editing the model re-runs the rules that use it.
@@ -286,6 +294,30 @@ rule fetch_uhi_raster:
         python -m scripts.gis.fetch_uhi_raster \
           --url {params.url} \
           --bbox $(cat {input.bbox}) \
+          --cache-dir {params.cache_dir} \
+          --output {output} > {log} 2>&1
+        """
+
+
+rule fetch_uhi_habib:
+    # Heavy: 4TU serves the whole 99-municipality dataset as one ~4.5 GB national zip
+    # (cached), from which only The Hague's UHImax member is extracted.
+    retries: NETWORK_RETRIES
+    output:
+        HABIB_UHI_RASTER,
+    params:
+        files_api=HABIB_UHI_FILES_API,
+        archive_file_name=HABIB_UHI_ARCHIVE_FILE_NAME,
+        zip_member=HABIB_UHI_ZIP_MEMBER,
+        cache_dir=HABIB_UHI_CACHE_DIR,
+    log:
+        f"{LOG_DIR}/fetch_uhi_habib.log",
+    shell:
+        """
+        python -m scripts.gis.fetch_uhi_habib \
+          --files-api {params.files_api} \
+          --archive-file-name {params.archive_file_name} \
+          --zip-member "{params.zip_member}" \
           --cache-dir {params.cache_dir} \
           --output {output} > {log} 2>&1
         """

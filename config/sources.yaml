@@ -65,6 +65,19 @@ rivm_uhi:
   license: CC BY 4.0
   source_url: https://nationaalgeoregister.nl/geonetwork/srv/dut/catalog.search#/metadata/c9aa9109-3f32-4f65-84e5-bb1c9ebdfbec
 
+habib_uhi:
+  # Per-building 5m UHImax raster (Habib et al. 2025, 4TU), replacing the flawed
+  # citywide RIVM uplift above. 4TU's files API lists only two top-level files for
+  # this record -- the whole 99-municipality dataset ships as one ~4.5 GB zip, not
+  # per-municipality downloads -- so the fetch script downloads that archive once
+  # (cached) and extracts only The Hague's UHImax member.
+  doi: 10.4121/0159bc0e-3ab9-42b6-8b12-ad3b2294face
+  files_api: https://data.4tu.nl/v2/articles/0159bc0e-3ab9-42b6-8b12-ad3b2294face/files
+  archive_file_name: "UHI_NL.zip"
+  uhimax_zip_member: "UHI_NL/0_primary_dataset/UHImax/UHImax_'s-Gravenhage.tif"
+  license: CC BY-SA 4.0
+  source_url: https://doi.org/10.4121/0159bc0e-3ab9-42b6-8b12-ad3b2294face
+
 # Building subset the model runs on (layer suffix in the prepared GeoPackage).
 # "full" = the whole stock; "sample" = a representative stratified subset, used for the
 # memory-bound notebook figures. sample_size/sample_seed only apply to "sample".
