@@ -55,7 +55,8 @@ SA_SPECS: list[SASpec] = [
     SASpec("people_density_office", "global", 0.04, 0.2, "office people density", "people/m2"),
     SASpec("int_heat_gain_light_W_m2", "global", 0.5, 25, "lighting internal heat gain", "W/m2"),
     SASpec("T_thresh_C", "global", 15, 30, "cooling threshold temperature", "degC"),
-    SASpec("UHI_effect_day_C", "global", 0, 15, "daytime UHI effect", "degC"),
+    # brackets the 1.0 reference; 0 = no UHI, 3 = triple every building's ceiling
+    SASpec("uhi_scale", "global", 0, 3, "UHI scale factor", "x reference"),
     SASpec("peak_cooling_percentile_cap", "global", 80, 99.9, "peak-cooling percentile cap", "percentile"),
     SASpec("delta_T_summer_C", "global", -2, 8, "summer temperature shift", "degC"),
     SASpec("SEER", "cooling_tech", 0.5, 3, "SEER", "x reference"),
