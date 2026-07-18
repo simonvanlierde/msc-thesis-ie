@@ -373,6 +373,7 @@ rule prepare_bag_geodata:
     params:
         layer="BAG_buildings_full",
         uhi_fallback_c=config.get("uhi_fallback_c", 1.0),
+        uhi_buffer_m=config.get("uhi_buffer_m", 30),
     log:
         f"{LOG_DIR}/prepare_bag_geodata.log",
     benchmark:
@@ -387,6 +388,7 @@ rule prepare_bag_geodata:
           --boundary {input.boundary} \
           --uhi-raster {input.uhi_habib} \
           --uhi-fallback-c {params.uhi_fallback_c} \
+          --uhi-buffer-m {params.uhi_buffer_m} \
           --output {output.buildings} \
           --layer {params.layer} > {log} 2>&1
         """

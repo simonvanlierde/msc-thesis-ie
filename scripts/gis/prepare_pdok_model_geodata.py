@@ -236,26 +236,37 @@ def _clip_to_boundary(buildings: gpd.GeoDataFrame, boundary: gpd.GeoDataFrame) -
     return buildings[inside].reset_index(drop=True)
 
 
-_PLAUSIBLE_UHI_MAX_C = 50  # sanity bound; a real UHImax sample never approaches this
+def sample_uhi_max(
+    buildings_gdf: gpd.GeoDataFrame,
+    raster_path: Path,
+    fallback_c: float,
+    buffer_m: float,
+) -> gpd.GeoDataFrame:
+    """Sample the UHImax raster in a neighbourhood around each building's representative point.
 
-
-def sample_uhi_max(buildings_gdf: gpd.GeoDataFrame, raster_path: Path, fallback_c: float) -> gpd.GeoDataFrame:
-    """Sample the UHImax raster at each building's representative point.
-
-    Buildings outside the raster's coverage (other municipalities, nodata cells)
-    receive ``fallback_c`` -- the citywide mean air UHI -- so the model keeps
-    working for cities the Habib dataset does not cover.
+    The Habib raster defines UHImax on outdoor (street-canyon / pedestrian-level) cells only,
+    not on building footprints, so a point sample at the representative point almost always
+    lands on nodata (verified 2026-07-18: 199/200 sample-building points hit nodata, but
+    200/200 had a valid cell within 30 m). This instead averages the valid cells in a square
+    window of +/- ``buffer_m`` around the point -- also the physically relevant quantity, since
+    it is the ambient air UHI immediately surrounding the building. Do not "simplify" this back
+    to a point sample. Buildings whose window contains no valid cell at all (other
+    municipalities, raster edges) receive ``fallback_c`` -- the citywide mean air UHI -- so the
+    model keeps working for cities the Habib dataset does not cover.
     """
-    points = [(geom.representative_point().x, geom.representative_point().y) for geom in buildings_gdf.geometry]
+    points = [geom.representative_point() for geom in buildings_gdf.geometry]
     with rasterio.open(raster_path) as src:
-        nodata = src.nodata
-        sampled = [v[0] for v in src.sample(points)]
-    values = [
-        fallback_c
-        if (v is None or (nodata is not None and v == nodata) or not (0 <= v < _PLAUSIBLE_UHI_MAX_C))
-        else float(v)
-        for v in sampled
-    ]
+        values = []
+        for point in points:
+            window = rasterio.windows.from_bounds(
+                point.x - buffer_m,
+                point.y - buffer_m,
+                point.x + buffer_m,
+                point.y + buffer_m,
+                transform=src.transform,
+            )
+            arr = src.read(1, window=window, masked=True, boundless=True)
+            values.append(float(arr.mean()) if arr.count() > 0 else fallback_c)
     buildings_gdf["UHI_max_C"] = values
     return buildings_gdf
 
@@ -274,6 +285,12 @@ def main() -> None:
         required=True,
         help="UHImax for buildings outside raster coverage.",
     )
+    parser.add_argument(
+        "--uhi-buffer-m",
+        type=float,
+        default=30,
+        help="Radius (m) of the square window averaged around each building for UHImax sampling.",
+    )
     parser.add_argument("--output", required=True)
     parser.add_argument("--layer", required=True)
     args = parser.parse_args()
@@ -288,7 +305,12 @@ def main() -> None:
     buildings = _prepare_buildings(height_tiles)
     residences = _prepare_residences(Path(args.bag_residences), Path(args.energy_labels))
     prepared = _join_buildings_residences(buildings, residences)
-    prepared = sample_uhi_max(prepared, Path(args.uhi_raster), fallback_c=args.uhi_fallback_c)
+    prepared = sample_uhi_max(
+        prepared,
+        Path(args.uhi_raster),
+        fallback_c=args.uhi_fallback_c,
+        buffer_m=args.uhi_buffer_m,
+    )
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

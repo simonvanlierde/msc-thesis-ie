@@ -18,6 +18,11 @@ weather:
 # municipality). The RIVM air-UHI raster's Hague mean (paper_project.md D7).
 uhi_fallback_c: 1.0
 
+# Radius (m) of the square window averaged around each building for UHImax sampling. The
+# Habib raster only has valid cells on outdoor (street-canyon) pixels, not building
+# footprints, so a point sample at the building almost always misses (verified 2026-07-18).
+uhi_buffer_m: 30
+
 pdok_boundary:
   base_url: https://api.pdok.nl/kadaster/bestuurlijkegebieden/ogc/v1
   collection: gemeentegebied
