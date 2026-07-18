@@ -68,8 +68,6 @@ REQUIRED_GLOBAL_PARAMETERS = frozenset(
     {
         "T_sub_C",
         "T_thresh_C",
-        "UHI_effect_day_C",
-        "UHI_effect_night_C",
         "adp_intensity_cooling_equipment_kgSbeq_kg",
         "air_density",
         "air_heat_capacity",
@@ -95,6 +93,9 @@ REQUIRED_GLOBAL_PARAMETERS = frozenset(
         "peak_cooling_percentile_cap",
         "people_density_office",
         "people_per_hh",
+        "uhi_day_fraction",
+        "uhi_fallback_C",
+        "uhi_scale",
         "weather_data_end_year",
         "weather_data_start_year",
         "weather_station",

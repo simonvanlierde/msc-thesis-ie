@@ -41,8 +41,11 @@ TOLERANCE = 0.05
 
 # Golden references: total annual cooling energy demand (kWh) under SQ, captured from
 # the pipeline. A refactor should not move either by more than TOLERANCE.
-REFERENCE_SYNTHETIC_TOTAL_E_COOLING_KWH = 158_602_353.45
-REFERENCE_REAL_BAG_TOTAL_E_COOLING_KWH = 29_663_259.43
+# Updated for the per-building condition-scaled UHI (replacing the citywide day/night uplift):
+# neither stock's buildings carry a raster-sampled UHI_max_C, so both fall back to the citywide
+# uhi_fallback_C = 1 K, a large drop from the old 8.3 degC daytime uplift (~52-59% lower demand).
+REFERENCE_SYNTHETIC_TOTAL_E_COOLING_KWH = 75_997_845.95
+REFERENCE_REAL_BAG_TOTAL_E_COOLING_KWH = 12_289_401.45
 
 # Skip cleanly if the real parameter / weather inputs are not checked out.
 REQUIRED_INPUTS = [

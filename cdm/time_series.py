@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+from cdm.uhi import add_UHI_fraction
+
 MIN_RESPONSE_LINES_FOR_DATA = 15  # Below this line count, the KNMI API returned only header info and no data
 
 # 6-hourly soil temperature for De Bilt (station 260), the nearest station with ground-temperature records
@@ -139,27 +141,6 @@ def get_raw_weather_data(global_parameters: dict[str, float]) -> pd.DataFrame:
                 f"weather_data_end_year."
             )
             raise ValueError(msg)
-
-    return weather_series_df
-
-
-def add_UHI_effect(weather_series_df: pd.DataFrame, UHI_effect_day_C: float, UHI_effect_night_C: float) -> pd.DataFrame:
-    """Add UHI time of day boosts to weather DataFrame.
-
-    Args:
-        weather_series_df (pd.DataFrame): Weather DataFrame containing the air temperature in °C.
-        UHI_effect_day_C (float): UHI effect during the day, in °C.
-        UHI_effect_night_C (float): UHI effect during the night, in °C.
-
-    Returns:
-        pd.DataFrame: Weather DataFrame containing the time of day dependent UHI boosts for each hour in the time series.
-    """
-    day_start_hour = 8  # Start hour of the day, non-inclusive
-    day_end_hour = 20  # End hour of the day, inclusive
-
-    # Apply the day boost when the hour is between 8 and 20, otherwise the night boost
-    is_day = (weather_series_df["H"] > day_start_hour) & (weather_series_df["H"] <= day_end_hour)
-    weather_series_df["UHI_effect_C"] = np.where(is_day, UHI_effect_day_C, UHI_effect_night_C)
 
     return weather_series_df
 
@@ -318,8 +299,7 @@ def create_time_series(
         dict[str, np.ndarray]: The dictionary containing the time series data.
     """
     # Unpack parameters from the global parameters dictionary
-    UHI_effect_day_C = global_parameters["UHI_effect_day_C"]  # UHI effect during the day, in °C
-    UHI_effect_night_C = global_parameters["UHI_effect_night_C"]  # UHI effect during the night, in °C
+    uhi_day_fraction = global_parameters["uhi_day_fraction"]  # Share of the nocturnal UHI realized by day, -
     delta_T_winter_C = global_parameters["delta_T_winter_C"]  # Temperature boost during the winter, in °C
     delta_T_spring_C = global_parameters["delta_T_spring_C"]  # Temperature boost during the spring, in °C
     delta_T_summer_C = global_parameters["delta_T_summer_C"]  # Temperature boost during the summer, in °C
@@ -332,17 +312,20 @@ def create_time_series(
     ]  # Relative increase factor for solar radiation during the rest of the year
     T_thresh_C = global_parameters["T_thresh_C"]  # Cooling threshold temperature, in °C
 
+    # Add the hourly UHI_fraction column while "Q" is still the raw, un-renamed radiation the
+    # Theeuwes kernel needs (add_seasonal_solar_radiation_boosts below renames it). UHI is no
+    # longer a citywide uplift baked into T_outdoor_C: it is realized per building, downstream,
+    # from each building's own UHI_max_C ceiling (see cdm/thermodynamic.py).
+    time_series_df = add_UHI_fraction(raw_weather_df, uhi_day_fraction)
+
     # Add seasonal solar radiation boosts to time series DataFrame
-    time_series_df = add_seasonal_solar_radiation_boosts(raw_weather_df, delta_P_solar_summer, delta_P_solar_RoY)
+    time_series_df = add_seasonal_solar_radiation_boosts(time_series_df, delta_P_solar_summer, delta_P_solar_RoY)
 
     # Add multidirectional solar radiation to time series DataFrame
     time_series_df = add_multidirectional_solar_radiation(
         time_series_df,
         multidirectional_solar_radiation_fractions_path,
     )
-
-    # Add UHI time of day boosts to time series DataFrame
-    time_series_df = add_UHI_effect(time_series_df, UHI_effect_day_C, UHI_effect_night_C)
 
     # Add seasonal temperature boosts to time series DataFrame
     time_series_df = add_seasonal_temperature_boosts(
@@ -353,10 +336,8 @@ def create_time_series(
         delta_T_autumn_C,
     )
 
-    # Create a new column "T_outdoor_C" which sums the T_outdoor_raw_C, UHI_effect_C and delta_T_season_C columns
-    time_series_df["T_outdoor_C"] = (
-        time_series_df["T_outdoor_raw_C"] + time_series_df["UHI_effect_C"] + time_series_df["delta_T_season_C"]
-    )
+    # Create a new column "T_outdoor_C" which sums the T_outdoor_raw_C and delta_T_season_C columns
+    time_series_df["T_outdoor_C"] = time_series_df["T_outdoor_raw_C"] + time_series_df["delta_T_season_C"]
 
     # Add a column to the time series dictionary with the difference between the inside cooling threshold temperature and the outside air temperature in °C
     time_series_df["T_outdoor_minus_indoor_C"] = time_series_df["T_outdoor_C"] - T_thresh_C

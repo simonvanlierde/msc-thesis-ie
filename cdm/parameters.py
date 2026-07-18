@@ -225,6 +225,14 @@ def add_derived_parameters_to_buildings(
         [col for col in df_buildings.columns if col.startswith("cooling_technology_share")]
     ].sum(axis=1)
 
+    # A building stock prepared before the per-building UHI raster join (or any row that join
+    # left null) falls back to the scenario's citywide-mean UHI ceiling, rather than crashing
+    # the chunked heat-flow calculation on a missing/NaN UHI_max_C.
+    if "UHI_max_C" not in df_buildings.columns:
+        df_buildings["UHI_max_C"] = global_parameters["uhi_fallback_C"]
+    else:
+        df_buildings["UHI_max_C"] = df_buildings["UHI_max_C"].fillna(global_parameters["uhi_fallback_C"])
+
     return df_buildings
 
 

@@ -53,9 +53,9 @@ def test_calc_Q_infiltration_scales_linearly_with_temperature_difference() -> No
     global_parameters = {"air_density": 1.2, "air_heat_capacity": 1005.0}
 
     delta_t = np.array([0.0, 1.0, 2.0, 4.0])
-    time_series = {"T_outdoor_minus_indoor_C": delta_t}
+    delta_T_air = delta_t[np.newaxis, :]
 
-    q = calc_Q_infiltration(buildings, time_series, global_parameters)
+    q = calc_Q_infiltration(buildings, delta_T_air, global_parameters)
 
     mass_flow = 1.2 * 0.5 * 300.0 / 3600  # kg/s
     expected = mass_flow * 1005.0 * delta_t
@@ -71,13 +71,14 @@ def test_calc_Q_transmission_matches_component_sum(
     global_parameters: dict,
 ) -> None:
     delta_t = time_series["T_outdoor_minus_indoor_C"]
+    delta_T_air = delta_t[np.newaxis, :]
     u_wall, u_roof, u_floor = (R_to_U(rc) for rc in (2.0, 3.0, 2.5))
 
     # Window, wall and roof scale with the air temperature difference;
     # the floor with the (constant) subsurface gradient.
     expected = (1.8 * 50.0 + u_wall * 150.0 + u_roof * 100.0) * delta_t + u_floor * 100.0 * (12.0 - 25.0)
 
-    assert np.allclose(calc_Q_transmission(buildings, time_series, global_parameters)[0], expected)
+    assert np.allclose(calc_Q_transmission(buildings, delta_T_air, global_parameters)[0], expected)
 
 
 def test_calc_Q_solar_radiation_sums_over_orientations(
@@ -111,7 +112,8 @@ def test_calc_Q_ventilation_scales_with_occupancy(
     time_series: dict,
     global_parameters: dict,
 ) -> None:
-    q_vent = calc_Q_ventilation(buildings, time_series, global_parameters)
+    delta_T_air = time_series["T_outdoor_minus_indoor_C"][np.newaxis, :]
+    q_vent = calc_Q_ventilation(buildings, delta_T_air, time_series, global_parameters)
 
     rate = 1.2 * 30.0 * 30.0 * time_series["presence_people_office"] / 3600
     assert np.allclose(q_vent[0], rate * 1005.0 * time_series["T_outdoor_minus_indoor_C"])
@@ -130,8 +132,9 @@ def test_end_use_dependent_flows_use_each_buildings_own_presence_profile(
         "presence_appliances_residential": np.array([0.7, 0.3, 0.3, 0.7]),
     }
     buildings = pd.DataFrame([building.to_dict(), residential])
+    delta_T_air = np.tile(time_series["T_outdoor_minus_indoor_C"], (2, 1))
 
-    q_vent = calc_Q_ventilation(buildings, time_series, global_parameters)
+    q_vent = calc_Q_ventilation(buildings, delta_T_air, time_series, global_parameters)
     q_internal = calc_Q_internal_heat(buildings, time_series, global_parameters)
 
     rate_residential = 1.2 * 30.0 * 30.0 * time_series["presence_people_residential"] / 3600
@@ -143,7 +146,10 @@ def test_end_use_dependent_flows_use_each_buildings_own_presence_profile(
         + 8.0 * 300.0 * time_series["presence_appliances_residential"],
     )
     # The office row must be unaffected by the residential row sharing the same call.
-    assert np.allclose(q_vent[0], calc_Q_ventilation(buildings.iloc[:1], time_series, global_parameters)[0])
+    assert np.allclose(
+        q_vent[0],
+        calc_Q_ventilation(buildings.iloc[:1], delta_T_air[:1], time_series, global_parameters)[0],
+    )
 
 
 def test_calc_cooling_demand_only_counts_positive_net_heat() -> None:
@@ -311,10 +317,11 @@ def test_heat_flows_stay_float32_and_reductions_accumulate_in_float64(
     An np.empty() left at its default float64 is the easy way to lose this unnoticed.
     """
     time_series = {name: np.asarray(series, dtype=FLOW_DTYPE) for name, series in time_series_full_year.items()}
+    delta_T_air = time_series["T_outdoor_minus_indoor_C"][np.newaxis, :]
     flows = [
-        calc_Q_transmission(buildings, time_series, global_parameters),
-        calc_Q_infiltration(buildings, time_series, global_parameters),
-        calc_Q_ventilation(buildings, time_series, global_parameters),
+        calc_Q_transmission(buildings, delta_T_air, global_parameters),
+        calc_Q_infiltration(buildings, delta_T_air, global_parameters),
+        calc_Q_ventilation(buildings, delta_T_air, time_series, global_parameters),
         calc_Q_solar_radiation(buildings, time_series),
         calc_Q_internal_heat(buildings, time_series, global_parameters),
     ]
