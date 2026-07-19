@@ -335,10 +335,15 @@ rule provide_ep_online_energy_labels:
 
 rule fetch_weather:
     retries: NETWORK_RETRIES
-    # NOTE: no model_src input, even though fetch_weather.py imports
+    # NOTE: no full model_src input, even though fetch_weather.py imports
     # cdm.time_series. It only calls the KNMI downloader, and listing MODEL_SRC here
-    # would re-download the series on every model edit. Add cdm/time_series.py alone
-    # if get_raw_weather_data ever starts transforming the data.
+    # would re-download the series on every model edit. script/time_series are listed
+    # below so a code change -- or a stale pre-wind-speed CSV under --rerun-triggers
+    # mtime -- still retriggers the fetch. Widen to MODEL_SRC if get_raw_weather_data
+    # ever starts transforming more of the data.
+    input:
+        script="scripts/gis/fetch_weather.py",
+        time_series="cdm/time_series.py",
     output:
         WEATHER_CSV,
     params:

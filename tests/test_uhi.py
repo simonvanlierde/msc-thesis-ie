@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from cdm.uhi import add_UHI_fraction, theeuwes_weather_factor
 
@@ -111,3 +112,10 @@ def test_full_nan_wind_column_falls_back_gracefully() -> None:
     best_night = frac[(weather["date"].dt.date == pd.Timestamp("2021-06-01").date()) & (out["Q"] == 0)]
     bad_night = frac[(weather["date"].dt.date == pd.Timestamp("2021-11-15").date()) & (out["Q"] == 0)]
     assert float(best_night.max()) > float(bad_night.max())
+
+
+def test_missing_wind_column_raises_with_refetch_hint() -> None:
+    """A pre-wind-speed weather CSV (no wind_speed_m_s column at all) fails loudly, not with a KeyError."""
+    weather = _year_like().drop(columns=["wind_speed_m_s"])
+    with pytest.raises(ValueError, match=r"[Rr]e-run the fetch_weather rule"):
+        add_UHI_fraction(weather, uhi_day_fraction=0.25)

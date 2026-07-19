@@ -120,6 +120,9 @@ It wraps the same `cdm/` model code — it does not reimplement the science.
 
 ![Snakemake workflow DAG](docs/pipeline_dag.svg)
 
+(Diagram predates the `fetch_uhi_habib` / `add_uhi_to_buildings` UHI-sampling split; regenerate
+with the command below when convenient.)
+
 ```bash
 uv sync                                                  # once
 uv run snakemake --cores 4                               # scenario results + overview figure
@@ -209,7 +212,9 @@ committed.
 | `download_pdok_3d_height_tiles` | Official height geodata acquisition | PDOK 3D Basisvoorziening tile download links | local GeoPackage ZIP tiles and manifest |
 | `provide_ep_online_energy_labels` | Credentialed energy-label source boundary | EP-Online public export | `data/raw/ep_online/current/energy_labels.csv` |
 | `fetch_weather` | KNMI weather-series retrieval | KNMI hourly API (station + year window), committed backup fallback | `results/weather/knmi_{station}_{start}_{end}.csv` |
-| `prepare_bag_geodata` | Scripted replacement for the BAG/geodata joins in `gis.ipynb` | PDOK BAG residences, PDOK 3D height tiles, EP-Online labels, city boundary (clip) | `results/geodata/BAG_buildings_with_residence_data_full.gpkg` |
+| `prepare_bag_geodata` | Scripted replacement for the BAG/geodata joins in `gis.ipynb` | PDOK BAG residences, PDOK 3D height tiles, EP-Online labels, city boundary (clip) | `results/geodata/BAG_buildings_with_residence_data_nouhi_full.gpkg` |
+| `fetch_uhi_habib` | Fetch + extract the Habib et al. UHImax raster for the city | 4TU national UHImax zip (cached, ~4.5 GB one-time) | `data/input/geodata/UHImax_habib_TheHague_5m.tif` |
+| `add_uhi_to_buildings` | Vectorized per-building neighbourhood-mean UHImax join | BAG geodata (no-UHI), Habib UHImax raster | `results/geodata/BAG_buildings_with_residence_data_full.gpkg` |
 | `thermodynamic_model` | cooling-demand model from `main.ipynb` | processed BAG geodata, `parameters.toml` (per scenario), weather CSV, load-factor inputs | `results/intermediate/buildings_with_cooling_demand_{scenario}_full.gpkg` |
 | `lca` | environmental-impact and aggregation steps from `main.ipynb` | cooling-demand geodata and scenario parameters | `results/CDM_results_{scenario}_full.csv` and CDM geodata |
 | `scenario_overview_figure` | README headline figure script | scenario result CSVs | `results/figures/scenario_overview.png` |

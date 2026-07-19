@@ -38,6 +38,12 @@ def _daily_aggregates(weather_df: pd.DataFrame) -> pd.DataFrame:
     kernel is normalized by its own p98 below, so the unit constant cancels
     and using Q directly is fine.
     """
+    if "wind_speed_m_s" not in weather_df.columns:
+        msg = (
+            "weather_df is missing wind_speed_m_s -- this weather CSV predates the "
+            "wind-speed addition. Re-run the fetch_weather rule to regenerate it."
+        )
+        raise ValueError(msg)
     day = weather_df["date"].dt.date
     grouped = weather_df.groupby(day)
     daily_wind = grouped["wind_speed_m_s"].mean()  # NaN for a day only if every hour that day is NaN

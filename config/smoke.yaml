@@ -1,6 +1,11 @@
 # Fast end-to-end smoke profile: a tiny municipality and a one-year weather
 # window so a real run (fetch -> prepare -> model -> LCA) finishes in minutes.
 #   snakemake --configfile config/smoke.yaml --cores 1
+#
+# The full DAG now routes through add_uhi_to_buildings -> fetch_uhi_habib, which one-time
+# downloads the ~4.5 GB national UHImax zip (cached under data/raw/habib_uhi/) even for this
+# smoke municipality, whose buildings all land on the 1.0 K uhi_fallback_c. Subsequent runs
+# skip the download.
 results_dir: results
 
 city:
