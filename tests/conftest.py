@@ -32,6 +32,8 @@ def global_parameters() -> dict[str, float]:
         "building_type_age_cutoff_yr": 1990,
         "building_stock_growth_residential_new": 0.10,
         "building_stock_growth_office_old": 0.20,
+        "uhi_scale": 1.0,
+        "uhi_fallback_C": 1.0,
     }
 
 
@@ -51,6 +53,7 @@ def building() -> pd.Series:
             "U_window_W_m2K": 1.8,
             "volume_m3": 900.0,
             "infiltration_ACH": 0.5,
+            "UHI_max_C": 2.0,
             # Use and occupancy
             "end_use": "office",
             "population": 30.0,
@@ -82,6 +85,7 @@ def time_series() -> dict[str, np.ndarray]:
     delta_t = np.array([0.0, 2.0, 4.0, 6.0])
     series = {
         "T_outdoor_minus_indoor_C": delta_t,
+        "UHI_fraction": np.array([0.1, 0.5, 0.9, 0.3]),
         "presence_people_office": np.array([0.2, 0.8, 1.0, 0.5]),
         "presence_lighting_office": np.array([0.3, 0.9, 1.0, 0.6]),
         "presence_appliances_office": np.array([0.4, 0.7, 1.0, 0.5]),

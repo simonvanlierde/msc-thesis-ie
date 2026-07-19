@@ -49,11 +49,14 @@ SA_SPECS: list[SASpec] = [
     SASpec("carbon_intensity_electric_grid_kgCO2eq_kWh", "global", 0, 1, "grid carbon intensity", "kgCO2eq/kWh"),
     SASpec("gwp_refrigerant_kgCO2eq_kg", "global", 0, 20000, "refrigerant GWP", "kgCO2eq/kg"),
     SASpec("carbon_intensity_production_kgCO2eq_kg", "global", 1, 10, "production carbon intensity", "kgCO2eq/kg"),
-    SASpec("carbon_intensity_EoL_kgCO2eq_kg", "global", 1, 10, "end-of-life carbon intensity", "kgCO2eq/kg"),
+    # range must bracket the 0.3 kgCO2eq/kg reference: the elasticity is read at the sweep row
+    # closest to the reference, and the first row of a sweep is always NaN (pct_change)
+    SASpec("carbon_intensity_EoL_kgCO2eq_kg", "global", 0, 3, "end-of-life carbon intensity", "kgCO2eq/kg"),
     SASpec("people_density_office", "global", 0.04, 0.2, "office people density", "people/m2"),
     SASpec("int_heat_gain_light_W_m2", "global", 0.5, 25, "lighting internal heat gain", "W/m2"),
     SASpec("T_thresh_C", "global", 15, 30, "cooling threshold temperature", "degC"),
-    SASpec("UHI_effect_day_C", "global", 0, 15, "daytime UHI effect", "degC"),
+    # brackets the 1.0 reference; 0 = no UHI, 3 = triple every building's ceiling
+    SASpec("uhi_scale", "global", 0, 3, "UHI scale factor", "x reference"),
     SASpec("peak_cooling_percentile_cap", "global", 80, 99.9, "peak-cooling percentile cap", "percentile"),
     SASpec("delta_T_summer_C", "global", -2, 8, "summer temperature shift", "degC"),
     SASpec("SEER", "cooling_tech", 0.5, 3, "SEER", "x reference"),

@@ -20,13 +20,20 @@ adp_intensity_cooling_equipment_kgSbeq_kg = 0.00026
 csi_intensity_cooling_equipment_kgSbeq_kg = 1625.0
 carbon_intensity_production_kgCO2eq_kg = 4.15
 carbon_intensity_EoL_kgCO2eq_kg = 0.3
+# Share of the nocturnal UHI ceiling realized in daytime hours (canopy UHI peaks at night).
+uhi_day_fraction = 0.25
+# UHI ceiling for buildings a stock update left without a raster-sampled UHI_max_C
+# (e.g. a GeoPackage prepared before the per-building UHI join). Should not fire for a
+# stock built with the current pipeline; see cdm/parameters.py.
+uhi_fallback_C = 1.0
 
 [units]
 weather_data_start_year = "yr"
 weather_data_end_year = "yr"
 weather_station = "-"
-UHI_effect_day_C = "°C"
-UHI_effect_night_C = "°C"
+uhi_scale = "-"
+uhi_day_fraction = "-"
+uhi_fallback_C = "deg C"
 delta_T_winter_C = "°C"
 delta_T_spring_C = "°C"
 delta_T_summer_C = "°C"
@@ -59,8 +66,11 @@ building_stock_growth_office_old = "-"
 [scenario."SQ"]
 # 2025 grid carbon intensity (262.2 g CO2/kWh, electricitymaps.com) — Simon to confirm/verify, see TODOS.md
 carbon_intensity_electric_grid_kgCO2eq_kWh = 0.2622
-UHI_effect_day_C = 8.3
-UHI_effect_night_C = 2.1
+# Climate-driven UHI intensification (previously 8.3->9.8 degC day-boost ramps across scenarios)
+# is deferred: uhi_scale = 1.0 for all scenarios until re-parameterized under the KNMI'23
+# climate-scenario update (per D6/D7). The seasonal delta_T_* boosts below already carry the
+# scenario climate signal.
+uhi_scale = 1.0
 delta_T_winter_C = 0.0
 delta_T_spring_C = 0.0
 delta_T_summer_C = 0.0
@@ -75,8 +85,7 @@ building_stock_growth_residential_new = 0.0
 building_stock_growth_office_old = 0.0
 
 [scenario."2030"]
-UHI_effect_day_C = 8.3
-UHI_effect_night_C = 2.1
+uhi_scale = 1.0
 delta_T_winter_C = 0.35
 delta_T_spring_C = 0.23
 delta_T_summer_C = 0.26
@@ -92,8 +101,7 @@ building_stock_growth_residential_new = 0.5
 building_stock_growth_office_old = -0.28
 
 [scenario."2050_L"]
-UHI_effect_day_C = 8.4
-UHI_effect_night_C = 2.2
+uhi_scale = 1.0
 delta_T_winter_C = 0.61
 delta_T_spring_C = 0.5
 delta_T_summer_C = 0.55
@@ -109,8 +117,7 @@ building_stock_growth_residential_new = 0.21
 building_stock_growth_office_old = -0.43
 
 [scenario."2050_M"]
-UHI_effect_day_C = 8.6
-UHI_effect_night_C = 2.4
+uhi_scale = 1.0
 delta_T_winter_C = 1.02
 delta_T_spring_C = 0.8
 delta_T_summer_C = 0.85
@@ -126,8 +133,7 @@ building_stock_growth_residential_new = 0.97
 building_stock_growth_office_old = -0.23
 
 [scenario."2050_H"]
-UHI_effect_day_C = 9.8
-UHI_effect_night_C = 3.6
+uhi_scale = 1.0
 delta_T_winter_C = 1.49
 delta_T_spring_C = 1.16
 delta_T_summer_C = 1.27
