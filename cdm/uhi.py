@@ -9,10 +9,27 @@ share of a building's ceiling realized in a given hour:
 
     T_outdoor(b, h) = T_base(h) + UHI_max_C(b) * uhi_scale * UHI_fraction(h)
 
-Kernel form confirmed against a secondary reproduction (Tygron support wiki
-MathML, citing Theeuwes et al. 2016) because the primary PDF was inaccessible
-(Wiley 403, no OA copy indexed) -- pending the author's own primary-source
-check once the paper is in Zotero.
+Kernel form verified against the primary source (2026-07-19): Theeuwes et al.
+(2017), Int. J. Climatol. 37:443-454, Equation 5 --
+``UHImax = a1 * (S_down * DTR^3 / U)^(1/4)`` -- where a1 is the urban-property
+term (sky-view factor, vegetation fraction) that the Habib raster supplies per
+5 m cell, so this module applies only the weather kernel. The paper defines the
+UHI as the *air* temperature difference between urban canyon and rural area,
+which is why the previous surface-temperature parameterization was wrong.
+
+Two deliberate deviations from the paper, both documented in the SM:
+
+1. Theeuwes aggregates each "day" over 08:00 (day 0) to 07:00 (day 1), pairing
+   daytime heating with the night that follows it, because UHImax occurs at
+   night. This module groups by calendar date instead, so a night's kernel is
+   built from the calendar day it starts in. The kernel varies slowly between
+   adjacent days, so the effect is small and unbiased, but it is a phase
+   approximation, not a faithful reproduction of the published window.
+2. The paper fits its coefficients on days screened for rain, fog, frontal
+   passage and heating-degree-days; this module screens nothing and instead
+   lets those conditions suppress the kernel through their own low radiation,
+   low DTR and high wind. Appropriate here because the kernel is used as a
+   continuous relative scaling, not to reproduce the paper's fitted constants.
 """
 
 from __future__ import annotations
