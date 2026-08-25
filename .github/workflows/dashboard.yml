@@ -24,14 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/setup@v2
         with:
-          package_json_file: dashboard/package.json
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 26
-          cache: pnpm
+          package-json-file: dashboard/package.json
+          runtime: node@26
+          cache: true
           cache-dependency-path: dashboard/pnpm-lock.yaml
+          install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
@@ -40,14 +39,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/setup@v2
         with:
-          package_json_file: dashboard/package.json
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 26
-          cache: pnpm
+          package-json-file: dashboard/package.json
+          runtime: node@26
+          cache: true
           cache-dependency-path: dashboard/pnpm-lock.yaml
+          install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
@@ -64,14 +62,13 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/setup@v2
         with:
-          package_json_file: dashboard/package.json
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 26
-          cache: pnpm
+          package-json-file: dashboard/package.json
+          runtime: node@26
+          cache: true
           cache-dependency-path: dashboard/pnpm-lock.yaml
+          install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - uses: actions/upload-pages-artifact@v5
