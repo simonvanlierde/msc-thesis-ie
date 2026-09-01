@@ -8,6 +8,7 @@ import geopandas as gpd
 import numpy as np
 import pytest
 import rasterio
+import rasterio.transform
 from shapely.geometry import Point
 
 from scripts.gis.add_uhi_to_buildings import sample_uhi_max

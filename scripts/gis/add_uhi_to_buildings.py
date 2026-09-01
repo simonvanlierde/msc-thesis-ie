@@ -14,6 +14,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import rasterio
+import rasterio.transform
 from scipy.ndimage import uniform_filter
 
 

@@ -106,3 +106,20 @@ def test_nan_uhi_max_c_falls_back_to_citywide_constant(
     result = add_derived_parameters_to_buildings(stock, global_parameters)
 
     assert result["UHI_max_C"].iloc[0] == global_parameters["uhi_fallback_C"]
+
+
+def test_uhi_scale_scales_demand(
+    building: pd.Series,
+    time_series_full_year: dict,
+    global_parameters: dict,
+) -> None:
+    """uhi_scale is a magnitude knob: doubling it raises cooling demand above uhi_scale=1."""
+    stock = pd.DataFrame([building.to_dict()]).assign(UHI_max_C=3.0)
+
+    def demand(scale: float) -> float:
+        params = {**global_parameters, "uhi_scale": scale}
+        return float(
+            calc_cooling_demand_metrics_for_chunk(stock, time_series_full_year, params)["E_cooling_kWh"].iloc[0],
+        )
+
+    assert demand(0.0) < demand(1.0) < demand(2.0)
