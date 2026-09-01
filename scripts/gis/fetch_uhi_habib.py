@@ -17,7 +17,7 @@ from pathlib import Path
 
 import rasterio
 import requests
-from rasterio.crs import CRS
+from rasterio.crs import CRS  # ty: ignore[unresolved-import]  # NOTE: compiled module without stubs since rasterio 1.5
 from rasterio.warp import Resampling, calculate_default_transform, reproject
 
 from scripts.gis.pdok_http import retrying_session
