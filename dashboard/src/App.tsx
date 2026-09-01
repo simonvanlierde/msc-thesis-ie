@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Act } from "./components/Act";
+import { Coda } from "./components/Coda";
 import { Fork } from "./components/Fork";
 import { HowItWorks } from "./components/HowItWorks";
 import { NearTerm } from "./components/NearTerm";
@@ -8,6 +9,7 @@ import { Payoff } from "./components/Payoff";
 import { TodayHero } from "./components/TodayHero";
 import { type Datasets, loadDatasets } from "./lib/data";
 import { getPalette } from "./lib/palette";
+import { parseScenarioParam, withScenarioParam } from "./lib/scenarioParam";
 import { elecFactors } from "./lib/transform";
 import type { ScenarioKey } from "./lib/types";
 import { useScrollSpy } from "./lib/useScrollSpy";
@@ -39,6 +41,26 @@ const NAV = [
 ];
 const NAV_IDS = NAV.map((n) => n.id);
 
+/** Publish the masthead's real height as --masthead-h on the root, so sticky elements
+ *  (the path switcher) clear it at any width — at phone widths the header wraps to two
+ *  rows and a hard-coded offset would leave the switcher overlapping content. */
+function useMastheadHeight() {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const obs = new ResizeObserver(() => {
+      document.documentElement.style.setProperty("--masthead-h", `${el.offsetHeight}px`);
+    });
+    obs.observe(el);
+    return () => {
+      obs.disconnect();
+      document.documentElement.style.removeProperty("--masthead-h");
+    };
+  }, []);
+  return ref;
+}
+
 /** Two-way visibility for the hero wordmark: the masthead title shows only once the
  *  wordmark has scrolled out, so the name appears to hand off into the header. */
 function useHeroPassed(active: boolean) {
@@ -59,18 +81,30 @@ export function App() {
   const [failed, setFailed] = useState(false);
   // Opens on the middle 2050 path so the payoff and detail land on a future, not the present —
   // the fork is pre-set, and choosing another path is the page's central interaction.
-  const [scenario, setScenario] = useState<ScenarioKey>("2050_M");
+  // A shared link's ?scenario= wins over that default, so the sender's chosen path survives.
+  const [scenario, setScenario] = useState<ScenarioKey>(
+    () => parseScenarioParam(window.location.search) ?? "2050_M",
+  );
+  // Every scenario change mirrors into the URL (replaceState: no history spam), so a
+  // reload or a copied link keeps the choice.
+  const chooseScenario = useCallback((k: ScenarioKey) => {
+    setScenario(k);
+    const { location, history } = window;
+    history.replaceState(null, "", withScenarioParam(location.search, k) + location.hash);
+  }, []);
   const [mode, toggleTheme] = useTheme();
   const palette = useMemo(() => getPalette(mode), [mode]);
   const activeSection = useScrollSpy(NAV_IDS, data !== null);
   const heroPassed = useHeroPassed(data !== null);
+  const mastRef = useMastheadHeight();
   // Per-scenario: SEER and market penetration both move between the paths.
   const elec = useMemo(
     () => (data ? elecFactors(data.scenarios.scenarios[scenario].archetypes) : null),
     [data, scenario],
   );
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setFailed(false);
     loadDatasets()
       .then(setData)
       .catch((e: unknown) => {
@@ -79,13 +113,14 @@ export function App() {
         setFailed(true);
       });
   }, []);
+  useEffect(load, [load]);
 
   return (
     <>
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <header className={`masthead${heroPassed ? " masthead--titled" : ""}`}>
+      <header ref={mastRef} className={`masthead${heroPassed ? " masthead--titled" : ""}`}>
         <div className="wrap masthead__row">
           <h1 className="masthead__title">
             <span className="masthead__name">Cooling for Comfort</span>
@@ -101,8 +136,7 @@ export function App() {
           </h1>
           <div id="city-pop" popover="auto" className="citypop">
             <strong>More cities are coming.</strong> The model behind this page is being extended to
-            estimate cooling demand and its impacts for every municipality in the Netherlands. The
-            Hague is the pilot.
+            every municipality in the Netherlands. The Hague is the pilot.
           </div>
           <nav aria-label="Sections">
             {NAV.map((n) => (
@@ -115,7 +149,15 @@ export function App() {
               </a>
             ))}
           </nav>
-          <button type="button" className="iconbtn" onClick={toggleTheme}>
+          {/* The visual label names the TARGET theme; aria-pressed + an action label keep
+              the toggle unambiguous for assistive tech. */}
+          <button
+            type="button"
+            className="iconbtn"
+            onClick={toggleTheme}
+            aria-pressed={mode === "dark"}
+            aria-label={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          >
             {mode === "dark" ? "☀ Light" : "☾ Dark"}
           </button>
         </div>
@@ -123,9 +165,12 @@ export function App() {
 
       <main id="main">
         {failed && (
-          <p className="errbox wrap" role="alert">
-            The thesis data didn't load. Check your connection and reload the page.
-          </p>
+          <div className="errbox wrap" role="alert">
+            <p>The thesis data didn't load. Check your connection and try again.</p>
+            <button type="button" className="iconbtn" onClick={load}>
+              Try again
+            </button>
+          </div>
         )}
         {!(data || failed) && <p className="loading wrap">Loading thesis results…</p>}
 
@@ -134,25 +179,20 @@ export function App() {
             <TodayHero data={data.scenarios} />
             <HowItWorks data={data.scenarios} />
             <NearTerm data={data.scenarios} />
-            <Fork scenario={scenario} onChange={setScenario} />
+            <Fork scenario={scenario} onChange={chooseScenario} />
             <Payoff
               data={data.scenarios}
               scenario={scenario}
-              onChange={setScenario}
+              onChange={chooseScenario}
               palette={palette}
             />
 
-            <Act
-              id="detail"
-              variant="detail"
-              eyebrow="The detail behind the story"
-              labelledBy="detail-h"
-            >
-              <h2 id="detail-h">Where, when, and what it costs</h2>
+            <Act id="detail" variant="detail" labelledBy="detail-h">
+              <h2 id="detail-h">Where, when, and what it costs the climate</h2>
               <p className="lede">
                 The full picture behind the headline: where cooling concentrates across the city,
-                how demand moves through the day and year, and the life-cycle breakdown of the
-                climate impact — all for the path you chose above.
+                how demand moves through the day and year, and what makes up its climate impact, all
+                for the path you chose above.
               </p>
 
               {/* The fork's choice, kept switchable while deep in the detail views. Unlike the
@@ -161,7 +201,7 @@ export function App() {
               <PathSwitch
                 name="detail-path"
                 scenario={scenario}
-                onChange={setScenario}
+                onChange={chooseScenario}
                 keys={data.scenarios.meta.scenario_order}
                 label="Scenario"
               />
@@ -183,6 +223,8 @@ export function App() {
                 <LcaView data={data.scenarios} scenario={scenario} palette={palette} />
               </Suspense>
             </Act>
+
+            <Coda data={data.scenarios} scenario={scenario} />
 
             <footer className="colophon wrap">
               <p>

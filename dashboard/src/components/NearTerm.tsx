@@ -21,7 +21,7 @@ export function NearTerm({ data }: Props) {
 
   return (
     <Act id="near" variant="near" eyebrow="Soon · 2030" labelledBy="near-h">
-      <h2 id="near-h">The near future bends down on its own</h2>
+      <h2 id="near-h">By 2030, emissions bend down on their own</h2>
       <p className="lede">{SCENARIO_META["2030"].blurb}</p>
 
       <div className="deltas">
@@ -37,7 +37,7 @@ export function NearTerm({ data }: Props) {
               {delta(sq.E_cooling_kWh, y30.E_cooling_kWh)}
             </span>
           </div>
-          <div className="delta__note">Roughly flat — the city hasn't grown much yet.</div>
+          <div className="delta__note">Roughly flat: the city hasn't grown much yet.</div>
         </div>
         <div className="delta">
           <div className="delta__metric">Cooling-related emissions</div>
