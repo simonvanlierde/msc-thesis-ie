@@ -2,7 +2,7 @@
 """Aggregate per-building cooling results to neighbourhood (buurt) level for the map.
 
 Inputs:
-  data/output/geodata/buildings_with_CDM_results_{scenario}_full.gpkg  — 59k building polygons
+  results/geodata/buildings_with_CDM_results_{scenario}_full.gpkg  — 59k building polygons
     (git-ignored, dropped in locally from the Zenodo dataset 10.5281/zenodo.8344580)
   data/raw/cbs/buurten_{city}.gpkg — CBS neighbourhoods, produced by the fetch_cbs_buurten rule
 
@@ -27,7 +27,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 DIVISIONS = REPO / "data" / "raw" / "cbs" / "buurten_s-gravenhage.gpkg"
-BUILDINGS = REPO / "data" / "output" / "geodata"
+BUILDINGS = REPO / "results" / "geodata"
 OUT = REPO / "dashboard" / "public" / "data" / "cooling_by_buurt.geojson"
 
 CITY = "'s-Gravenhage"  # CBS gemeentenaam; the fetch is by bbox, so it also pulls in the neighbours

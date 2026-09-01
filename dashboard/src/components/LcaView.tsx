@@ -38,11 +38,10 @@ export function LcaView({ data, scenario, palette }: Props) {
     <section id="impact" aria-labelledby="impact-h">
       <h2 id="impact-h">Life-cycle climate impact</h2>
       <p className="lede">
-        Greenhouse-gas emissions across the full life cycle of cooling — the electricity used to run
-        it, refrigerant leaks, and making and disposing of the equipment — for every path on one
-        scale. Operational electricity dominates today; on the cleaner-grid paths the equipment
-        itself becomes the bigger share. The thesis also assessed resource-depletion impacts; this
-        page shows climate only.
+        Greenhouse gases from the full life cycle of cooling: the electricity to run it, refrigerant
+        leaks, and making and disposing of the equipment, for every path on one scale. Electricity
+        dominates today; on the cleaner-grid paths the equipment itself becomes the bigger share.
+        The thesis also assessed resource depletion; this page shows climate only.
       </p>
 
       <figure
@@ -84,7 +83,7 @@ export function LcaView({ data, scenario, palette }: Props) {
       </figure>
 
       <details className="datatable">
-        <summary>Data table — emissions by life-cycle stage and scenario</summary>
+        <summary>Data table: emissions by life-cycle stage and scenario</summary>
         <table>
           <caption>Life-cycle GHG emissions by stage (kt CO₂-eq per year)</caption>
           <thead>

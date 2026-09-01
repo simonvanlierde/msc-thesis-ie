@@ -14,7 +14,7 @@ it. Validated: per-building annual E_cooling reproduces the published value to
 ~0.03% median error (see dashboard/README).
 
 Inputs (git-ignored, from Zenodo 10.5281/zenodo.8344580):
-  data/output/geodata/buildings_with_CDM_results_<scenario>_full.gpkg
+  results/geodata/buildings_with_CDM_results_<scenario>_full.gpkg
 Committed inputs: weather + parameter CSVs under data/input/parameters/.
 
 Output: dashboard/public/data/temporal.json
@@ -70,6 +70,7 @@ def main(
     from cdm.readers import read_global_parameters, read_parameter_specific_data
     from cdm.thermodynamic import (
         calc_cooling_demand_from_thermal_flows,
+        calc_delta_T_air,
         calc_Q_infiltration,
         calc_Q_internal_heat,
         calc_Q_solar_radiation,
@@ -160,9 +161,11 @@ def main(
         sampled_annual = dict.fromkeys(published_by_use, 0.0)
         for start in range(0, len(sample), chunk):
             batch = sample.iloc[start : start + chunk]
-            Qt = calc_Q_transmission(batch, ts, gp)
-            Qi = calc_Q_infiltration(batch, ts, gp)
-            Qv = calc_Q_ventilation(batch, ts, gp)
+            # Per-building outdoor-minus-indoor ΔT, including each building's UHI term.
+            dT = calc_delta_T_air(batch, ts, gp)
+            Qt = calc_Q_transmission(batch, dT, gp)
+            Qi = calc_Q_infiltration(batch, dT, gp)
+            Qv = calc_Q_ventilation(batch, dT, ts, gp)
             Qs = calc_Q_solar_radiation(batch, ts)
             Qh = calc_Q_internal_heat(batch, ts, gp)
             Qc, E, _ = calc_cooling_demand_from_thermal_flows(Qt, Qi, Qv, Qs, Qh)
@@ -176,7 +179,7 @@ def main(
         # CSV, the same source as scenarios.json) rather than the per-building GPKG sum:
         # the archetype totals carry the scenario's projected building-stock growth that the
         # per-building geometry does not. Today's stock sets the shape, the projection the size.
-        arch = pd.read_csv((results_dir or REPO / "data" / "output") / f"CDM_results_{scen}_full.csv")
+        arch = pd.read_csv((results_dir or REPO / "results") / f"CDM_results_{scen}_full.csv")
         arch_use = np.where(
             arch["building_type"].str.lower().str.contains("office"),
             "office",
@@ -281,7 +284,7 @@ if __name__ == "__main__":
     ap.add_argument(
         "--geodata-dir",
         type=Path,
-        default=REPO / "data" / "output" / "geodata",
+        default=REPO / "results" / "geodata",
         help="dir with buildings_with_CDM_results_<scenario>_full.gpkg",
     )
     ap.add_argument("--out", type=Path, default=OUT, help="output JSON path")
@@ -290,7 +293,7 @@ if __name__ == "__main__":
         "--results-dir",
         type=Path,
         default=None,
-        help="dir with the CDM_results_<scenario>_full.csv calibration targets (default: data/output)",
+        help="dir with the CDM_results_<scenario>_full.csv calibration targets (default: results)",
     )
     args = ap.parse_args()
     raise SystemExit(main(args.geodata_dir, args.out, args.weather_csv, args.results_dir))

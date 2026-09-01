@@ -29,7 +29,7 @@ export function Fork({ scenario, onChange }: Props) {
     <Act id="fork" variant="fork" eyebrow="2050 · your choice" labelledBy="fork-h">
       <h2 id="fork-h">Choose the path to 2050</h2>
       <p className="lede">
-        By 2050 the same city's cooling emissions span an 18-fold range — from a tenth of today's to
+        By 2050 the same city's cooling emissions span an 18-fold range, from a tenth of today's to
         1.7 times today's. Which future arrives is a set of choices: how hot we let it get, whether
         we adapt what "comfortable" means, how clean the grid stays, whether high-warming
         refrigerants are phased out.
@@ -87,6 +87,14 @@ export function Fork({ scenario, onChange }: Props) {
           })}
         </div>
       </fieldset>
+
+      {/* One shared gloss for the two chip units that are jargon at first contact; per-chip
+          tooltips would bloat cards that need to stay scannable. */}
+      <p className="scope-note">
+        On the chips: the grid figure is how much CO₂ making each kilowatt-hour of electricity
+        releases; GWP is how strongly a refrigerant warms the climate compared with CO₂ (higher is
+        worse).
+      </p>
     </Act>
   );
 }

@@ -58,6 +58,14 @@ RIVM_UHI_CACHE_DIR = f"{RAW_DIR}/rivm_uhi"
 # materialises it, so the notebook's one external raster becomes reproducible.
 UHI_RASTER = "data/input/geodata/UHI_effect_TheHague.tif"
 
+HABIB_UHI_FILES_API = config["habib_uhi"]["files_api"]
+HABIB_UHI_ARCHIVE_FILE_NAME = config["habib_uhi"]["archive_file_name"]
+HABIB_UHI_ZIP_MEMBER = config["habib_uhi"]["uhimax_zip_member"]
+HABIB_UHI_CACHE_DIR = f"{RAW_DIR}/habib_uhi"
+# Per-building UHImax raster (Habib et al. 2025); Task 3 samples it, replacing the
+# flawed citywide RIVM uplift above.
+HABIB_UHI_RASTER = "data/input/geodata/UHImax_habib_TheHague_5m.tif"
+
 # The model rules call ``cdm`` through a shell command, so Snakemake's ``code``
 # rerun-trigger (which only hashes run:/script: bodies) cannot see it. Declare the
 # model sources as inputs so editing the model re-runs the rules that use it.
@@ -72,6 +80,48 @@ rule all:
     input:
         expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_{SUBSET}.csv", scenario=SCENARIOS),
         f"{RESULTS_DIR}/figures/scenario_overview.png",
+
+
+# Journal-paper artifacts: main-text figures F1/F2/F5 and the manuscript numbers
+# report. Opt-in target so `all` stays lean: `snakemake paper`.
+rule paper:
+    input:
+        f"{RESULTS_DIR}/figures/F2_contribution_by_type.png",
+        f"{RESULTS_DIR}/paper_numbers.json",
+
+
+rule paper_figures:
+    input:
+        csv=f"{RESULTS_DIR}/CDM_results_SQ_{SUBSET}.csv",
+        geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
+        script="scripts/make_paper_figures.py",
+    output:
+        f"{RESULTS_DIR}/figures/F1_pipeline_schematic.png",
+        f"{RESULTS_DIR}/figures/F2_contribution_by_type.png",
+        f"{RESULTS_DIR}/figures/F5_intensity_distribution.png",
+    log:
+        f"{LOG_DIR}/paper_figures.log",
+    shell:
+        "python scripts/make_paper_figures.py --input-dir {RESULTS_DIR} --figures-dir {RESULTS_DIR}/figures > {log} 2>&1"
+
+
+# The JSON is the artifact (unrounded); the txt is the rendered report the draft is
+# re-synced against by hand.
+rule paper_numbers:
+    input:
+        csvs=expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_{SUBSET}.csv", scenario=SCENARIOS),
+        script="scripts/paper_numbers.py",
+    output:
+        json=f"{RESULTS_DIR}/paper_numbers.json",
+        txt=f"{RESULTS_DIR}/paper_numbers.txt",
+    log:
+        f"{LOG_DIR}/paper_numbers.log",
+    shell:
+        """
+        python scripts/paper_numbers.py \
+          --results-dir {RESULTS_DIR} \
+          --json-output {output.json} > {output.txt} 2> {log}
+        """
 
 
 # Heavy opt-in target (30 tech pairs x 20 model runs); not part of `all`.
@@ -249,6 +299,30 @@ rule fetch_uhi_raster:
         """
 
 
+rule fetch_uhi_habib:
+    # Heavy: 4TU serves the whole 99-municipality dataset as one ~4.5 GB national zip
+    # (cached), from which only The Hague's UHImax member is extracted.
+    retries: NETWORK_RETRIES
+    output:
+        HABIB_UHI_RASTER,
+    params:
+        files_api=HABIB_UHI_FILES_API,
+        archive_file_name=HABIB_UHI_ARCHIVE_FILE_NAME,
+        zip_member=HABIB_UHI_ZIP_MEMBER,
+        cache_dir=HABIB_UHI_CACHE_DIR,
+    log:
+        f"{LOG_DIR}/fetch_uhi_habib.log",
+    shell:
+        """
+        python -m scripts.gis.fetch_uhi_habib \
+          --files-api {params.files_api} \
+          --archive-file-name {params.archive_file_name} \
+          --zip-member "{params.zip_member}" \
+          --cache-dir {params.cache_dir} \
+          --output {output} > {log} 2>&1
+        """
+
+
 rule provide_ep_online_energy_labels:
     retries: NETWORK_RETRIES
     output:
@@ -261,10 +335,15 @@ rule provide_ep_online_energy_labels:
 
 rule fetch_weather:
     retries: NETWORK_RETRIES
-    # NOTE: no model_src input, even though fetch_weather.py imports
+    # NOTE: no full model_src input, even though fetch_weather.py imports
     # cdm.time_series. It only calls the KNMI downloader, and listing MODEL_SRC here
-    # would re-download the series on every model edit. Add cdm/time_series.py alone
-    # if get_raw_weather_data ever starts transforming the data.
+    # would re-download the series on every model edit. script/time_series are listed
+    # below so a code change -- or a stale pre-wind-speed CSV under --rerun-triggers
+    # mtime -- still retriggers the fetch. Widen to MODEL_SRC if get_raw_weather_data
+    # ever starts transforming more of the data.
+    input:
+        script="scripts/gis/fetch_weather.py",
+        time_series="cdm/time_series.py",
     output:
         WEATHER_CSV,
     params:
@@ -284,7 +363,8 @@ rule fetch_weather:
 
 
 # Always builds the full stock. The optional `sample` subset is a downstream selection
-# (subsample_buildings), so this output is pinned to `_full` regardless of SUBSET.
+# (subsample_buildings), so this output is pinned to `_full` regardless of SUBSET. UHI is
+# added by a separate rule below so cdm/*.py edits (model_src) don't retrigger raster sampling.
 rule prepare_bag_geodata:
     input:
         height_manifest=f"{PDOK_3D_DIR}/height_tiles_local_manifest.json",
@@ -294,7 +374,7 @@ rule prepare_bag_geodata:
         script="scripts/gis/prepare_pdok_model_geodata.py",
         model_src=MODEL_SRC,
     output:
-        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_nouhi_full.gpkg",
     params:
         layer="BAG_buildings_full",
     log:
@@ -309,6 +389,38 @@ rule prepare_bag_geodata:
           --bag-residences {input.residences} \
           --energy-labels {input.energy_labels} \
           --boundary {input.boundary} \
+          --output {output.buildings} \
+          --layer {params.layer} > {log} 2>&1
+        """
+
+
+# Split out from prepare_bag_geodata (2026-07-18): the windowed UHI sampling made that rule
+# take 30+ min, and it re-ran on every cdm/*.py edit via model_src. This rule depends only on
+# the Habib raster and its own script -- not model_src -- so model iteration stays fast.
+rule add_uhi_to_buildings:
+    input:
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_nouhi_full.gpkg",
+        uhi_habib="data/input/geodata/UHImax_habib_TheHague_5m.tif",
+        script="scripts/gis/add_uhi_to_buildings.py",
+    output:
+        buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
+    params:
+        layer="BAG_buildings_full",
+        uhi_fallback_c=config.get("uhi_fallback_c", 1.0),
+        uhi_buffer_m=config.get("uhi_buffer_m", 30),
+    log:
+        f"{LOG_DIR}/add_uhi_to_buildings.log",
+    benchmark:
+        f"{BENCHMARK_DIR}/add_uhi_to_buildings.tsv"
+    threads: 1
+    shell:
+        """
+        python scripts/gis/add_uhi_to_buildings.py \
+          --buildings {input.buildings} \
+          --buildings-layer {params.layer} \
+          --uhi-raster {input.uhi_habib} \
+          --uhi-fallback-c {params.uhi_fallback_c} \
+          --uhi-buffer-m {params.uhi_buffer_m} \
           --output {output.buildings} \
           --layer {params.layer} > {log} 2>&1
         """

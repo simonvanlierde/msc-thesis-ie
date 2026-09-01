@@ -194,6 +194,39 @@ def plot_SA_results_elasticities(
     plt.close()
 
 
+def select_reference_row(index: pd.Index, reference: float) -> float:
+    """Select the sweep index value whose elasticity read-out is well-defined and nearest to ``reference``.
+
+    Elasticities are computed row-over-row via ``pct_change()`` on both the outcome columns and the
+    index (``calculate_elasticity_for_SA_results``), which poisons two rows of any sweep:
+    - Row 0 is always NaN: there is no prior row to compute a percent change from.
+    - Row 1 of a sweep whose index starts at exactly 0 is exactly 0.0 for every metric: the index's
+      percent change at that row is (x1 - 0) / 0 = inf, and any finite numerator divided by inf is 0,
+      not a real elasticity.
+    Both rows must be excluded from the search, or the "reference" elasticity silently reports a
+    degenerate artifact instead of a physically meaningful sensitivity.
+
+    Args:
+        index (pd.Index): The sweep index (the independent variable's values) of the SA results.
+        reference (float): The reference value of the independent variable to locate in the sweep.
+
+    Returns:
+        float: The index value nearest to ``reference`` among rows with a well-defined elasticity, or,
+            if no such row exists (a degenerate sweep with fewer than two usable rows), the nearest
+            index value overall.
+    """
+    index_values = index.to_numpy(dtype=float)
+    valid = np.isfinite(index.to_series().pct_change().to_numpy())
+
+    if not valid.any():
+        # Degenerate sweep (e.g. a single row): no row has a well-defined elasticity at all.
+        # Fall back to the plain nearest-value match so the function still returns something usable.
+        return index_values[np.abs(index_values - reference).argmin()]
+
+    candidates = index_values[valid]
+    return candidates[np.abs(candidates - reference).argmin()]
+
+
 def post_process_SA_results(
     SA_results: pd.DataFrame,
     reference_values: dict[str, float],
@@ -220,8 +253,9 @@ def post_process_SA_results(
     Returns:
         pd.DataFrame: The DataFrame containing the elasticity of the cooling demand and environmental impacts with respect to the independent variable, at the reference value.
     """
-    # Find the variable value in the sensitivity analysis closest to the reference value used in the status quo scenario
-    ref_value_in_SA_results = SA_results.index[(np.abs(SA_results.index - reference_values["SQ"])).argmin()]
+    # Find the variable value in the sensitivity analysis closest to the reference value used in the
+    # status quo scenario, restricted to rows with a well-defined elasticity (see select_reference_row).
+    ref_value_in_SA_results = select_reference_row(SA_results.index, reference_values["SQ"])
 
     # Normalize the results to the value used for the independent variable in the reference scenario
     SA_results_normalized = normalize_SA_results(SA_results, ref_value_in_SA_results)

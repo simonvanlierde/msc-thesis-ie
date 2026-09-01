@@ -22,14 +22,14 @@ function buildSteps(d: ScenariosData): Step[] {
   return [
     {
       title: "Heat piles up",
-      body: "Every building gains heat: sun through windows, warm outside air, people, appliances. The model runs an hourly heat balance per building; whatever pushes one past its comfort threshold (25 °C today) becomes cooling demand, surplus heat that must be removed. The urban heat island makes it much worse: without it, the city's cooling demand would be roughly a third of what it is.",
+      body: "Every building gains heat: sun through windows, warm outside air, people, appliances. The model runs an hourly heat balance per building; whatever pushes one past its comfort threshold (25 °C today) becomes cooling demand, surplus heat that must be removed. The urban heat island makes it worse, and unevenly: from a 5 m map of the city, each building gets its own extra-heat ceiling (most fall between +2.7 and +4.5 °C), applied hour by hour and strongest on calm, clear nights in the dense centre.",
       fig: "+8.6 °C",
       figCap: "central The Hague vs its rural surroundings, measured on a hot day",
       flow: `${num(t.E_cooling_kWh / 1e6, 0)} GWh of cooling demand a year`,
     },
     {
       title: "There are many ways to shed it",
-      body: "Some heat never becomes a machine's problem — shading, ventilation and building fabric can avoid or dump part of it passively. The rest takes active cooling, from portable ACs to split units, chillers, and air-, ground- and water-source heat pumps.",
+      body: "Some heat never becomes a machine's problem: shading, ventilation and building fabric can avoid or dump part of it passively. The rest takes active cooling, from portable ACs to split units, chillers, and air-, ground- and water-source heat pumps.",
       fig: "6",
       figCap: "active cooling technologies tracked by the model",
       flow: "the active share, split across technologies",
@@ -43,14 +43,14 @@ function buildSteps(d: ScenariosData): Step[] {
     },
     {
       title: "…but only where cooling is installed",
-      body: "Market-penetration rates, per building type, scale the hypothetical electricity down to what is actually drawn from the grid.",
+      body: "Only some buildings have cooling equipment at all. The model scales the electricity down by the share that do, per building type, to what is actually drawn from the grid.",
       fig: "15%",
       figCap: "of Hague homes have cooling, against roughly 75% of offices",
       flow: `${num(t.electricity_kWh / 1e6, 0)} GWh of electricity actually drawn a year`,
     },
     {
       title: "Electricity carries emissions",
-      body: "Generating that electricity emits greenhouse gases in step with the grid's carbon intensity — the biggest lever between the 2050 paths. This page tracks climate only; the thesis also assessed resource depletion.",
+      body: "Generating that electricity emits greenhouse gases; how much depends on how clean the grid is, the biggest lever between the 2050 paths. This page tracks climate only; the thesis also assessed resource depletion.",
       fig: pct(ghg.electricity, ghgTotal, 0),
       figCap: "of cooling's climate impact today is grid electricity",
       flow: `${num(ghg.electricity / 1e6, 1)} kt CO₂-eq from the grid`,
@@ -71,7 +71,7 @@ export function HowItWorks({ data }: { data: ScenariosData }) {
   const steps = buildSteps(data);
   const ghgTotal = data.scenarios.SQ.totals.GHG_emissions_total_kgCO2eq;
   return (
-    <Act id="model" variant="near" eyebrow="Behind the numbers · the model" labelledBy="model-h">
+    <Act id="model" variant="near" labelledBy="model-h">
       <h2 id="model-h">From heat to impact, in six steps</h2>
       <p className="lede">
         Every number on this page comes out of one chain, computed building by building and hour by
@@ -103,7 +103,7 @@ export function HowItWorks({ data }: { data: ScenariosData }) {
 
       <p className="chain__result">
         <strong>{num(ghgTotal / 1e6, 1)} kt CO₂-eq a year</strong>
-        cooling's climate impact today — the number every chart below starts from
+        cooling's climate impact today, the number every chart below starts from
       </p>
 
       <p className="note steps__note">

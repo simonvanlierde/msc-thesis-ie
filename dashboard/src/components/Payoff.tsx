@@ -103,7 +103,7 @@ export function Payoff({ data, scenario, onChange, palette }: Props) {
       <PathSwitch name="payoff-path" scenario={scenario} onChange={onChange} />
 
       <p className="lede">
-        You picked <strong>{rowLabel(scenario)}</strong> — {meta.tagline.toLowerCase()}. Here is
+        You picked <strong>{rowLabel(scenario)}</strong>: {meta.tagline.toLowerCase()}. Here is
         where that path lands, with today and 2030 as faint reference rows for scale.
       </p>
 
@@ -122,7 +122,7 @@ export function Payoff({ data, scenario, onChange, palette }: Props) {
       </div>
 
       <details className="datatable">
-        <summary>Data table — demand, electricity and emissions by scenario</summary>
+        <summary>Data table: demand, electricity and emissions by scenario</summary>
         <table>
           <caption>
             Annual cooling demand, electricity use and life-cycle emissions, by scenario

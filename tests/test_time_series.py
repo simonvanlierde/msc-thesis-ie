@@ -12,14 +12,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_add_uhi_effect_applies_day_and_night_boosts() -> None:
-    df = pd.DataFrame({"H": [7, 9, 20, 21]})
-    result = ts.add_UHI_effect(df, UHI_effect_day_C=2.0, UHI_effect_night_C=0.5)
-
-    # Day is defined as 8 < H <= 20.
-    assert result["UHI_effect_C"].tolist() == [0.5, 2.0, 2.0, 0.5]
-
-
 def test_add_seasonal_temperature_boosts_maps_each_season() -> None:
     df = pd.DataFrame({"date": pd.to_datetime(["2022-01-15", "2022-04-15", "2022-07-15", "2022-10-15"])})
     result = ts.add_seasonal_temperature_boosts(

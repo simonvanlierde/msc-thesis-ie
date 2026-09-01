@@ -30,13 +30,13 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
     short: "Today",
     tagline: "The city as it is",
     blurb:
-      "The Hague needs 1,146 GWh of cooling a year — and most of it is invisible: 77% of the demand goes unmet. A small, energy-hungry office stock, just 13% of the floor area, drives 34% of demand and 65% of the emissions.",
+      "The Hague needs 527 GWh of cooling a year, and most of it is invisible: 54% of the demand goes unmet. A small, energy-hungry office stock, just 11% of the floor area, drives 54% of demand and 79% of the emissions.",
     assumptions: {
-      warming: "Baseline · 2018–2022",
+      warming: "Baseline · 2021–2025",
       comfort: "Cools at 25 °C",
-      // Life-cycle intensity of the 2019 Dutch grid — what the published results were
-      // computed with (thesis Table 29), not the lower 2025 production-mix figure.
-      grid: "427 g CO₂/kWh",
+      // 2025 Dutch grid intensity (electricitymaps.com), what the current results were
+      // computed with — parameters.toml [scenario."SQ"].
+      grid: "262 g CO₂/kWh",
       refrigerant: "R-134A · GWP 1603",
     },
   },
@@ -45,7 +45,7 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
     short: "2030",
     tagline: "Close, and mostly locked in",
     blurb:
-      "Summers run about 0.3 °C warmer, but a cleaner grid more than offsets it: emissions fall to 25.1 kt even as demand holds flat. The real choices come at 2050.",
+      "Summers run about 0.3 °C warmer, but a cleaner grid more than offsets it: emissions fall to 13.3 kt even as demand holds flat. The real choices come at 2050.",
     assumptions: {
       warming: "+0.3 °C summer",
       comfort: "Cools at 25 °C",
@@ -58,7 +58,7 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
     short: "Low",
     tagline: "The adaptive path",
     blurb:
-      "People accept a slightly warmer indoors, the grid runs near-clean, and refrigerants go zero-GWP. Even in a warming climate, cooling demand falls and emissions drop to a tenth of today's.",
+      "People accept a slightly warmer indoors, the grid runs near-clean, and refrigerants no longer warm the climate. Even in a warming climate, cooling demand falls and emissions drop to a seventh of today's.",
     assumptions: {
       warming: "+0.6 °C summer",
       comfort: "Adapts up to 26 °C",
@@ -66,8 +66,7 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
       refrigerant: "Natural · GWP 0",
     },
     details: [
-      "Summers +0.6 °C over the 2018–2022 baseline (KNMI low-emission climate path)",
-      "Urban heat island roughly today's: +0.1 °C by day and by night",
+      "Summers +0.6 °C over the 2021–2025 baseline (KNMI low-emission climate path)",
       "Adaptive comfort: buildings only cool once indoor temperature passes 26 °C",
       "Near-clean grid at 29 g CO₂ per kWh",
       "Natural refrigerants with zero global-warming potential",
@@ -79,7 +78,7 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
     short: "Medium",
     tagline: "Status-quo policy",
     blurb:
-      "Today's comfort expectations hold and the grid decarbonises at a regional pace. Demand grows with the city to 1,355 GWh, but the cleaner grid still keeps emissions down at 9.3 kt.",
+      "Today's comfort expectations hold and the grid gets cleaner at the pace the region has announced. Demand grows with the city to 655 GWh, but the cleaner grid still keeps emissions down at 4.9 kt.",
     assumptions: {
       warming: "+0.9 °C summer",
       comfort: "Cools at 25 °C",
@@ -87,10 +86,9 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
       refrigerant: "Low-GWP · GWP ~1",
     },
     details: [
-      "Summers +0.9 °C over the 2018–2022 baseline (KNMI middle climate path)",
-      "Urban heat island intensifies slightly: +0.3 °C by day and by night",
+      "Summers +0.9 °C over the 2021–2025 baseline (KNMI middle climate path)",
       "Comfort unchanged: buildings cool once indoor temperature passes 25 °C",
-      "Grid at 42 g CO₂ per kWh — the region's announced decarbonisation pace",
+      "Grid at 42 g CO₂ per kWh, the region's announced decarbonisation pace",
       "Low-GWP refrigerants (global-warming potential ≈ 1)",
       "New residential floor area nearly doubles (+97%); the old office stock shrinks 23%",
     ],
@@ -100,19 +98,18 @@ export const SCENARIO_META: Record<ScenarioKey, ScenarioMeta> = {
     short: "High",
     tagline: "Business as usual",
     blurb:
-      "Summers run +1.3 °C hotter with the worst urban-heat-island effect, and people expect more cooling, not less. Decarbonisation stalls — the grid stays as dirty as 2030 and high-GWP refrigerants return. Cooling demand nearly doubles; emissions hit 83.6 kt, hard to square with the Netherlands' net-zero goal.",
+      "Summers run +1.3 °C hotter, and people expect more cooling, not less. Cleanup stalls: the grid stays as dirty as 2030 and refrigerants sit at the worst warming potential the EU's F-gas rules still allow. Cooling demand grows 79%; emissions hit 32.3 kt, hard to square with the Netherlands' net-zero goal.",
     assumptions: {
       warming: "+1.3 °C summer",
       comfort: "Falls to 23 °C",
       grid: "159 g CO₂/kWh · stalls",
-      refrigerant: "R-32 returns · GWP 809",
+      refrigerant: "F-gas ceiling · GWP 150",
     },
     details: [
-      "Summers +1.3 °C over the 2018–2022 baseline (KNMI high-emission climate path)",
-      "Urban heat island worsens: +1.5 °C by day and by night",
+      "Summers +1.3 °C over the 2021–2025 baseline (KNMI high-emission climate path)",
       "Comfort expectations rise: buildings start cooling at 23 °C indoors",
-      "Decarbonisation stalls — the grid stays at 2030's 159 g CO₂ per kWh",
-      "High-warming refrigerants return (R-32, global-warming potential 809)",
+      "Decarbonisation stalls: the grid stays at 2030's 159 g CO₂ per kWh",
+      "Refrigerants at GWP 150, the worst Reg. (EU) 2024/573 still permits, not best-available",
       "New residential floor area nearly triples (+182%); the old office stock shrinks 14%",
     ],
   },

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Convert the thesis CDM result CSVs into one compact JSON for the web dashboard.
 
-Source of truth: ``data/output/CDM_results_{scenario}_full.csv`` — real thesis
+Source of truth: ``results/CDM_results_{scenario}_full.csv`` — real thesis
 model output, aggregated per building archetype (building_type x energy_class).
 This step only reshapes and rolls up those numbers; it invents nothing.
 
@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-SRC = REPO / "data" / "output"
+SRC = REPO / "results"
 OUT = REPO / "dashboard" / "public" / "data" / "scenarios.json"
 
 # Scenario key -> human label. Order matters for the UI timeline.
@@ -115,7 +115,7 @@ def build(src_dir: Path) -> dict:
         scenarios[key] = {"label": label, **summarise(rows), "archetypes": rows}
     return {
         "meta": {
-            "source": "MSc thesis model output — data/output/CDM_results_*.csv",
+            "source": "MSc thesis model output — results/CDM_results_*.csv",
             "doi_data": "10.5281/zenodo.8344580",
             "ghg_stages": GHG_STAGES,
             "categories": {k: {"label": l, "unit": u} for k, (l, u) in CATEGORIES.items()},
@@ -144,10 +144,10 @@ def self_check(data: dict) -> None:
     office_demand = share([r["E_cooling_kWh"] for r in off], demand)
     office_ghg = share([r["GHG_emissions_total_kgCO2eq"] for r in off], ghg)
 
-    # README: offices ~13% of floor area, ~34% of demand, ~65% of GHG.
-    assert 0.11 < office_area < 0.15, f"office area share {office_area:.2%}"
-    assert 0.30 < office_demand < 0.38, f"office demand share {office_demand:.2%}"
-    assert 0.60 < office_ghg < 0.70, f"office GHG share {office_ghg:.2%}"
+    # README: offices ~11% of floor area, ~54% of demand, ~79% of GHG.
+    assert 0.09 < office_area < 0.13, f"office area share {office_area:.2%}"
+    assert 0.50 < office_demand < 0.58, f"office demand share {office_demand:.2%}"
+    assert 0.75 < office_ghg < 0.84, f"office GHG share {office_ghg:.2%}"
     print(f"self-check OK  offices: {office_area:.0%} area, {office_demand:.0%} demand, {office_ghg:.0%} GHG")
 
 

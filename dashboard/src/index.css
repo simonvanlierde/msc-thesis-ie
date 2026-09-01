@@ -261,9 +261,20 @@ section > h2 {
   line-height: 1.15;
   margin: 0 0 0.35rem;
 }
+/* Echo of the chosen scenario in a detail-view heading, so the reader deep in the map or
+   profiles never loses which future they are looking at. Same "· name" convention as the
+   LCA rows' "· your path". */
+.h-scenario {
+  font-size: 0.62em;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
 .lede {
   color: var(--text-secondary);
-  max-width: 80ch;
+  /* 72ch of Public Sans ≈ 80 real characters — the ch unit runs ~10% wide of the
+     average glyph, so 80ch was overshooting the intended measure. */
+  max-width: 72ch;
   margin: 0 0 1.25rem;
 }
 .card {
@@ -303,6 +314,7 @@ section > h2 {
   margin-top: 0.5rem;
 }
 .tile__more {
+  display: block;
   color: var(--text-secondary);
   font-size: 0.85rem;
   margin-top: 0.5rem;
@@ -325,19 +337,7 @@ section > h2 {
   font-size: 0.85rem;
   margin-top: 0.15rem;
 }
-.tile__more {
-  display: block;
-}
 
-/* Controls — one row above every view they scope, never inside a chart card. */
-.controls {
-  margin-top: 1.5rem;
-}
-.controls__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.9rem 1.5rem;
-}
 fieldset.segmented {
   border: 0;
   margin: 0;
@@ -396,7 +396,7 @@ fieldset.segmented > legend {
   color: var(--muted);
   font-size: 0.82rem;
   margin: 0.55rem 0 0;
-  max-width: 80ch;
+  max-width: 72ch;
 }
 
 /* Chart + map frames */
@@ -407,6 +407,7 @@ fieldset.segmented > legend {
   color: var(--text-secondary);
   font-size: 0.85rem;
   margin-top: 0.6rem;
+  max-width: 72ch; /* the page's prose measure, matching .lede and .scope-note */
 }
 .figure + .figure {
   margin-top: 1.75rem;
@@ -445,7 +446,7 @@ fieldset.segmented > legend {
 .maplibregl-ctrl-attrib {
   background: var(--page-veil);
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 .maplibregl-ctrl-attrib a {
   color: var(--text-secondary);
@@ -497,7 +498,7 @@ fieldset.segmented > legend {
 .valuestrip__axis {
   fill: var(--muted);
   font-family: var(--body);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -582,11 +583,6 @@ details.datatable > summary {
   color: var(--text-secondary);
   font-size: 0.9rem;
 }
-/* The 12x24 hour matrix is wider than the column: it scrolls inside itself, never
-   pushing the page sideways. */
-.datatable__scroll {
-  overflow-x: auto;
-}
 table {
   border-collapse: collapse;
   width: 100%;
@@ -610,17 +606,6 @@ caption {
   font-size: 0.85rem;
   margin-bottom: 0.3rem;
 }
-.datatable__scroll table {
-  min-width: 46rem;
-}
-/* Month stays visible while the 24 hour columns scroll past it. The table sits straight on
-   the page, not on a card, so the sticky cell wears the page colour. */
-.datatable__scroll th[scope="row"] {
-  position: sticky;
-  left: 0;
-  background: var(--page);
-}
-
 .tooltip {
   background: var(--surface);
   color: var(--text-primary);
@@ -647,6 +632,9 @@ footer.colophon {
   color: var(--text-secondary);
   font-size: 0.88rem;
 }
+.colophon p {
+  max-width: 72ch; /* the page's prose measure */
+}
 
 .loading {
   padding: 4rem 0;
@@ -655,6 +643,9 @@ footer.colophon {
 .errbox {
   padding: 4rem 0;
   color: var(--text-primary);
+}
+.errbox p {
+  margin: 0 0 0.75rem;
 }
 
 /* ── Scroll acts: the "choose your 2050" narrative ──────────────────────────────
@@ -694,20 +685,36 @@ footer.colophon {
 .act--detail {
   --tint: var(--page);
 }
-/* The payoff commits to the chosen path. Cool → warm as impact climbs. */
-.act--payoff {
+/* The payoff commits to the chosen path; the coda ends the page on that same colour. */
+.act--payoff,
+.act--coda {
   transition: background 0.6s ease;
 }
 .act--payoff[data-path="SQ"],
 .act--payoff[data-path="2030"],
-.act--payoff[data-path="2050_L"] {
+.act--payoff[data-path="2050_L"],
+.act--coda[data-path="SQ"],
+.act--coda[data-path="2030"],
+.act--coda[data-path="2050_L"] {
   --tint: light-dark(#eef4fb, #0e141c);
 }
-.act--payoff[data-path="2050_M"] {
+.act--payoff[data-path="2050_M"],
+.act--coda[data-path="2050_M"] {
   --tint: light-dark(#fbf3e9, #17120b);
 }
-.act--payoff[data-path="2050_H"] {
+.act--payoff[data-path="2050_H"],
+.act--coda[data-path="2050_H"] {
   --tint: light-dark(#fbede7, #1c0f0a);
+}
+
+/* Coda — the closing beat. The headline reuses .hero__headline to bookend the opening;
+   only the hand-off links need their own row. */
+.coda__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.75rem;
+  font-weight: 600;
+  margin: 1.75rem 0 0;
 }
 
 /* Reveal on scroll (useInView adds .in-view). One-way; motion-only, so reduced-motion
@@ -748,7 +755,7 @@ footer.colophon {
   letter-spacing: -0.02em;
   font-size: clamp(2rem, 4.6vw, 3.3rem);
   font-weight: 500;
-  line-height: 1.05;
+  line-height: 1.15;
   text-wrap: balance;
   max-width: 35ch;
   margin: 0 0 1.1rem;
@@ -758,7 +765,7 @@ footer.colophon {
   color: var(--accent);
 }
 .hero__now {
-  max-width: 95ch;
+  max-width: 72ch; /* the page's prose measure */
   margin: -0.5rem 0 1.25rem;
 }
 
@@ -819,6 +826,7 @@ footer.colophon {
   margin: 0;
   font-size: 0.88rem;
   color: var(--text-secondary);
+  max-width: 72ch; /* the page's prose measure */
 }
 /* The step's one number, pulled out as an aside so the chain scans at a glance. */
 .chain__fig {
@@ -901,6 +909,7 @@ footer.colophon {
 }
 .steps__note {
   margin-top: 0.9rem;
+  max-width: 72ch; /* the page's prose measure */
 }
 
 /* Act 2 — the near-term deltas: two before→after readings. */
@@ -1093,7 +1102,7 @@ footer.colophon {
 }
 .chip__k {
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1124,10 +1133,13 @@ details.fork__more > summary {
 /* Act 4 — the payoff. Sticky path switcher, then the two fan charts. */
 
 /* Sticky switcher: the fork's choice, kept in reach while the bars are on screen. It pins
-   under the masthead as you scroll the payoff, with clear air below the header bar. */
+   under the masthead as you scroll the payoff, with clear air below the header bar.
+   --masthead-h is measured off the real header (App.tsx), so the offset still clears it
+   when the header wraps to two rows at phone widths; the fallback matches the unwrapped
+   desktop header for the no-JS first paint. */
 .payoff__switch {
   position: sticky;
-  top: 3.7rem;
+  top: calc(var(--masthead-h, 3.1rem) + 0.6rem);
   z-index: 10;
   display: flex;
   align-items: center;
@@ -1183,6 +1195,30 @@ details.fork__more > summary {
   opacity: 0;
   width: 1px;
   height: 1px;
+}
+/* The pill is half the column wide, so scrolled content used to peek out beside it,
+   half-occluded. A full-column band in the act's own tint sits behind the pill and fades
+   at its edges: whatever scrolls under the switcher clears out cleanly instead. It
+   inherits --tint, so it follows the payoff act's warm/cool path colour. */
+.payoff__switch::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -0.7rem;
+  bottom: -0.7rem;
+  left: 0;
+  width: calc(min(1160px, 100vw) - 2.5rem);
+  background: var(--tint, var(--page));
+  transition: background 0.6s ease;
+  mask-image: linear-gradient(transparent, #000 0.7rem, #000 calc(100% - 0.7rem), transparent);
+}
+/* At phone widths the pills wrap to two rows: swap the translucent stadium for an opaque
+   card so the lede never shows through, with card corners instead of a stretched pill. */
+@media (max-width: 700px) {
+  .payoff__switch {
+    background: var(--surface);
+    border-radius: 14px;
+  }
 }
 
 .payoff {
@@ -1282,6 +1318,8 @@ details.fork__more > summary {
     transition: none;
   }
   .act--payoff,
+  .act--coda,
+  .payoff__switch::before,
   .fork__card {
     transition: none;
   }

@@ -57,7 +57,7 @@ function weekLabel(dates: string[], months: string[]): string {
 
 function nivoTheme(p: Palette) {
   return {
-    text: { fill: p.textSecondary, fontFamily: "inherit" },
+    text: { fill: p.textSecondary, fontFamily: "inherit", fontSize: 12 },
     axis: {
       ticks: { text: { fill: p.muted }, line: { stroke: p.grid } },
       legend: { text: { fill: p.textSecondary } },
@@ -235,12 +235,15 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
 
   return (
     <section id="when" aria-labelledby="when-h">
-      <h2 id="when-h">When cooling is needed</h2>
+      <h2 id="when-h">
+        When cooling is needed <span className="h-scenario">· {rowLabel(scenario)}</span>
+      </h2>
       <p className="lede">
-        Hourly output of the thesis heat-balance model, run over {temporal.meta.weather_years}{" "}
-        weather with the {rowLabel(scenario)} scenario's climate and comfort assumptions and
-        calibrated to its annual totals. Cooling concentrates in the warm months — and within them,
-        in a few extreme days: the second chart zooms into the hottest week of the record, {hwWeek}.
+        Hour by hour, when the city needs cooling: the thesis model run over{" "}
+        {temporal.meta.weather_years} weather with the {rowLabel(scenario)} scenario's climate and
+        comfort assumptions, calibrated to its annual totals. Cooling concentrates in the warm
+        months, and within them in a few extreme days: the second chart zooms into the hottest week
+        of the weather record, {hwWeek}.
       </p>
 
       <div className="viewctl">
@@ -253,10 +256,9 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
         />
         <p className="scope-note">
           Electricity is what installed equipment draws to meet the demand: cooling demand ÷
-          efficiency (SEER), scaled by the share of buildings that have cooling at all — both
-          improve along the 2050 paths. Today's buildings set the profiles' shape; each scenario's
-          magnitude is calibrated to its citywide totals, including the projected growth of the
-          building stock.
+          efficiency (SEER), scaled by the share of buildings that have cooling at all. Both improve
+          along the 2050 paths. Today's buildings set the profiles' shape; each scenario's size is
+          calibrated to its citywide totals, including the projected growth of the building stock.
         </p>
       </div>
 
@@ -339,7 +341,7 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
       </figure>
 
       <details className="datatable">
-        <summary>Data table — monthly {isElec ? "electricity" : "cooling energy"} (GWh)</summary>
+        <summary>Data table: monthly {isElec ? "electricity" : "cooling energy"} (GWh)</summary>
         <table>
           <caption>
             {isElec ? "Electricity for cooling" : "Cooling energy"} by month and building use (GWh)

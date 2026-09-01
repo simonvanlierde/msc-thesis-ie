@@ -164,10 +164,12 @@ export function MapView({ buurten, scenario, palette }: Props) {
 
   return (
     <section id="map" aria-labelledby="map-h">
-      <h2 id="map-h">Where cooling is needed</h2>
+      <h2 id="map-h">
+        Where cooling is needed <span className="h-scenario">· {scenarioLabel(scenario)}</span>
+      </h2>
       <p className="lede">
-        Cooling demand aggregated from ~59,000 individual buildings to the city's 112 neighbourhoods
-        (buurten). Darker means more cooling.
+        The cooling demand of ~59,000 individual buildings, added up for each of the city's 112
+        neighbourhoods. Darker means more cooling.
       </p>
 
       <div className="viewctl">
@@ -229,7 +231,7 @@ function BuurtTable({
     .slice(0, 15);
   return (
     <details className="datatable">
-      <summary>Data table — 15 highest neighbourhoods</summary>
+      <summary>Data table: 15 highest neighbourhoods</summary>
       <table>
         <caption>
           {METRIC_LABEL[metric]} · {scenarioLabel(scenario)}

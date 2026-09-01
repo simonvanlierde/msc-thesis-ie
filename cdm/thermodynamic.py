@@ -56,14 +56,15 @@ def R_to_U(Rc: float | np.ndarray, alfa_i: float = 7.5, alfa_o: float = 27.5) ->
 
 def calc_Q_transmission(
     buildings: pd.DataFrame,
-    time_series: dict[str, np.ndarray],
+    delta_T_air: np.ndarray,
     global_parameters: dict[str, float],
 ) -> np.ndarray:
     """calc_Q_transmission calculates the transmission heat flow Q of each building in Wh across a given time series.
 
     Args:
         buildings (pd.DataFrame): The buildings for which the transmission heat flows are calculated.
-        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data for the buildings.
+        delta_T_air (np.ndarray): The per-building, per-hour outdoor-minus-indoor air temperature
+            difference (already including any UHI term), shape (n_buildings, n_hours), in °C.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
 
     Returns:
@@ -83,9 +84,6 @@ def calc_Q_transmission(
     # The roof area is assumed to be equal to the ground floor area
     roof_area = floor_area
 
-    # Load temperature difference between in- and outdoor from time series
-    delta_T_air = time_series["T_outdoor_minus_indoor_C"]
-
     # Load global parameters
     T_thresh_C = global_parameters["T_thresh_C"]  # The cooling threshold temperature in °C
     T_sub_C = global_parameters["T_sub_C"]  # The subsurface temperature in °C
@@ -100,25 +98,26 @@ def calc_Q_transmission(
     U_wall, U_roof, U_floor = (R_to_U(Rc, alfa_i, alfa_o) for Rc in [Rc_wall, Rc_roof, Rc_floor])
 
     # The window, wall and roof heat flows all scale with the air temperature difference, so their
-    # transmittance-area products (W/K) can be summed per building before the outer product with the
+    # transmittance-area products (W/K) can be multiplied elementwise with the (already per-building)
     # hourly temperature difference. The floor flow is constant, set by the subsurface gradient.
     UA_air_W_K = U_window * window_area + U_wall * wall_area + U_roof * roof_area
     Q_transmission_floor = U_floor * floor_area * (T_sub_C - T_thresh_C)
 
     # Calculate the total transmission heat flow in Wh
-    return np.outer(UA_air_W_K, delta_T_air) + Q_transmission_floor[:, np.newaxis]
+    return UA_air_W_K[:, np.newaxis] * delta_T_air + Q_transmission_floor[:, np.newaxis]
 
 
 def calc_Q_infiltration(
     buildings: pd.DataFrame,
-    time_series: dict[str, np.ndarray],
+    delta_T_air: np.ndarray,
     global_parameters: dict[str, float],
 ) -> np.ndarray:
     """calc_Q_infiltration calculates the infiltration heat flows of each building in Wh across a given time series.
 
     Args:
         buildings (pd.DataFrame): The buildings for which the heat flows are calculated.
-        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data for the buildings.
+        delta_T_air (np.ndarray): The per-building, per-hour outdoor-minus-indoor air temperature
+            difference (already including any UHI term), shape (n_buildings, n_hours), in °C.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
 
     Returns:
@@ -130,9 +129,6 @@ def calc_Q_infiltration(
         dtype=FLOW_DTYPE,
     )  # The air changes per hour by infiltration
 
-    # Load temperature difference between in- and outdoor from time series
-    delta_T_air = time_series["T_outdoor_minus_indoor_C"]
-
     # Load global parameters
     air_density = global_parameters["air_density"]  # The density of air in kg/m3
     air_heat_capacity = global_parameters["air_heat_capacity"]  # The heat capacity of air in J/kgK
@@ -141,11 +137,12 @@ def calc_Q_infiltration(
     infiltration_mass_flow_rate = air_density * infiltration_ACH * building_volume / 3600
 
     # Calculate the heat flow due to infiltration in Wh
-    return np.outer(infiltration_mass_flow_rate * air_heat_capacity, delta_T_air)
+    return (infiltration_mass_flow_rate * air_heat_capacity)[:, np.newaxis] * delta_T_air
 
 
 def calc_Q_ventilation(
     buildings: pd.DataFrame,
+    delta_T_air: np.ndarray,
     time_series: dict[str, np.ndarray],
     global_parameters: dict[str, float],
 ) -> np.ndarray:
@@ -153,7 +150,9 @@ def calc_Q_ventilation(
 
     Args:
         buildings (pd.DataFrame): The buildings for which the heat flows are calculated.
-        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data and presence load factors for the buildings.
+        delta_T_air (np.ndarray): The per-building, per-hour outdoor-minus-indoor air temperature
+            difference (already including any UHI term), shape (n_buildings, n_hours), in °C.
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the presence load factors for the buildings.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
 
     Returns:
@@ -166,9 +165,6 @@ def calc_Q_ventilation(
         dtype=FLOW_DTYPE,
     )  # Ventilation rate pp in m3/h
 
-    # Load temperature difference between in- and outdoor from time series
-    delta_T_air = time_series["T_outdoor_minus_indoor_C"]
-
     # Load global parameters
     air_density = global_parameters["air_density"]  # The density of air in kg/m3
     air_heat_capacity = global_parameters["air_heat_capacity"]  # The heat capacity of air in J/kgK
@@ -177,11 +173,11 @@ def calc_Q_ventilation(
     # capacity of air) multiplied by an hourly profile that depends only on the building's end use.
     ventilation_coefficient = air_density * ventilation_rate_pp * population * air_heat_capacity / 3600
 
-    Q_ventilation = np.empty((len(buildings), len(delta_T_air)), dtype=FLOW_DTYPE)
+    Q_ventilation = np.empty((len(buildings), delta_T_air.shape[-1]), dtype=FLOW_DTYPE)
     for use in np.unique(end_use):
         buildings_with_use = end_use == use
-        hourly_profile = time_series[f"presence_people_{use}"] * delta_T_air
-        Q_ventilation[buildings_with_use] = np.outer(ventilation_coefficient[buildings_with_use], hourly_profile)
+        hourly_profile = time_series[f"presence_people_{use}"] * delta_T_air[buildings_with_use]
+        Q_ventilation[buildings_with_use] = ventilation_coefficient[buildings_with_use][:, np.newaxis] * hourly_profile
 
     return Q_ventilation
 
@@ -373,6 +369,33 @@ def calc_cooling_demand_percentile(
 # Aggregate functions for cooling demand calculation
 
 
+def calc_delta_T_air(
+    buildings: pd.DataFrame,
+    time_series: dict[str, np.ndarray],
+    global_parameters: dict[str, float],
+) -> np.ndarray:
+    """Builds the per-building, per-hour outdoor-minus-indoor air temperature difference.
+
+    The shared base series plus each building's UHI ceiling (``UHI_max_C``), realized by the
+    hour's ``UHI_fraction`` (the Theeuwes weather kernel x diurnal phase, see ``cdm/uhi.py``)
+    and scaled by the scenario's ``uhi_scale``. Every consumer of the ``calc_Q_*`` flow
+    functions goes through here, so the UHI term cannot drift between callers.
+
+    Args:
+        buildings (pd.DataFrame): The buildings, which must include a ``UHI_max_C`` column.
+        time_series (dict[str, np.ndarray]): The time series, which must include
+            ``T_outdoor_minus_indoor_C`` and ``UHI_fraction``.
+        global_parameters (dict[str, float]): The global parameters, which must include ``uhi_scale``.
+
+    Returns:
+        np.ndarray: The temperature difference in °C, of shape (n_buildings, n_hours).
+    """
+    uhi_max_C = buildings["UHI_max_C"].to_numpy(dtype=FLOW_DTYPE)[:, np.newaxis]
+    base = np.asarray(time_series["T_outdoor_minus_indoor_C"], dtype=FLOW_DTYPE)
+    fraction = np.asarray(time_series["UHI_fraction"], dtype=FLOW_DTYPE)
+    return base[np.newaxis, :] + uhi_max_C * global_parameters["uhi_scale"] * fraction[np.newaxis, :]
+
+
 def calc_cooling_demand_metrics_for_chunk(
     buildings: pd.DataFrame,
     time_series: dict[str, np.ndarray],
@@ -382,8 +405,10 @@ def calc_cooling_demand_metrics_for_chunk(
     """Calculates the cooling demand metrics for a chunk of buildings that fits in memory at once.
 
     Args:
-        buildings (pd.DataFrame): The buildings for which the cooling demand metrics are calculated.
-        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data and presence load factors for the buildings.
+        buildings (pd.DataFrame): The buildings for which the cooling demand metrics are calculated. Must
+            include a ``UHI_max_C`` column (the per-building UHI ceiling).
+        time_series (dict[str, np.ndarray]): The time series dictionary containing the weather data, presence
+            load factors and ``UHI_fraction`` for the buildings.
         global_parameters (dict[str, float]): The dictionary containing the global parameters for the cooling demand model.
         include_time_series: (bool, optional): Whether to include the hourly time series (as per-building arrays) in the result. Defaults to False.
 
@@ -393,11 +418,15 @@ def calc_cooling_demand_metrics_for_chunk(
     # The percentile that the peak cooling power demand (kW) should be capped at, also used for column naming
     cap = int(global_parameters["peak_cooling_percentile_cap"])
 
+    # Per-building, per-hour outdoor-minus-indoor temperature difference, shape
+    # (n_buildings, n_hours); broadcasts identically into the flow functions below.
+    delta_T_air = calc_delta_T_air(buildings, time_series, global_parameters)
+
     # Determine the thermal flows in Wh, each of shape (n_buildings, n_hours)
     heat_flows = {
-        "Q_transmission_Wh": calc_Q_transmission(buildings, time_series, global_parameters),
-        "Q_infiltration_Wh": calc_Q_infiltration(buildings, time_series, global_parameters),
-        "Q_ventilation_Wh": calc_Q_ventilation(buildings, time_series, global_parameters),
+        "Q_transmission_Wh": calc_Q_transmission(buildings, delta_T_air, global_parameters),
+        "Q_infiltration_Wh": calc_Q_infiltration(buildings, delta_T_air, global_parameters),
+        "Q_ventilation_Wh": calc_Q_ventilation(buildings, delta_T_air, time_series, global_parameters),
         "Q_solar_radiation_Wh": calc_Q_solar_radiation(buildings, time_series),
         "Q_internal_heat_Wh": calc_Q_internal_heat(buildings, time_series, global_parameters),
     }
