@@ -369,6 +369,33 @@ def calc_cooling_demand_percentile(
 # Aggregate functions for cooling demand calculation
 
 
+def calc_delta_T_air(
+    buildings: pd.DataFrame,
+    time_series: dict[str, np.ndarray],
+    global_parameters: dict[str, float],
+) -> np.ndarray:
+    """Builds the per-building, per-hour outdoor-minus-indoor air temperature difference.
+
+    The shared base series plus each building's UHI ceiling (``UHI_max_C``), realized by the
+    hour's ``UHI_fraction`` (the Theeuwes weather kernel x diurnal phase, see ``cdm/uhi.py``)
+    and scaled by the scenario's ``uhi_scale``. Every consumer of the ``calc_Q_*`` flow
+    functions goes through here, so the UHI term cannot drift between callers.
+
+    Args:
+        buildings (pd.DataFrame): The buildings, which must include a ``UHI_max_C`` column.
+        time_series (dict[str, np.ndarray]): The time series, which must include
+            ``T_outdoor_minus_indoor_C`` and ``UHI_fraction``.
+        global_parameters (dict[str, float]): The global parameters, which must include ``uhi_scale``.
+
+    Returns:
+        np.ndarray: The temperature difference in °C, of shape (n_buildings, n_hours).
+    """
+    uhi_max_C = buildings["UHI_max_C"].to_numpy(dtype=FLOW_DTYPE)[:, np.newaxis]
+    base = np.asarray(time_series["T_outdoor_minus_indoor_C"], dtype=FLOW_DTYPE)
+    fraction = np.asarray(time_series["UHI_fraction"], dtype=FLOW_DTYPE)
+    return base[np.newaxis, :] + uhi_max_C * global_parameters["uhi_scale"] * fraction[np.newaxis, :]
+
+
 def calc_cooling_demand_metrics_for_chunk(
     buildings: pd.DataFrame,
     time_series: dict[str, np.ndarray],
@@ -391,16 +418,9 @@ def calc_cooling_demand_metrics_for_chunk(
     # The percentile that the peak cooling power demand (kW) should be capped at, also used for column naming
     cap = int(global_parameters["peak_cooling_percentile_cap"])
 
-    # Per-building, per-hour outdoor-minus-indoor temperature difference: the shared base series
-    # plus each building's UHI ceiling (UHI_max_C), realized by the hour's UHI_fraction (the
-    # Theeuwes weather kernel x diurnal phase, see cdm/uhi.py) and scaled by the scenario's
-    # uhi_scale. Shape (n_buildings, n_hours); broadcasts identically into the flow functions below.
-    uhi_max_C = buildings["UHI_max_C"].to_numpy(dtype=FLOW_DTYPE)[:, np.newaxis]
-    uhi_scale = global_parameters["uhi_scale"]
-    delta_T_air = (
-        time_series["T_outdoor_minus_indoor_C"][np.newaxis, :]
-        + uhi_max_C * uhi_scale * time_series["UHI_fraction"][np.newaxis, :]
-    )
+    # Per-building, per-hour outdoor-minus-indoor temperature difference, shape
+    # (n_buildings, n_hours); broadcasts identically into the flow functions below.
+    delta_T_air = calc_delta_T_air(buildings, time_series, global_parameters)
 
     # Determine the thermal flows in Wh, each of shape (n_buildings, n_hours)
     heat_flows = {
