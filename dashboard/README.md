@@ -22,7 +22,7 @@ Every number traces to the thesis model. Three small build scripts
 
 | Script | Output | Source | Notes |
 | --- | --- | --- | --- |
-| `build_scenarios.py` | `public/data/scenarios.json` (~47 kB) | `data/output/CDM_results_*.csv` (committed) | Per-archetype cooling + LCA totals for all 5 scenarios. A self-check reproduces the README headline (offices: 13% area, 34% demand, 65% GHG) from the built data. |
+| `build_scenarios.py` | `public/data/scenarios.json` (~47 kB) | `results/CDM_results_*.csv` (committed) | Per-archetype cooling + LCA totals for all 5 scenarios. A self-check reproduces the README headline (offices: 11% area, 54% demand, 79% GHG) from the built data. |
 | `build_choropleth.py` | `public/data/cooling_by_buurt.geojson` (~127 kB) | per-building GPKG + CBS buurten (fetched by the `fetch_cbs_buurten` rule) | 59,381 buildings aggregated to 112 buurten by centroid, geometry simplified and reprojected to WGS84. Buurt sums match the archetype totals to 0.00% for the present-day (SQ) scenario. |
 | `build_temporal.py` | `public/data/temporal.json` (~33 kB) | per-building GPKGs + committed weather/parameter CSVs | Re-runs the thesis heat-balance model on a stratified building sample, once per scenario (climate, UHI, comfort threshold and renovation come from the scenario parameters), averages 2021–2025 weather into a typical year and exports the hottest week hour by hour. Calibrated per use to the citywide archetype totals, so the magnitudes include projected building-stock growth. Per-building annual `E_cooling` reproduces the published value to ~0.03% median error (SQ; ~0.8% for 2050 M). |
 

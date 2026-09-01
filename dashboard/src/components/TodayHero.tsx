@@ -43,19 +43,19 @@ export function TodayHero({ data }: Props) {
       id: "electricity",
       value: gwh(s.totals.electricity_kWh),
       label: "Electricity for cooling / year",
-      more: `What the cooling equipment that does exist draws from the grid: the annual electricity of roughly ${num(Math.round(elecHouseholds / 1000) * 1000)} households. On a hot afternoon it peaks near 69 MW, about half the capacity of the nearby Luchterduinen offshore wind park — real load on a grid already running near its limits.`,
+      more: `What the cooling equipment that does exist draws from the grid: the annual electricity of roughly ${num(Math.round(elecHouseholds / 1000) * 1000)} households. On the hottest hours the cooling load the city calls for reaches about 330 MW of thermal power — real load on a grid already running near its limits.`,
     },
     {
       id: "ghg",
       value: ktCO2(s.totals.GHG_emissions_total_kgCO2eq),
       label: "Life-cycle emissions / year",
-      more: `Greenhouse gases from generating that electricity (88% of the total), refrigerant leaks, and making and scrapping the equipment — the yearly exhaust of about ${num(Math.round(cars / 1000) * 1000)} petrol cars, or ~90 kg CO₂-eq per resident.`,
+      more: `Greenhouse gases from generating that electricity (85% of the total), refrigerant leaks, and making and scrapping the equipment — the yearly exhaust of about ${num(Math.round(cars / 1000) * 1000)} petrol cars, or ~27 kg CO₂-eq per resident.`,
     },
     {
       id: "unmet",
-      value: "77%",
+      value: "54%",
       label: "Of cooling demand goes unmet",
-      more: "About 85% of Hague homes have no cooling at all, so the heat stays indoors as discomfort — worst in the lower-income neighbourhoods where the heat island runs strongest. That 860 GWh gap is where future growth sits: as cooling spreads, unmet demand becomes electricity and emissions.",
+      more: "About 85% of Hague homes have no cooling at all, so the heat stays indoors as discomfort — worst in the lower-income neighbourhoods where the heat island runs strongest. That 283 GWh gap is where future growth sits: as cooling spreads, unmet demand becomes electricity and emissions.",
     },
   ];
 
@@ -83,7 +83,7 @@ export function TodayHero({ data }: Props) {
       <p className="lede">{SCENARIO_META.SQ.blurb}</p>
       <p className="note hero__now">
         "Now" is the model's status-quo baseline, centred on 2020: the city's real building stock,
-        run hour by hour through the 2018–2022 weather, with the grid and cooling equipment of that
+        run hour by hour through the 2021–2025 weather, with the grid and cooling equipment of that
         moment.
       </p>
 

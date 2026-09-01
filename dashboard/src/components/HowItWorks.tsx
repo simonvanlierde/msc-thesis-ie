@@ -22,7 +22,7 @@ function buildSteps(d: ScenariosData): Step[] {
   return [
     {
       title: "Heat piles up",
-      body: "Every building gains heat: sun through windows, warm outside air, people, appliances. The model runs an hourly heat balance per building; whatever pushes one past its comfort threshold (25 °C today) becomes cooling demand, surplus heat that must be removed. The urban heat island makes it much worse: without it, the city's cooling demand would be roughly a third of what it is.",
+      body: "Every building gains heat: sun through windows, warm outside air, people, appliances. The model runs an hourly heat balance per building; whatever pushes one past its comfort threshold (25 °C today) becomes cooling demand, surplus heat that must be removed. The urban heat island makes it worse, and unevenly: each building carries its own heat-island ceiling sampled from a 5 m map of the city (most fall between +2.7 and +4.5 °C), realised hour by hour — strongest on calm, clear nights in the dense centre.",
       fig: "+8.6 °C",
       figCap: "central The Hague vs its rural surroundings, measured on a hot day",
       flow: `${num(t.E_cooling_kWh / 1e6, 0)} GWh of cooling demand a year`,
