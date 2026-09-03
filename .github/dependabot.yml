@@ -7,6 +7,11 @@ updates:
     groups:
       python:
         patterns: [ "*" ]
+      # Advisories arrive outside the weekly window and ignore the groups above,
+      # so without this each one opens its own pull request and its own CI run.
+      uv-security:
+        applies-to: security-updates
+        patterns: ["*"]
     cooldown:
       default-days: 3
 
@@ -17,6 +22,11 @@ updates:
     groups:
       node:
         patterns: [ "*" ]
+      # Advisories arrive outside the weekly window and ignore the groups above,
+      # so without this each one opens its own pull request and its own CI run.
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
     cooldown:
       default-days: 3
 
