@@ -1,14 +1,22 @@
 name: CI
 
+# No push trigger: main only advances through a PR, so a push run repeats
+# the check that already passed on the PR head.
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -37,6 +45,7 @@ jobs:
   # ty flags. Kept visible in CI without blocking the build.
   type-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
