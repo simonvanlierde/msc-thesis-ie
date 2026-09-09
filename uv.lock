@@ -495,30 +495,30 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "geopandas", specifier = ">=1.1" },
-    { name = "itables", specifier = ">=1.5.4" },
-    { name = "jupyter", specifier = ">=1.0.0" },
-    { name = "matplotlib", specifier = ">=3.9" },
-    { name = "numpy", specifier = ">=2.1" },
-    { name = "pandas", specifier = ">=2.2" },
-    { name = "pyogrio", specifier = ">=0.9" },
-    { name = "rasterio", specifier = ">=1.4" },
-    { name = "rasterstats", specifier = ">=0.20" },
-    { name = "requests", specifier = ">=2.31.0" },
-    { name = "scipy", specifier = ">=1.13" },
-    { name = "seaborn", specifier = ">=0.13" },
-    { name = "snakemake", specifier = ">=8" },
-    { name = "tqdm", specifier = ">=4.68.4" },
+    { name = "geopandas", specifier = ">=1.1.4" },
+    { name = "itables", specifier = ">=2.9.1" },
+    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "matplotlib", specifier = ">=3.11.1" },
+    { name = "numpy", specifier = ">=2.5.3" },
+    { name = "pandas", specifier = ">=3.0.5" },
+    { name = "pyogrio", specifier = ">=0.13.0" },
+    { name = "rasterio", specifier = ">=1.5.1" },
+    { name = "rasterstats", specifier = ">=0.21.0" },
+    { name = "requests", specifier = ">=2.34.2" },
+    { name = "scipy", specifier = ">=1.18.1" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "snakemake", specifier = ">=9.26.1" },
+    { name = "tqdm", specifier = ">=4.70.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "nbstripout", specifier = ">=0.7" },
-    { name = "pre-commit", specifier = ">=3.7" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-cov", specifier = ">=5.0" },
-    { name = "ruff", specifier = ">=0.15.21" },
-    { name = "ty", specifier = ">=0.0.58" },
+    { name = "nbstripout", specifier = ">=0.9.1" },
+    { name = "pre-commit", specifier = ">=4.6.2" },
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "ruff", specifier = ">=0.16.6" },
+    { name = "ty", specifier = ">=0.0.79" },
 ]
 
 [[package]]
