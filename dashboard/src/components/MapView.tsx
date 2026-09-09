@@ -1,4 +1,8 @@
-import { type GeoJSONSource, MapLibreMap, NavigationControl } from "maplibre-gl";
+import { type GeoJSONSource, MapLibreMap, NavigationControl, setWorkerUrl } from "maplibre-gl";
+// `?worker&url` and not `?url`: the worker imports a sibling shared chunk, and only the worker
+// form makes Vite bundle that graph. With `?url` the file is copied verbatim, its import 404s,
+// and the worker dies silently — no tiles are ever parsed, so the map never fires `load`.
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { attachTooltip, firstSymbolId, loadStyle } from "../lib/basemap";
@@ -17,6 +21,10 @@ import type { BuurtCollection, ScenarioKey } from "../lib/types";
 import { Legend } from "./Legend";
 import { Segmented } from "./Segmented";
 import { ValueStrip } from "./ValueStrip";
+
+// v6 loads its worker from a separate file at runtime and bundlers cannot rewrite that URL, so
+// every bundler-based app must point maplibre at it before the first map is built.
+setWorkerUrl(new URL(workerUrl, document.baseURI).href);
 
 interface Props {
   buurten: BuurtCollection | null;
@@ -91,6 +99,9 @@ export function MapView({ buurten, scenario, palette }: Props) {
         canvasContextAttributes: { preserveDrawingBuffer: true },
       });
       m.addControl(new NavigationControl({ showCompass: false }), "top-right");
+      // Marks "everything this map is going to draw is drawn", which the screenshot test waits
+      // on. `networkidle` used to stand in for it and never settles while the map streams tiles.
+      m.on("idle", () => container.current?.setAttribute("data-map-idle", ""));
       m.fitBounds(bbox(buurten), { padding: 20, animate: false });
 
       // Fires on first load and again after every setStyle, which drops our layers.
