@@ -68,9 +68,11 @@
       # The physical model functions legitimately take many parameters and boolean toggles
       # (e.g. include_time_series, save_figure), and raise ValueErrors with inline messages.
       "PLR0913", # too-many-arguments
+      "PLR0917", # too-many-positional-arguments (the positional twin of PLR0913, above)
       "FBT001",  # boolean-type-hint-positional-argument
       "FBT002",  # boolean-default-value-positional-argument
       "TRY003",  # raise-vanilla-args (long messages passed to exception constructors)
+      "CPY001",  # missing-copyright-notice (a thesis repo, not a licensed distribution)
     ]
     select = ["ALL"]
 

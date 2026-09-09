@@ -128,21 +128,27 @@ def render(data: dict) -> str:
         f"                              {sq['cooling_demand_capped_kWh'] / 1e6:,.0f} GWh (98p-capped)",
         f"peak power, uncapped:         {sq['peak_power_kW'] / 1e3:,.0f} MW",
         f"peak power, 98p-capped:       {sq['peak_power_capped_kW'] / 1e3:,.0f} MW",
-        f"office / residential intensity: {sq['intensity_office_kWh_m2']:.0f} / "
-        f"{sq['intensity_residential_kWh_m2']:.0f} kWh/m2 (uncapped)",
+        (
+            f"office / residential intensity: {sq['intensity_office_kWh_m2']:.0f} / "
+            f"{sq['intensity_residential_kWh_m2']:.0f} kWh/m2 (uncapped)"
+        ),
         f"office floor-area share:      {pct(sq['office_share_floor_area'])}",
         f"office demand share:          {pct(sq['office_share_demand'])}",
         f"office electricity share:     {pct(sq['office_share_electricity'])}",
         f"office GHG share:             {pct(sq['office_share_GHG'])}",
         f"cooling gap (unmet demand):   {pct(sq['unmet_demand_share'])}",
-        f"GHG total:                    {sq['GHG_total_kgCO2eq'] / 1e6:.1f} kt CO2-eq  "
-        f"({sq['GHG_per_capita_kgCO2eq']:.0f} kg/cap over {sq['population']:,.0f} modelled residents)",
+        (
+            f"GHG total:                    {sq['GHG_total_kgCO2eq'] / 1e6:.1f} kt CO2-eq  "
+            f"({sq['GHG_per_capita_kgCO2eq']:.0f} kg/cap over {sq['population']:,.0f} modelled residents)"
+        ),
     ]
     lines += [f"  GHG share {phase:<12} {100 * share:.1f}%" for phase, share in sq["GHG_phase_shares"].items()]
     lines += [
         f"equipment mass:               {sq['equipment_mass_kg'] / 1e3:,.0f} t",
-        f"office/res material intensity: {sq['material_intensity_ratio']:.1f}x  "
-        f"({sq['material_intensity_office_kg_m2']:.2f} vs {sq['material_intensity_residential_kg_m2']:.2f} kg/m2)",
+        (
+            f"office/res material intensity: {sq['material_intensity_ratio']:.1f}x  "
+            f"({sq['material_intensity_office_kg_m2']:.2f} vs {sq['material_intensity_residential_kg_m2']:.2f} kg/m2)"
+        ),
         f"ADP:                          {sq['ADP_kgSbeq']:.0f} kg Sb-eq",
         f"CSI:                          {sq['CSI_kgSieq']:.2e} kg Si-eq",
         "",

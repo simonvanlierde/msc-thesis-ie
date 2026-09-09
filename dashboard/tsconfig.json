@@ -16,7 +16,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom", "geojson"]
+    "types": ["vitest/globals", "geojson"]
   },
   "include": ["src", "e2e", "vite.config.ts", "vitest.config.ts"]
 }
