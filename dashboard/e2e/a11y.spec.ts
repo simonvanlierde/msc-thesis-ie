@@ -63,9 +63,10 @@ test("captures a screenshot for the README", async ({ page }) => {
   await ready(page);
   // Un-stick the header so it doesn't overlap content in the capture.
   await page.addStyleTag({ content: ".masthead{position:static !important}" });
-  // Wait for the CARTO basemap tiles and both maps' polygons to settle before capture.
-  await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(2500);
+  // Wait for the basemap tiles and the polygons to be drawn before capturing. The map marks
+  // itself on maplibre's `idle` event; `networkidle` cannot see the WebGL work and never
+  // settles while the map is still streaming tiles.
+  await page.locator("#map [data-map-idle]").waitFor({ timeout: 20_000 });
 
   // ready() force-opens the disclosure tables so axe can scan them. The figure encloses its
   // table, so leaving it open would drag 15 rows into the crop — collapse them again.
