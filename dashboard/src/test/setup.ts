@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 
 // Neither jsdom nor Node 26 gives us a working `localStorage` in this environment (Node's
 // global is inert without --localstorage-file), and useTheme persists through it.
