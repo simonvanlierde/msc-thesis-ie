@@ -1,4 +1,4 @@
-import maplibregl from "maplibre-gl";
+import { type GeoJSONSource, MapLibreMap, NavigationControl } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { attachTooltip, firstSymbolId, loadStyle } from "../lib/basemap";
@@ -38,7 +38,7 @@ const fmt1 = (n: number) => num(n, 1);
 export function MapView({ buurten, scenario, palette }: Props) {
   const [metric, setMetric] = useState<MapMetric>("intensity");
   const container = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
+  const map = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
 
   // Latest palette + basemap flag for the style.load handler, which outlives the render
@@ -81,7 +81,7 @@ export function MapView({ buurten, scenario, palette }: Props) {
     loadStyle(pal.current).then(({ style, basemap }) => {
       if (cancelled || !container.current) return;
       hasBasemap.current = basemap;
-      const m = new maplibregl.Map({
+      const m = new MapLibreMap({
         container: container.current,
         style,
         // CARTO's licence requires attribution; the plain fallback has nothing to credit.
@@ -90,7 +90,7 @@ export function MapView({ buurten, scenario, palette }: Props) {
         // lets the WebGL canvas appear in screenshots (maplibre v5 nests this option)
         canvasContextAttributes: { preserveDrawingBuffer: true },
       });
-      m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+      m.addControl(new NavigationControl({ showCompass: false }), "top-right");
       m.fitBounds(bbox(buurten), { padding: 20, animate: false });
 
       // Fires on first load and again after every setStyle, which drops our layers.
@@ -159,7 +159,7 @@ export function MapView({ buurten, scenario, palette }: Props) {
   useEffect(() => {
     const m = map.current;
     if (!(m && ready && view)) return;
-    (m.getSource("buurten") as maplibregl.GeoJSONSource | undefined)?.setData(view.fc);
+    (m.getSource("buurten") as GeoJSONSource | undefined)?.setData(view.fc);
   }, [view, ready]);
 
   return (

@@ -1,32 +1,30 @@
-import type maplibregl from "maplibre-gl";
+import type { MapGeoJSONFeature, MapLibreMap } from "maplibre-gl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { attachTooltip, firstSymbolId, loadStyle, plainStyle } from "./basemap";
 import { getPalette } from "./palette";
 
 // A real Popup needs a real Map (WebGL); record what it is told instead.
 vi.mock("maplibre-gl", () => ({
-  default: {
-    Popup: class {
-      options: unknown;
-      content: HTMLElement | null = null;
-      removed = false;
-      constructor(options: unknown) {
-        this.options = options;
-      }
-      setLngLat() {
-        return this;
-      }
-      setDOMContent(el: HTMLElement) {
-        this.content = el;
-        return this;
-      }
-      addTo() {
-        return this;
-      }
-      remove() {
-        this.removed = true;
-      }
-    },
+  Popup: class {
+    options: unknown;
+    content: HTMLElement | null = null;
+    removed = false;
+    constructor(options: unknown) {
+      this.options = options;
+    }
+    setLngLat() {
+      return this;
+    }
+    setDOMContent(el: HTMLElement) {
+      this.content = el;
+      return this;
+    }
+    addTo() {
+      return this;
+    }
+    remove() {
+      this.removed = true;
+    }
   },
 }));
 
@@ -56,7 +54,7 @@ describe("loadStyle", () => {
 
 describe("firstSymbolId", () => {
   const fake = (layers?: { id: string; type: string }[]) =>
-    ({ getStyle: () => ({ layers }) }) as unknown as maplibregl.Map;
+    ({ getStyle: () => ({ layers }) }) as unknown as MapLibreMap;
 
   it("finds the first symbol layer, so data slides under the labels", () => {
     expect(
@@ -84,13 +82,12 @@ describe("attachTooltip", () => {
     const map = {
       on: (type: string, _layer: string, fn: (e: unknown) => void) => on.set(type, fn),
       getCanvas: () => canvas,
-    } as unknown as maplibregl.Map;
+    } as unknown as MapLibreMap;
     return { map, on, canvas };
   }
 
   const event = { lngLat: [4.3, 52.1], features: [{ properties: { name: "Scheveningen" } }] };
-  const text = (f: maplibregl.MapGeoJSONFeature) =>
-    [String(f.properties.name), "42 GWh"] as [string, string];
+  const text = (f: MapGeoJSONFeature) => [String(f.properties.name), "42 GWh"] as [string, string];
 
   it("follows the cursor on a hover pointer, and leaves with it", () => {
     vi.stubGlobal("matchMedia", () => ({ matches: true }));

@@ -5,7 +5,13 @@
 // day at CARTO — we fall back to the plain coloured background the dashboard shipped with.
 // The map still works; it just loses its streets.
 
-import maplibregl, { type StyleSpecification } from "maplibre-gl";
+import {
+  type MapGeoJSONFeature,
+  type MapLayerMouseEvent,
+  type MapLibreMap,
+  Popup,
+  type StyleSpecification,
+} from "maplibre-gl";
 import type { Mode, Palette } from "./palette";
 
 const CARTO: Record<Mode, string> = {
@@ -39,7 +45,7 @@ export async function loadStyle(palette: Palette): Promise<BasemapStyle> {
 }
 
 /** Id of the style's first symbol layer, so data slides under the place labels. */
-export function firstSymbolId(map: maplibregl.Map): string | undefined {
+export function firstSymbolId(map: MapLibreMap): string | undefined {
   return map.getStyle().layers?.find((l) => l.type === "symbol")?.id;
 }
 
@@ -60,14 +66,14 @@ function tooltipNode(title: string, value: string): HTMLElement {
  * `text` receives the whole feature and maps it to the popup's [title, value] pair.
  */
 export function attachTooltip(
-  map: maplibregl.Map,
+  map: MapLibreMap,
   layerId: string,
-  text: (feature: maplibregl.MapGeoJSONFeature) => [title: string, value: string],
-): maplibregl.Popup {
+  text: (feature: MapGeoJSONFeature) => [title: string, value: string],
+): Popup {
   const hover = typeof matchMedia !== "undefined" && matchMedia("(hover: hover)").matches;
-  const popup = new maplibregl.Popup({ closeButton: !hover, closeOnClick: !hover });
+  const popup = new Popup({ closeButton: !hover, closeOnClick: !hover });
 
-  const show = (e: maplibregl.MapLayerMouseEvent) => {
+  const show = (e: MapLayerMouseEvent) => {
     const f = e.features?.[0];
     if (!f) return;
     const [title, value] = text(f);
