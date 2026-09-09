@@ -22,7 +22,7 @@ repos:
 
       - id: biome
         name: biome format + check (dashboard)
-        entry: pnpm --dir dashboard format
+        entry: bash -c 'cd dashboard && pnpm format'
         language: system
         files: ^dashboard/
         pass_filenames: false
@@ -47,7 +47,7 @@ repos:
 
       - id: dashboard-check
         name: pnpm check (dashboard)
-        entry: pnpm --dir dashboard check
+        entry: bash -c 'cd dashboard && pnpm check'
         language: system
         files: ^dashboard/
         pass_filenames: false
