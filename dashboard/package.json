@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@nivo/line": "^0.99.0",
-    "maplibre-gl": "^6.7.0",
+    "maplibre-gl": "^6.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
