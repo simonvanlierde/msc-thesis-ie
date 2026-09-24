@@ -34,26 +34,13 @@ jobs:
           install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-
-  a11y:
-    needs: quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/setup@v2
-        with:
-          package-json-file: dashboard/package.json
-          runtime: node@26
-          cache: true
-          cache-dependency-path: dashboard/pnpm-lock.yaml
-          install: false
-      - run: pnpm install --frozen-lockfile
+      # The a11y suite shares this job's install; a separate job billed its own
+      # runner minute for a second checkout and pnpm install.
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
 
   deploy:
-    needs: [quality, a11y]
+    needs: quality
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
