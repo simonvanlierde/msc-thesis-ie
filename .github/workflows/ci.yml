@@ -40,18 +40,10 @@ jobs:
       - name: Validate Snakemake workflow (dry-run)
         run: uv run --with snakemake snakemake --dry-run --forceall
 
-  # Type checking with ty (Astral, pre-release). Informational for now: the
-  # scientific code uses `np.array` as a type annotation in many places, which
-  # ty flags. Kept visible in CI without blocking the build.
-  type-check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-      - run: uv sync --dev
+      # Informational for now: the scientific code uses `np.array` as a type
+      # annotation in many places, which ty (pre-release) flags. A step, not its
+      # own job, so it reuses the synced environment instead of billing a second
+      # runner minute per PR.
       - name: Type check (ty)
         run: uv run ty check
+        continue-on-error: true
