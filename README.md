@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml)
 [![Dashboard](https://img.shields.io/badge/dashboard-live-brightgreen.svg)](https://simonvanlierde.github.io/msc-thesis-ie/)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue.svg)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Data DOI](https://img.shields.io/badge/data-10.5281%2Fzenodo.8344580-blue.svg)](https://doi.org/10.5281/zenodo.8344580)
 [![Thesis](https://img.shields.io/badge/thesis-TU%20Delft%20repository-blue.svg)](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a)
@@ -12,6 +12,11 @@
 The model behind my MSc Industrial Ecology thesis (Leiden University & TU Delft). It estimates
 how much cooling the building stock of The Hague needs, and what that cooling costs in
 electricity, greenhouse-gas emissions and material use — today and under 2030 and 2050 scenarios.
+
+The model is a tested Python package (`cdm/`) run by a 27-rule Snakemake pipeline. The pipeline
+fetches the open Dutch building, height and weather data, runs every scenario, and can run in a
+container. CI checks each pull request with ruff, pytest and a Snakemake dry run. The input data is
+archived on Zenodo, and a web dashboard shows the results.
 
 ## Interactive dashboard
 
@@ -31,6 +36,9 @@ See [`dashboard/README.md`](dashboard/README.md) for the data-build steps, acces
 the GitHub Pages deployment.
 
 ## Key findings
+
+These are the thesis results. The dashboard runs the current model (2021–2025 weather, 2025 grid
+carbon intensity), so its numbers differ.
 
 ![Cooling demand and emissions across scenarios](docs/scenario_overview.png)
 
@@ -120,9 +128,6 @@ It wraps the same `cdm/` model code — it does not reimplement the science.
 
 ![Snakemake workflow DAG](docs/pipeline_dag.svg)
 
-(Diagram predates the `fetch_uhi_habib` / `add_uhi_to_buildings` UHI-sampling split; regenerate
-with the command below when convenient.)
-
 ```bash
 uv sync                                                  # once
 uv run snakemake --cores 4                               # scenario results + overview figure
@@ -175,8 +180,8 @@ city:
   name: "'s-Gravenhage" # official municipality name (fetched from PDOK)
   weather_station: 330 # nearest KNMI station
 weather:
-  start_year: 2018
-  end_year: 2022
+  start_year: 2021
+  end_year: 2025
 ```
 
 The municipal boundary and bounding box are fetched from PDOK by name, so switching cities is just a
@@ -242,15 +247,15 @@ uv run ty check                # type check (informational)
 uv run pytest                  # tests
 ```
 
-The same checks run in CI on every push and pull request
-([workflow](.github/workflows/ci.yml)), and locally on every commit once the hook is installed:
+The same checks run in CI on every pull request ([workflow](.github/workflows/ci.yml)), and locally
+once the git hooks are installed:
 
 ```bash
 uv run pre-commit install
 ```
 
-The hook runs ruff (lint + format), the test suite, and `ty` — the latter reports its findings
-without blocking, as in CI.
+On commit, the hooks run ruff (lint and format), the dashboard formatter and `ty`. On push, they
+run the test suite and the dashboard checks. `ty` reports its findings without blocking, as in CI.
 
 Regenerating the committed figure and DAG:
 
