@@ -1,0 +1,29 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    // Digest pins for actions and config-migration PRs.
+    "config:best-practices",
+    ":semanticCommits",
+    "schedule:monthly",
+    // Minor and patch in one PR. Majors stay separate.
+    "group:allNonMajor",
+  ],
+  // The npm preset's 3-day wait would beat the 7-day minimumReleaseAge below.
+  ignorePresets: ["security:minimumReleaseAgeNpm"],
+
+  // A week gives a hijacked release time to be yanked.
+  minimumReleaseAge: "7 days",
+
+  // Renovate merges once every check on the branch passes. GitHub's own
+  // auto-merge would merge straight away, since main requires no checks. A merge
+  // by the Renovate app is a push to main like any other, so it deploys.
+  platformAutomerge: false,
+
+  packageRules: [
+    // Majors stay manual.
+    {
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      automerge: true,
+    },
+  ],
+}
