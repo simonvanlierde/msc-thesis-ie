@@ -6,7 +6,7 @@
 # downloads the ~4.5 GB national UHImax zip (cached under data/raw/habib_uhi/) even for this
 # smoke municipality, whose buildings all land on the 1.0 K uhi_fallback_c. Subsequent runs
 # skip the download.
-results_dir: results
+results_dir: results/smoke # own tree, so a smoke run never overwrites the real results/
 
 city:
   name: "Schiermonnikoog" # smallest Dutch municipality by population; few buildings
