@@ -116,6 +116,7 @@ Inside `cdm/`:
 | `geometric.py` | Building geometry: facade orientation, window and wall areas. |
 | `thermodynamic.py` | The hourly heat-balance and cooling-demand calculations. |
 | `environmental.py` | Life-cycle environmental impacts of cooling. |
+| `uhi.py` | Hourly urban heat island per building: scales the Habib et al. UHImax ceiling by the weather. |
 | `time_series.py` | KNMI weather retrieval and time-series construction. |
 | `aggregation.py` | Aggregation of building-level results. |
 | `sensitivity_analysis.py` | Scenario and one-at-a-time sensitivity analysis. |
@@ -131,7 +132,7 @@ It wraps the same `cdm/` model code — it does not reimplement the science.
 ```bash
 uv sync                                                  # once
 uv run snakemake --cores 4                               # scenario results + overview figure
-uv run snakemake --configfile config/smoke.yaml --cores 4  # fast end-to-end check (minutes)
+uv run snakemake --configfile config/smoke.yaml --cores 4  # fast end-to-end check (minutes), under results/smoke/
 ```
 
 Or run it hermetically in a container:
@@ -157,6 +158,16 @@ diff results/CDM_results_SQ_full.csv data/output/CDM_results_SQ_full.csv
 These are kept out of the default `all` target because they are heavy:
 
 ```bash
+# Journal-paper figures (F1, F2, F5) and the manuscript numbers (results/paper_numbers.json).
+uv run snakemake --cores 4 paper
+
+# One-at-a-time sensitivity analysis of the SQ scenario: 21 steps per parameter, single-threaded
+# (about 20 hours on the full stock). Set --config sa_steps=N for a coarser sweep.
+uv run snakemake --cores 4 sensitivity
+
+# Rebuild the dashboard data in dashboard/public/data from the scenario results.
+uv run snakemake --cores 4 dashboard_data
+
 # Cooling-technology-mix sensitivity: 30 ordered technology pairs × a 20-step mix sweep,
 # each running the full model over the building stock. Lower --calculation-steps for a
 # faster, coarser table.
