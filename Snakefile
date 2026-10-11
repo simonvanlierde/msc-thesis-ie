@@ -30,6 +30,9 @@ RESULTS_GEODATA_DIR = f"{RESULTS_DIR}/geodata"
 INTERMEDIATE_DIR = f"{RESULTS_DIR}/intermediate"
 LOG_DIR = f"{RESULTS_DIR}/logs"
 BENCHMARK_DIR = f"{RESULTS_DIR}/benchmarks"
+# The dashboard ships the committed data in dashboard/public/data; a profile for another
+# city (config/smoke.yaml) points this elsewhere so it cannot overwrite the shipped files.
+DASHBOARD_DATA_DIR = config.get("dashboard_data_dir", "dashboard/public/data")
 
 # Active city (name -> PDOK boundary -> bbox). CITY_SLUG namespaces the raw
 # fetches so switching cities never reuses another city's data.
@@ -655,9 +658,9 @@ rule dashboard_data:
         ],
         model_src=MODEL_SRC,
     output:
-        scenarios="dashboard/public/data/scenarios.json",
-        choropleth="dashboard/public/data/cooling_by_buurt.geojson",
-        temporal="dashboard/public/data/temporal.json",
+        scenarios=f"{DASHBOARD_DATA_DIR}/scenarios.json",
+        choropleth=f"{DASHBOARD_DATA_DIR}/cooling_by_buurt.geojson",
+        temporal=f"{DASHBOARD_DATA_DIR}/temporal.json",
     params:
         city=CITY_NAME,
     log:

@@ -7,6 +7,7 @@
 # smoke municipality, whose buildings all land on the 1.0 K uhi_fallback_c. Subsequent runs
 # skip the download.
 results_dir: results/smoke # own tree, so a smoke run never overwrites the real results/
+dashboard_data_dir: results/smoke/dashboard_data # not the shipped dashboard/public/data
 
 city:
   name: "Schiermonnikoog" # smallest Dutch municipality by population; few buildings
