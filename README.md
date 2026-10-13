@@ -11,14 +11,15 @@
 [![Data DOI](https://img.shields.io/badge/data-10.5281%2Fzenodo.8344580-blue.svg)](https://doi.org/10.5281/zenodo.8344580)
 [![Thesis](https://img.shields.io/badge/thesis-TU%20Delft%20repository-blue.svg)](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a)
 
-The model behind my MSc Industrial Ecology thesis (Leiden University & TU Delft). It estimates
-how much cooling the building stock of The Hague needs, and what that cooling costs in
-electricity, greenhouse-gas emissions and material use — today and under 2030 and 2050 scenarios.
+This is the model behind my MSc Industrial Ecology thesis (Leiden University & TU Delft). It
+estimates how much cooling the buildings of The Hague need. It also estimates what that cooling
+costs in electricity, greenhouse-gas emissions and materials, today and in scenarios for 2030 and
+2050.
 
-The model is a tested Python package (`cdm/`) run by a 27-rule Snakemake pipeline. The pipeline
-fetches the open Dutch building, height and weather data, runs every scenario, and can run in a
-container. CI checks each pull request with ruff, pytest and a Snakemake dry run. The input data is
-archived on Zenodo, and a web dashboard shows the results.
+The model is a tested Python package (`cdm/`). A Snakemake pipeline of 27 rules runs it. The
+pipeline fetches the open Dutch data on buildings, building heights and weather, and runs every
+scenario. You can also run it in a container. CI checks each pull request with ruff, pytest and a
+Snakemake dry run. The input data is archived on Zenodo, and a web dashboard shows the results.
 
 ## Interactive dashboard
 
@@ -26,54 +27,60 @@ archived on Zenodo, and a web dashboard shows the results.
 
 [![Dashboard](dashboard/docs/screenshot.png)](https://simonvanlierde.github.io/msc-thesis-ie/)
 
-A choropleth of cooling demand across The Hague, the diurnal and seasonal demand profile, and the
-life-cycle impact breakdown, with a plain-language summary for non-experts. It runs on real model
-output.
+The dashboard has three parts. A map colours each neighbourhood of The Hague by its cooling
+demand. Charts show how demand changes over a day and over the year. A breakdown shows the
+life-cycle impacts. A short summary in plain language explains the results for readers who are not
+experts. All of it uses real output from the model.
 
 ```bash
 cd dashboard && pnpm install && pnpm dev
 ```
 
-See [`dashboard/README.md`](dashboard/README.md) for the data-build steps, accessibility notes and
-the GitHub Pages deployment.
+[`dashboard/README.md`](dashboard/README.md) explains how to rebuild its data, how it handles
+accessibility and how it deploys to GitHub Pages.
 
 ## Key findings
 
-These are the results of the current model (2021–2025 weather with the urban heat island, 2025
-grid carbon intensity), the same ones the dashboard shows. `scripts/paper_numbers.py` prints them
-from `results/`. The 2023 thesis used older weather and grid data, so its numbers differ.
+These are the results of the current model, and the dashboard shows the same ones. The model uses
+weather from 2021–2025 with the urban heat island added, and the carbon intensity of the 2025
+electricity grid. `scripts/paper_numbers.py` prints these numbers from `results/`. The 2023 thesis
+used older weather and grid data, so its numbers differ.
 
 ![Cooling demand and emissions across scenarios](docs/scenario_overview.png)
 
-- The Hague needs about **527 GWh** of cooling a year. Offices occupy only **11%** of the floor
-  area but account for **54%** of that demand and **79%** of cooling-related greenhouse-gas
-  emissions.
-- An estimated **54%** of cooling demand is currently unmet, and the gap is worst in
-  the lower-income neighbourhoods where the heat island is strongest.
-- By 2050, cooling demand changes by **−7%** to **+79%** against today across the low and high
-  scenarios (**+24%** in the middle one). Emissions fall in every 2050 scenario except the high
-  one, where they rise by **76%**.
+- The Hague needs about **527 GWh** of cooling a year. Offices have only **11%** of the floor
+  area, but they use **54%** of that cooling and cause **79%** of the greenhouse-gas emissions
+  from cooling.
+- An estimated **54%** of the cooling demand is not met today. The gap is worst in the
+  lower-income neighbourhoods, where the heat island is strongest.
+- By 2050, cooling demand changes by **−7%** in the low scenario and by **+79%** in the high
+  one, compared with today (**+24%** in the middle one). Emissions fall in every 2050 scenario
+  except the high one, where they rise by **76%**.
 
-The full method and discussion are in the
-[thesis](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a).
+The [thesis](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a)
+has the full method and discussion.
 
 ## How the model works
 
-1. **Geospatial data** — building footprints and attributes from the Dutch BAG (*Basisregistratie
-   Adressen en Gebouwen*), processed into building archetypes.
-2. **Thermodynamic modelling** — an hourly heat-balance model (transmission, infiltration,
-   ventilation, solar gains and internal loads) driven by KNMI weather data, giving cooling energy
-   and peak power demand per building.
-3. **Environmental impact assessment** — life-cycle-based impacts (climate change, abiotic resource
-   depletion, crustal scarcity) from both the operational energy and the cooling equipment itself.
+1. **Geospatial data.** The model takes building footprints and attributes from the Dutch BAG
+   (*Basisregistratie Adressen en Gebouwen*, the national register of addresses and buildings).
+   It sorts the buildings into archetypes: groups of similar buildings.
+2. **Thermodynamic modelling.** An hourly heat-balance model counts the heat that enters and
+   leaves each building: through the building shell, through air leaks and ventilation, from the
+   sun, and from people and equipment inside. KNMI weather data drives it. The result is the
+   cooling energy and the peak power demand of each building.
+3. **Environmental impact assessment.** The model estimates the life-cycle impacts on climate
+   change, abiotic resource depletion and crustal scarcity. It counts both the electricity the
+   cooling uses and the cooling equipment itself.
 
 ## Getting started
 
-The large spatial input datasets live on Zenodo
+The large spatial input datasets are on Zenodo
 ([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)), not in this repository. The
-Snakemake pipeline can also fetch them from the official PDOK APIs.
+Snakemake pipeline can also fetch them from the official PDOK APIs (the Dutch government's
+geodata service).
 
-With [uv](https://docs.astral.sh/uv/) (recommended):
+I recommend [uv](https://docs.astral.sh/uv/):
 
 ```bash
 git clone https://github.com/simonvanlierde/msc-thesis-ie.git
@@ -127,8 +134,8 @@ Inside `cdm/`:
 
 ## Reproducible pipeline
 
-The notebook analysis is also declared as a [Snakemake](https://snakemake.readthedocs.io/) workflow.
-It wraps the same `cdm/` model code — it does not reimplement the science.
+The analysis in the notebooks is also a [Snakemake](https://snakemake.readthedocs.io/) workflow.
+The workflow calls the same model code in `cdm/`. It does not reimplement the science.
 
 ![Snakemake workflow DAG](docs/pipeline_dag.svg)
 
@@ -138,27 +145,28 @@ uv run snakemake --cores 4                               # scenario results + ov
 uv run snakemake --configfile config/smoke.yaml --cores 4  # fast end-to-end check (minutes), under results/smoke/
 ```
 
-Or run it hermetically in a container:
+Or run it in a container, so nothing depends on your own setup:
 
 ```bash
 docker build -t cooling-demand .
 docker run --rm -e EP_ONLINE_API_KEY -v "$PWD:/work" cooling-demand snakemake --cores 4
 ```
 
-Everything the pipeline generates goes under `results/` (configurable via `results_dir` in
-`config/sources.yaml`), leaving the committed reference results in `data/output/` and `docs/`
-untouched — so a run is safe to repeat, and you can check reproduction directly:
+The pipeline writes everything it makes under `results/`. You can change that folder with
+`results_dir` in `config/sources.yaml`. The committed reference results in `data/output/` and
+`docs/` stay untouched. So you can repeat a run safely, and compare its output with the reference
+directly:
 
 ```bash
 diff results/CDM_results_SQ_full.csv data/output/CDM_results_SQ_full.csv
 ```
 
-`results/` and the fetched `data/raw/` inputs are git-ignored. Each rule writes a log under
-`results/logs/`, and the model stages a runtime benchmark under `results/benchmarks/`.
+Git ignores `results/` and the fetched inputs in `data/raw/`. Each rule writes a log under
+`results/logs/`. The model stages also record their run time under `results/benchmarks/`.
 
 ### Opt-in targets
 
-These are kept out of the default `all` target because they are heavy:
+These targets are heavy, so I kept them out of the default `all` target:
 
 ```bash
 # Journal-paper figures (F1, F2, F5) and the manuscript numbers (results/paper_numbers.json).
@@ -198,9 +206,10 @@ weather:
   end_year: 2025
 ```
 
-The municipal boundary and bounding box are fetched from PDOK by name, so switching cities is just a
-name change plus the nearest KNMI station. Buildings are clipped to the boundary, so results cover
-exactly that municipality. To override without editing the file:
+The pipeline fetches the municipal boundary and its bounding box from PDOK by name. To switch
+cities, change the name and pick the nearest KNMI station. The pipeline clips the buildings to the
+boundary, so the results cover exactly that municipality. To override the settings without editing
+the file:
 
 ```bash
 uv run snakemake --config city='{name: Rotterdam, weather_station: 344}' --cores 4
@@ -208,17 +217,18 @@ uv run snakemake --config city='{name: Rotterdam, weather_station: 344}' --cores
 
 ### EP-Online energy labels
 
-`provide_ep_online_energy_labels` downloads the full public label export via the EP-Online v5 API.
-Request a key at <https://www.ep-online.nl/PublicData> and put it in a `.env` file at the repo root:
+`provide_ep_online_energy_labels` downloads the full public export of energy labels through the
+EP-Online v5 API. Request a key at <https://www.ep-online.nl/PublicData>. Then put it in a `.env`
+file at the repo root:
 
 ```bash
 EP_ONLINE_API_KEY=your-key-here
 ```
 
-The rule resolves the signed download URL, streams the ZIP, and extracts the CSV to
+The rule gets the signed download URL, streams the ZIP, and extracts the CSV to
 `data/raw/ep_online/current/energy_labels.csv` (~1.5 GB uncompressed). It skips the download when a
-valid file is already present. The key is read from the environment or `.env` and is never
-committed.
+valid file is already there. The rule reads the key from the environment or from `.env`, and the
+key is never committed.
 
 <details>
 <summary>Pipeline stages</summary>
@@ -242,17 +252,17 @@ committed.
 | `run_main_notebook` / `run_gis_notebook` (opt-in) | execute the analysis notebooks headless; keep the executed copy | pipeline outputs the notebook reads, `cdm/`, the notebook | `results/notebooks/{main,gis}.executed.ipynb` |
 
 PDOK data is licensed under Public Domain Mark 1.0 (BAG, boundaries) and CC BY 4.0 (3D
-Basisvoorziening). PDOK 3D height-attribute column names were verified against a 2025
+Basisvoorziening). I checked the column names of the PDOK 3D height data against a 2025
 `hoogtestatistieken_gebouwen` tile (`identificatie`, `status`, `oorspronkelijkbouwjaar`,
-`rf_h_ground`, `rf_h_roof_70p`). If a future vintage changes the schema,
-`scripts/gis/prepare_pdok_model_geodata.py` fails loudly listing the available columns instead of
-guessing.
+`rf_h_ground`, `rf_h_roof_70p`). If a later release changes these columns,
+`scripts/gis/prepare_pdok_model_geodata.py` stops with an error that lists the columns it found. It
+does not guess.
 
 </details>
 
 ## Development
 
-The project uses the [Astral](https://astral.sh/) toolchain:
+The project uses the Python tools from [Astral](https://astral.sh/):
 
 ```bash
 uv run ruff check .            # lint
@@ -261,8 +271,8 @@ uv run ty check                # type check (informational)
 uv run pytest                  # tests
 ```
 
-The same checks run in CI on every pull request ([workflow](.github/workflows/ci.yml)), and locally
-once the git hooks are installed:
+CI runs the same checks on every pull request ([workflow](.github/workflows/ci.yml)). They also run
+locally once you install the git hooks:
 
 ```bash
 uv run pre-commit install
@@ -271,7 +281,7 @@ uv run pre-commit install
 On commit, the hooks run ruff (lint and format), the dashboard formatter and `ty`. On push, they
 run the test suite and the dashboard checks. `ty` reports its findings without blocking, as in CI.
 
-Regenerating the committed figure and DAG:
+To regenerate the committed figure and the pipeline graph (DAG):
 
 ```bash
 uv run python docs/make_overview_figure.py
@@ -282,7 +292,7 @@ uv run snakemake --dag | uv run python scripts/dot_to_simple_svg.py > docs/pipel
 
 ## Citation
 
-If you use this work, please cite the thesis and dataset (see [`CITATION.cff`](CITATION.cff)):
+If you use this work, please cite the thesis and the dataset (see [`CITATION.cff`](CITATION.cff)):
 
 > van Lierde, S. (2024). *Cooling for Comfort, Warming the World: Residential and Office Cooling and
 > its Environmental Implications in The Hague.* MSc thesis, Industrial Ecology, Leiden University &
@@ -294,4 +304,4 @@ Supervised by Prof. ir. Peter Luscuere and Dr. Benjamin Sprecher.
 
 ## License
 
-Released under the [GNU General Public License v3.0](LICENSE).
+This project is released under the [GNU General Public License v3.0](LICENSE).

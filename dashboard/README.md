@@ -1,15 +1,17 @@
-# Cooling for Comfort — dashboard
+# Cooling for Comfort: dashboard
 
-An interactive dashboard for the MSc thesis model of building cooling demand and its
-life-cycle climate impact in The Hague. It turns the thesis result files into three views:
+This dashboard shows the results of my MSc thesis model: how much cooling the buildings of The
+Hague need, and the life-cycle climate impact of that cooling. It turns the thesis result files
+into three views:
 
-- **Where** — a choropleth of cooling demand across the city's 112 neighbourhoods (buurten).
-- **When** — summer-day and monthly profiles, switchable between cooling demand and the
-  electricity drawn to meet it.
-- **Impact** — the life-cycle greenhouse-gas breakdown, one stacked bar per scenario.
+- **Where:** a map that colours the city's 112 neighbourhoods (buurten) by cooling demand.
+- **When:** profiles over a summer day and over the months. You can switch them between cooling
+  demand and the electricity used to meet it.
+- **Impact:** the life-cycle greenhouse-gas emissions, split into their sources, with one stacked
+  bar per scenario.
 
-A plain-language summary panel states the headline finding up front, so nobody has to
-read a chart to get it.
+A summary in plain language states the main finding at the top, so nobody has to read a chart to
+get it.
 
 **[Open the live dashboard →](https://simonvanlierde.github.io/msc-thesis-ie/)**
 
@@ -17,8 +19,8 @@ read a chart to get it.
 
 ## Where the data comes from
 
-Every number traces to the thesis model. Three small build scripts
-(`scripts/*.py`) convert the model outputs into web-friendly JSON/GeoJSON:
+Every number comes from the thesis model. Three small build scripts (`scripts/*.py`) convert
+the model outputs into JSON and GeoJSON for the web:
 
 | Script | Output | Source | Notes |
 | --- | --- | --- | --- |
@@ -27,23 +29,23 @@ Every number traces to the thesis model. Three small build scripts
 | `build_temporal.py` | `public/data/temporal.json` (~33 kB) | per-building GPKGs + committed weather/parameter CSVs | Re-runs the thesis heat-balance model on a stratified building sample, once per scenario (climate, UHI, comfort threshold and renovation come from the scenario parameters), averages 2021–2025 weather into a typical year and exports the hottest week hour by hour. Calibrated per use to the citywide archetype totals, so the magnitudes include projected building-stock growth. Per-building annual `E_cooling` reproduces the published value to ~0.03% median error (SQ; ~0.8% for 2050 M). |
 
 The spatial and temporal builds need the per-building GeoPackages from the Zenodo dataset
-([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)), which are git-ignored;
-the buurt boundaries come from CBS via the pipeline. The pre-built JSON in `public/data/`
-is committed, so the dashboard runs and deploys without any of it.
+([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)). Git ignores those files. The
+buurt boundaries come from CBS (Statistics Netherlands) through the pipeline. The pre-built JSON
+in `public/data/` is committed, so the dashboard runs and deploys without any of these inputs.
 
 ### Caveats
 
-- The page opens on the **2050 medium** path, so the map first shows that scenario;
-  **present-day (SQ)** is one click away. Only in
-  SQ do the per-building geometry and the archetype totals share the same underlying stock and
-  agree exactly. Future scenarios add building-stock growth in the archetype totals that the
-  current per-building geometry does not carry, so their map sums run ~10–12% below the scenario
-  total — shown but labelled.
-- The temporal profiles use representative building geometry (only the footprint MBR is
-  reconstructed; the physics is the thesis code, unchanged). Today's stock sets each
-  profile's shape; the magnitude is calibrated per use to the same citywide totals as the
-  impact charts, so the sections agree. To swap in an exact hourly export from a notebook run,
-  replace `temporal.json`.
+- The page opens on the **2050 medium** path, so the map first shows that scenario. The
+  **present-day (SQ)** scenario is one click away.
+- Only in SQ do the per-building geometry and the archetype totals describe the same buildings,
+  so only there do they agree exactly. The future scenarios add growth of the building stock to
+  the archetype totals, but the per-building geometry does not include that growth. So their map
+  sums are ~10–12% below the scenario total. The map still shows them, with a label that says so.
+- The temporal profiles use representative building geometry. Only the footprint's minimum
+  bounding rectangle (MBR) is rebuilt; the physics is the thesis code, unchanged. Today's
+  buildings set the shape of each profile. Its size is calibrated per use to the same citywide
+  totals as the impact charts, so all sections agree. To use an exact hourly export from a
+  notebook run instead, replace `temporal.json`.
 
 ## Run it locally
 
@@ -53,11 +55,11 @@ pnpm install
 pnpm dev          # http://localhost:5183
 ```
 
-That's it — the committed JSON drives everything.
+That's all you need: the committed JSON drives everything.
 
 ### Rebuild the data (optional)
 
-Needs the repo's Python model environment and the Zenodo geodata dropped into
+You need the repo's Python environment for the model. You also need the Zenodo geodata in
 `data/input/geodata/` and `data/output/geodata/`:
 
 ```bash
@@ -66,12 +68,12 @@ cd dashboard
 pnpm data         # runs the three build_*.py scripts
 ```
 
-`build_scenarios.py` alone has no heavy dependencies (stdlib only) and always works;
-the others skip cleanly if the geodata is absent.
+`build_scenarios.py` needs only the Python standard library, so it always works. The other two
+skip cleanly when the geodata is missing.
 
-Each script takes `--results-dir` / `--geodata-dir` / `--divisions` / `--out` path
-arguments (defaulting to the committed `data/output/` reference results), so they can
-read from wherever the model writes. The Snakemake pipeline wires them in as a target:
+Each script takes the path arguments `--results-dir`, `--geodata-dir`, `--divisions` and `--out`.
+They default to the committed reference results in `data/output/`, so the scripts can read from
+wherever the model writes. The Snakemake pipeline runs them as a target:
 
 ```bash
 # regenerate all three datasets from the pipeline's results/ outputs
@@ -80,47 +82,49 @@ snakemake dashboard_data
 
 ## Deploy
 
-The build is a static SPA (`dist/`), published to GitHub Pages by
-[`.github/workflows/dashboard.yml`](../.github/workflows/dashboard.yml) on every push to
-`main` that touches `dashboard/`. Pull requests run the same quality and accessibility
-gates without deploying.
+The build is a static single-page app in `dist/`.
+[`.github/workflows/dashboard.yml`](../.github/workflows/dashboard.yml) publishes it to GitHub
+Pages on every push to `main` that changes `dashboard/`. Pull requests run the same quality and
+accessibility checks, but do not deploy.
 
 Live at <https://simonvanlierde.github.io/msc-thesis-ie/>.
 
 ## Accessibility
 
-Accessibility follows the same setup as `tide` / `credit-heatmap`:
+Accessibility uses the same setup as `tide` and `credit-heatmap`:
 
-- Keyboard-navigable controls (radio-group segmented controls, skip link, visible focus), each
-  placed with the view it scopes rather than buried in a chart card.
-- Every chart and the map carry an accessible label, and each view has a **data-table
-  fallback** — nothing is available only as a chart or only on hover.
-- A colourblind-safe palette: a single-hue blue sequential scale for the map, blue/orange
-  for residential/office. Each hue has one job; magenta is reserved for keyboard focus and
-  no chart uses it. Meaning never rides on colour alone — the map legend gives explicit
-  numeric ranges, a value strip shows where every neighbourhood falls, and every value is
-  in a table.
-- Light and dark themes, both deliberately styled (not an auto-flip) and both contrast-checked.
-  The theme is stamped before first paint by an inline script, so a saved override never
-  flashes the other theme on load.
-- `@axe-core/playwright` runs against the production build in **both themes** (`pnpm test:e2e`),
-  asserting zero serious/critical WCAG 2.2 A/AA violations.
+- You can use every control with the keyboard. The controls are radio groups shown as
+  segmented buttons, there is a skip link, and focus is always visible. Each control sits next to
+  the view it changes, not hidden inside a chart card.
+- Every chart and the map have an accessible label. Each view also has a **data table** as a
+  fallback, so nothing is only available as a chart or only on hover.
+- The colours are safe for colour-blind readers. The map uses shades of one blue. Residential is
+  blue and office is orange. Each colour has one job: magenta marks keyboard focus, and no chart
+  uses it. Colour never carries meaning on its own. The map legend gives the number ranges, a
+  value strip shows where every neighbourhood falls, and every value is in a table.
+- The light and dark themes are both designed by hand, not flipped automatically, and both are
+  checked for contrast. An inline script sets the theme before the page first draws, so a saved
+  theme choice never flashes the other theme on load.
+- `@axe-core/playwright` tests the production build in **both themes** (`pnpm test:e2e`). The
+  test fails on any serious or critical WCAG 2.2 A/AA violation.
 
 ## Stack
 
-Vite + React + TypeScript, [nivo](https://nivo.rocks) charts, [MapLibre GL](https://maplibre.org)
-map, [Biome](https://biomejs.dev) (lint/format), Vitest (unit tests for the data transforms),
-Playwright + axe (a11y). `pnpm check` also runs pre-commit, via the repo-root
-[pre-commit](../.pre-commit-config.yaml) config. Vite is pinned to 7.x: Vite 8's rolldown
-bundler currently breaks MapLibre's GeoJSON web worker in production builds.
+The dashboard uses Vite, React and TypeScript, with [nivo](https://nivo.rocks) for the charts
+and [MapLibre GL](https://maplibre.org) for the map. [Biome](https://biomejs.dev) lints and
+formats. Vitest unit-tests the data transforms, and Playwright with axe tests accessibility.
+The repo-root [pre-commit](../.pre-commit-config.yaml) config runs `pnpm check` on push.
 
-Type is self-hosted: [Newsreader](https://fonts.google.com/specimen/Newsreader) (variable, for the
-wordmark, headings and the hero headline) and [Public Sans](https://public-sans.digital.gov)
-(variable, body and every figure — a serif on a stat-tile value reads as decoration), both subset
-to `latin` in `public/fonts/` — no font CDN, no external request. The map draws
-over [CARTO](https://carto.com)'s positron / dark-matter basemap (streets and place names, no API
-key); if that CDN is unreachable it falls back to a plain background, so the choropleth still works
-offline. CARTO/OpenStreetMap attribution shows on the map when the basemap loads.
+The fonts are served from this site. [Newsreader](https://fonts.google.com/specimen/Newsreader)
+sets the wordmark, the headings and the main headline. [Public Sans](https://public-sans.digital.gov)
+sets the body text and every figure, because a serif on a stat value reads as decoration. Both are
+variable fonts, cut down to the `latin` subset in `public/fonts/`. There is no font CDN and no
+external request.
+
+The map draws over the positron and dark-matter basemaps from [CARTO](https://carto.com), which
+add streets and place names and need no API key. If that CDN is unreachable, the map falls back
+to a plain background, so the neighbourhood colours still work offline. The CARTO and
+OpenStreetMap credits show on the map when the basemap loads.
 
 ```bash
 pnpm check        # typecheck + lint + coverage + build
@@ -129,11 +133,13 @@ pnpm test:e2e     # accessibility, light + dark
 pnpm og           # rebuild the social card + favicon (see note below)
 ```
 
-The social-preview card (`public/og.png`), the favicon (`public/icon.svg`, the city silhouette)
-and the apple-touch icon are generated by `scripts/build_og.mjs` from the thesis output itself —
-the headline stat, the year's heat band, the buurt geometry. It renders with the Playwright
-chromium already installed for the a11y tests, so it adds no dependency, and skips cleanly when
-its inputs are absent. The band's 12 × 24 grid is reconstructed from `temporal.json`: each month
-takes its season's diurnal shape, rescaled to that month's energy total. Only four seasonal
-profiles exist, so months inside a season differ in magnitude but not in shape — invisible at
-168 px, and it keeps the card on the same data the dashboard itself reads.
+`scripts/build_og.mjs` generates the social-preview card (`public/og.png`), the favicon
+(`public/icon.svg`, the city silhouette) and the apple-touch icon. It draws them from the thesis
+output itself: the headline number, the heat band over the year, and the buurt geometry. It
+renders with the Playwright Chromium that the accessibility tests already install, so it adds no
+dependency. It skips cleanly when its inputs are missing.
+
+The band is a grid of 12 months by 24 hours, rebuilt from `temporal.json`. Each month takes the
+daily shape of its season, scaled to that month's total energy. There are only four seasonal
+profiles, so months in the same season differ in size but not in shape. At 168 px you can't see
+that, and it keeps the card on the same data the dashboard reads.
