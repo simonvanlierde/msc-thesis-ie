@@ -17,6 +17,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # Codecov upload via OIDC, no token secret
     steps:
       - uses: actions/checkout@v7
 
@@ -35,7 +38,14 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Run tests (pytest)
-        run: uv run pytest
+        run: uv run pytest --cov --cov-report=xml # source and fail_under are in pyproject.toml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          files: coverage.xml
+          flags: python
 
       - name: Validate Snakemake workflow (dry-run)
         run: uv run --with snakemake snakemake --dry-run --forceall
