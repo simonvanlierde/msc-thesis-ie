@@ -3,6 +3,7 @@
 **Residential and office cooling and its environmental impacts in The Hague, the Netherlands.**
 
 [![CI](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/ci.yml)
+[![Dashboard](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/dashboard.yml/badge.svg)](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/dashboard.yml)
 [![Dashboard](https://img.shields.io/badge/dashboard-live-brightgreen.svg)](https://simonvanlierde.github.io/msc-thesis-ie/)
 [![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue.svg)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
