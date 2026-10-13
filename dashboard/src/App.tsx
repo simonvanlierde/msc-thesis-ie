@@ -135,8 +135,8 @@ export function App() {
             </button>
           </h1>
           <div id="city-pop" popover="auto" className="citypop">
-            <strong>More cities are coming.</strong> The model behind this page is being extended to
-            every municipality in the Netherlands. The Hague is the pilot.
+            <strong>The Hague only, for now.</strong> The same open pipeline can run for another
+            Dutch municipality by changing its name in the configuration.
           </div>
           <nav aria-label="Sections">
             {NAV.map((n) => (
