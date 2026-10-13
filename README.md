@@ -39,19 +39,20 @@ the GitHub Pages deployment.
 
 ## Key findings
 
-These are the thesis results. The dashboard runs the current model (2021–2025 weather, 2025 grid
-carbon intensity), so its numbers differ.
+These are the results of the current model (2021–2025 weather with the urban heat island, 2025
+grid carbon intensity), the same ones the dashboard shows. `scripts/paper_numbers.py` prints them
+from `results/`. The 2023 thesis used older weather and grid data, so its numbers differ.
 
 ![Cooling demand and emissions across scenarios](docs/scenario_overview.png)
 
-- Offices occupy only **13%** of the floor area but account for **34%** of current cooling demand
-  and **65%** of cooling-related greenhouse-gas emissions.
-- Cooling already represents about **25%** of office electricity use, against **5.5%** for
-  residential buildings.
-- An estimated **77%** of cooling demand is currently unmet, and that gap falls hardest on
-  economically disadvantaged neighbourhoods.
-- Under a business-as-usual 2050 scenario, cooling energy demand roughly **doubles** relative to
-  today, putting pressure on the Netherlands' 2050 net-zero target.
+- The Hague needs about **527 GWh** of cooling a year. Offices occupy only **11%** of the floor
+  area but account for **54%** of that demand and **79%** of cooling-related greenhouse-gas
+  emissions.
+- An estimated **54%** of cooling demand is currently unmet, and the gap is worst in
+  the lower-income neighbourhoods where the heat island is strongest.
+- By 2050, cooling demand changes by **−7%** to **+79%** against today across the low and high
+  scenarios (**+24%** in the middle one). Emissions fall in every 2050 scenario except the high
+  one, where they rise by **76%**.
 
 The full method and discussion are in the
 [thesis](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a).
