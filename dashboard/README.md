@@ -113,9 +113,7 @@ Accessibility uses the same setup as `tide` and `credit-heatmap`:
 The dashboard uses Vite, React and TypeScript, with [nivo](https://nivo.rocks) for the charts
 and [MapLibre GL](https://maplibre.org) for the map. [Biome](https://biomejs.dev) lints and
 formats. Vitest unit-tests the data transforms, and Playwright with axe tests accessibility.
-`pnpm check` also runs pre-commit, through the repo-root [pre-commit](../.pre-commit-config.yaml)
-config. Vite is pinned to 7.x, because the rolldown bundler in Vite 8 currently breaks MapLibre's
-GeoJSON web worker in production builds.
+The repo-root [pre-commit](../.pre-commit-config.yaml) config runs `pnpm check` on push.
 
 The fonts are served from this site. [Newsreader](https://fonts.google.com/specimen/Newsreader)
 sets the wordmark, the headings and the main headline. [Public Sans](https://public-sans.digital.gov)
