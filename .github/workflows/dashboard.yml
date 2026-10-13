@@ -23,6 +23,9 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # Codecov upload via OIDC, no token secret
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
@@ -34,6 +37,12 @@ jobs:
           install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      # pnpm check runs the unit tests with coverage, which writes coverage/lcov.info.
+      - uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          files: dashboard/coverage/lcov.info
+          flags: dashboard
       # The a11y suite shares this job's install; a separate job billed its own
       # runner minute for a second checkout and pnpm install.
       - run: pnpm exec playwright install --with-deps chromium
