@@ -23,10 +23,10 @@ for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`accessibility (${colorScheme})`, () => {
     test.use({ colorScheme });
 
-    test("no serious or critical WCAG 2 A/AA violations", async ({ page }) => {
+    test("no serious or critical WCAG 2.2 A/AA violations", async ({ page }) => {
       await ready(page);
       const { violations } = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa"])
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
         .analyze();
       const impactful = violations.filter((v) => ["serious", "critical"].includes(v.impact ?? ""));
       expect(impactful, JSON.stringify(impactful, null, 2)).toEqual([]);

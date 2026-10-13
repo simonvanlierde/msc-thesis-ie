@@ -104,7 +104,7 @@ Accessibility follows the same setup as `tide` / `credit-heatmap`:
   The theme is stamped before first paint by an inline script, so a saved override never
   flashes the other theme on load.
 - `@axe-core/playwright` runs against the production build in **both themes** (`pnpm test:e2e`),
-  asserting zero serious/critical WCAG 2 A/AA violations.
+  asserting zero serious/critical WCAG 2.2 A/AA violations.
 
 ## Stack
 
