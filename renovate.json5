@@ -14,6 +14,15 @@
   // A week gives a hijacked release time to be yanked.
   minimumReleaseAge: "7 days",
 
+  // Renovate only bumps packages named in pyproject.toml, and its security PRs
+  // skip indirect pip packages. Most alerts here hit the Jupyter stack that
+  // `jupyter` pulls in (jupyterlab, notebook, tornado), so refresh the whole
+  // lockfile weekly instead of waiting for the monthly run.
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ["before 6am on monday"],
+  },
+
   // Renovate merges once every check on the branch passes. GitHub's own
   // auto-merge would merge straight away, since main requires no checks. A merge
   // by the Renovate app is a push to main like any other, so it deploys.
@@ -22,7 +31,7 @@
   packageRules: [
     // Majors stay manual.
     {
-      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest", "lockFileMaintenance"],
       automerge: true,
     },
   ],
