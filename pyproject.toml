@@ -46,6 +46,11 @@
 [dependency-groups]
   dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.16.6", "ty>=0.0.79", "pre-commit>=4.6.2", "nbstripout>=0.9.1"]
 
+# Skip releases younger than a week, matching Renovate's minimumReleaseAge,
+# so a hijacked release has time to be yanked before any relock picks it up.
+[tool.uv]
+  exclude-newer = "7 days"
+
 [tool.ruff]
   line-length    = 120
   target-version = "py314"
