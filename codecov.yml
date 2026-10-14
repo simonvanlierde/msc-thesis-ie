@@ -1,0 +1,23 @@
+# Codecov reports coverage; CI's tests are the gate. It fails a pull request only when
+# total coverage drops by more than 2 points, and the new lines' share is shown, not
+# enforced.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%
+    patch:
+      default:
+        informational: true
+
+# Comment only when the project check fails: coverage_drop honours its 2-point threshold.
+comment:
+  require_changes: "coverage_drop"
+
+# CI uploads one report per flag. Codecov compares as soon as the first arrives, so the
+# other flags' lines would count as a drop. Carryforward fills a missing report with the
+# base commit's numbers for that flag.
+flag_management:
+  default_rules:
+    carryforward: true
