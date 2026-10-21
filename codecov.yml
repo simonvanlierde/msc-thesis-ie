@@ -11,9 +11,11 @@ coverage:
       default:
         informational: true
 
-# Comment only when the project check fails: coverage_drop honours its 2-point threshold.
-comment:
-  require_changes: "coverage_drop"
+# No pull request comment. A drop of over 2 points fails the project check, which links
+# to the report. require_changes cannot express that: its coverage_drop test reads the
+# threshold from coverage.status.project itself, where a valid config has none, so it
+# fires on any drop at all.
+comment: false
 
 # CI uploads one report per flag. Codecov compares as soon as the first arrives, so the
 # other flags' lines would count as a drop. Carryforward fills a missing report with the

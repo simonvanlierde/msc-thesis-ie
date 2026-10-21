@@ -1,8 +1,11 @@
 name: CI
 
-# No push trigger: main only advances through a PR, so a push run repeats
-# the check that already passed on the PR head.
+# The push to main repeats the checks the PR already passed, but it uploads main's
+# coverage: Codecov compares each PR with its base commit on main, and without a report
+# there it skips the project check and comments on every PR.
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -11,7 +14,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push cancels a PR's run, never main's: each main commit needs its upload.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
