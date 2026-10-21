@@ -1,3 +1,7 @@
+# Install no package version younger than 7 days (in minutes), as Renovate already waits,
+# so a lock refresh or a manual `pnpm add` cannot pull a release published hours ago.
+minimumReleaseAge: 10080
+
 allowBuilds:
   esbuild: true
   sharp: true
