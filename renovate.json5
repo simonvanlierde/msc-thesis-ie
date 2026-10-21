@@ -21,6 +21,10 @@
   lockFileMaintenance: {
     enabled: true,
     schedule: ["before 6am on monday"],
+    // A refresh has no release date, so minimumReleaseAge would hold it at
+    // renovate/stability-days for good. uv's exclude-newer and the dashboard's pnpm
+    // minimumReleaseAge keep releases younger than a week out of it instead.
+    minimumReleaseAge: null,
   },
 
   // Renovate merges once every check on the branch passes. GitHub's own
