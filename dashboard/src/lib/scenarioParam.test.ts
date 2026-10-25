@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { parseScenarioParam, withScenarioParam } from "./scenarioParam";
 
@@ -25,5 +26,16 @@ describe("scenario URL param", () => {
     for (const key of ["SQ", "2030", "2050_L", "2050_M", "2050_H"] as const) {
       expect(parseScenarioParam(withScenarioParam("", key))).toBe(key);
     }
+  });
+});
+
+describe("scenario URL param properties", () => {
+  it("reads back the key it wrote, whatever the search string held before", () => {
+    const key = fc.constantFrom("SQ", "2030", "2050_L", "2050_M", "2050_H");
+    fc.assert(
+      fc.property(fc.string(), key, (search, k) => {
+        expect(parseScenarioParam(withScenarioParam(search, k))).toBe(k);
+      }),
+    );
   });
 });
