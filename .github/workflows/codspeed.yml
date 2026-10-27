@@ -3,7 +3,17 @@ name: CodSpeed
 on:
   push:
     branches: [main]
+    # Only Python changes can move the numbers; dashboard and docs PRs skip the run.
+    paths: &python-paths
+      - "cdm/**"
+      - "benchmarks/**"
+      - "tests/test_integration.py"
+      - "data/input/parameters/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/codspeed.yml"
   pull_request:
+    paths: *python-paths
   workflow_dispatch:
 
 permissions:

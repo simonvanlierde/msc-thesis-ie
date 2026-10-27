@@ -14,7 +14,7 @@ Install with `uv sync`. Without uv, `pip install .` in a virtual environment als
 | `scripts/` | Data acquisition and pipeline entry points. |
 | `docs/` | The headline figure and the script that regenerates it. |
 | `tests/` | Unit tests for the geometric, thermodynamic and environmental functions. |
-| `benchmarks/` | CodSpeed performance benchmarks of the model's computational core, on synthetic inputs. |
+| `benchmarks/` | CodSpeed performance benchmarks of the pipeline stages. |
 
 ## Checks
 
@@ -34,8 +34,9 @@ the test suite and the dashboard checks. `ty` reports its findings without block
 ## Benchmarks
 
 `benchmarks/` holds [pytest-codspeed](https://codspeed.io/docs/reference/pytest-codspeed) benchmarks
-for the heat-flow, geometry, environmental-impact and weather functions. They use small synthetic
-inputs, so they need no Zenodo data. Without `--codspeed` they run once each as ordinary tests.
+for the pipeline stages: parameter assignment, time series, heat balance, impacts and aggregation.
+They run the real SQ parameters and one year of the committed backup weather on a 200-building
+synthetic stock, so they need no Zenodo data. Without `--codspeed` they run once each as ordinary tests.
 
 ```bash
 uv run pytest benchmarks/                                                     # run as tests
@@ -43,7 +44,8 @@ codspeed run --mode simulation -- uv run pytest benchmarks/ --codspeed        # 
 ```
 
 The [CodSpeed workflow](../.github/workflows/codspeed.yml) measures them with CPU simulation on every
-push to `main` and every pull request, and reports performance changes on the PR.
+push to `main` and every pull request that touches the Python code or its inputs, and reports
+performance changes on the PR.
 
 ## Regenerating the figures
 

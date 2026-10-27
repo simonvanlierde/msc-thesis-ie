@@ -1,9 +1,10 @@
-"""Synthetic, deterministic inputs for the CodSpeed benchmark suite.
+"""Inputs for the CodSpeed benchmark suite.
 
-The benchmarks exercise the model's computational core on a building stock and an hourly
-weather year that mirror the structure of the real data, without needing the Zenodo
-geospatial datasets. A fixed random seed keeps every run identical, so CodSpeed can compare
-runs reliably.
+The benchmarks run the pipeline stages that ``scripts/run_cdm_stage.py`` and the sensitivity
+analysis call, under the real SQ parameters and one year of the committed backup weather. The
+building stock is the integration test's seeded synthetic stock, since the real BAG geometry
+is a Zenodo download CI never sees. Every input is identical on every run, so CodSpeed can
+compare runs reliably.
 """
 
 import os
@@ -13,127 +14,114 @@ import os
 for _var in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_var, "1")
 
+import warnings  # noqa: E402
+from typing import TYPE_CHECKING  # noqa: E402
+
 import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
 import pytest  # noqa: E402
+import requests  # noqa: E402
 
-from cdm.constants import HOURS_PER_YEAR, SOLAR_DIRECTIONS  # noqa: E402
+from cdm.parameters import add_parameters_to_buildings  # noqa: E402
+from cdm.readers import read_global_parameters, read_parameter_specific_data  # noqa: E402
+from cdm.sensitivity_analysis import run_impact_stage  # noqa: E402
+from cdm.thermodynamic import calc_cooling_demand_metrics_for_df  # noqa: E402
+from cdm.time_series import create_time_series, get_raw_weather_data  # noqa: E402
+from tests.test_integration import PARAMETER_DIR, PARAMETERS_TOML, SCENARIO, make_synthetic_stock  # noqa: E402
 
-END_USES = ("residential", "office")
-N_BUILDINGS_HEAT_FLOWS = 200  # (200 buildings, 8760 hours) blocks: realistic, yet fast to simulate
-N_BUILDINGS_STOCK = 10_000  # Whole-stock vectorised operations
-N_WEATHER_YEARS = 5  # The model runs on weather from 2021-2025
+if TYPE_CHECKING:
+    import pandas as pd
+
+# Small enough to simulate in seconds; the heat balance cost is linear in buildings x hours.
+N_BUILDINGS = 200
+WEATHER_YEAR = 2022  # One year of the backup file (2018-2022)
 
 
-@pytest.fixture
-def global_parameters() -> dict[str, float]:
-    """The global model parameters read by the benchmarked functions."""
+@pytest.fixture(scope="session")
+def inputs() -> dict:
+    """The real SQ parameters, file paths and backup weather, as the pipeline stages take them."""
+    global_parameters = read_global_parameters(PARAMETERS_TOML, SCENARIO)
+    global_parameters["weather_data_start_year"] = global_parameters["weather_data_end_year"] = WEATHER_YEAR
+
+    def offline(*_args: object, **_kwargs: object) -> None:
+        raise requests.exceptions.Timeout
+
+    # Force the committed backup file: the benchmarks must never hit the KNMI API.
+    with pytest.MonkeyPatch.context() as patch, warnings.catch_warnings():
+        patch.setattr(requests, "post", offline)
+        warnings.simplefilter("ignore", UserWarning)
+        raw_weather_data = get_raw_weather_data(global_parameters)
+
     return {
-        "air_density": 1.2,
-        "air_heat_capacity": 1005.0,
-        "alfa_i": 7.5,
-        "alfa_o": 27.5,
-        "T_thresh_C": 25.0,
-        "T_sub_C": 12.0,
-        "int_heat_gain_pp_W": 100.0,
-        "int_heat_gain_light_W_m2": 5.0,
-        "peak_cooling_percentile_cap": 98,
-        "people_density_office": 0.1,
-        "people_per_hh": 2.2,
-        "uhi_scale": 1.0,
-        "uhi_fallback_C": 1.0,
-        "carbon_intensity_electric_grid_kgCO2eq_kWh": 0.4,
-        "gwp_refrigerant_kgCO2eq_kg": 2000.0,
-        "carbon_intensity_production_kgCO2eq_kg": 5.0,
-        "carbon_intensity_EoL_kgCO2eq_kg": 1.0,
-        "adp_intensity_cooling_equipment_kgSbeq_kg": 0.01,
-        "csi_intensity_cooling_equipment_kgSbeq_kg": 0.02,
+        "global_parameters": global_parameters,
+        "building_type_parameters": read_parameter_specific_data(
+            PARAMETER_DIR / "parameters_building_type.csv",
+            SCENARIO,
+        ),
+        "energy_class_parameters": read_parameter_specific_data(
+            PARAMETER_DIR / "parameters_energy_class.csv",
+            SCENARIO,
+        ),
+        "cooling_technology_parameters": read_parameter_specific_data(
+            PARAMETER_DIR / "parameters_cooling_technology.csv",
+            SCENARIO,
+        ),
+        "raw_weather_data": raw_weather_data,
+        "solar_fractions_path": str(PARAMETER_DIR / "multidirectional_solar_radiation_fractions.csv"),
+        "presence_load_factors_path": str(PARAMETER_DIR / "presence_load_factors.csv"),
     }
 
 
-def make_buildings(n: int, seed: int = 0) -> pd.DataFrame:
-    """A synthetic building stock with every attribute the heat-balance model reads."""
-    rng = np.random.default_rng(seed)
-    width = rng.uniform(5.0, 20.0, n)
-    length = width * rng.uniform(1.0, 3.0, n)
-    height = rng.uniform(3.0, 40.0, n)
-    f_window = rng.uniform(0.2, 0.5, n)
-    window_area_per_orientation = rng.uniform(0.0, 20.0, (n, len(SOLAR_DIRECTIONS)))
-    floor_area_ground = width * length
-    return pd.DataFrame(
-        {
-            "window_area_total_m2": window_area_per_orientation.sum(axis=1),
-            "wall_area_total_m2": 2 * (width + length) * height * (1 - f_window),
-            "floor_area_ground_m2": floor_area_ground,
-            "floor_area_total_m2": floor_area_ground * np.maximum(1, height // 3),
-            "Rc_wall_m2K_W": rng.uniform(0.5, 4.5, n),
-            "Rc_roof_m2K_W": rng.uniform(0.5, 6.0, n),
-            "Rc_floor_m2K_W": rng.uniform(0.5, 3.5, n),
-            "U_window_W_m2K": rng.uniform(1.0, 5.0, n),
-            "volume_m3": floor_area_ground * height,
-            "infiltration_ACH": rng.uniform(0.2, 1.5, n),
-            "UHI_max_C": rng.uniform(0.0, 4.0, n),
-            "end_use": rng.choice(END_USES, n),
-            "population": rng.uniform(1.0, 100.0, n),
-            "ventilation_rate_pp_m3_h": rng.uniform(20.0, 40.0, n),
-            "int_heat_gain_appliances_W_m2": rng.uniform(2.0, 10.0, n),
-            "window_area_per_orientation_m2": list(window_area_per_orientation),
-            "g_window": rng.uniform(0.3, 0.8, n),
-            "MBR_width_m": width,
-            "MBR_length_m": length,
-            "height_m": height,
-            "MBR_azimuth": rng.uniform(0.0, 180.0, n),
-            "f_wall": 1 - f_window,
-            "f_window": f_window,
-        },
+@pytest.fixture(scope="session")
+def stock() -> pd.DataFrame:
+    """The raw building stock, before parameter assignment."""
+    return make_synthetic_stock(n=N_BUILDINGS).assign(id_BAG=np.arange(N_BUILDINGS))
+
+
+@pytest.fixture(scope="session")
+def buildings(stock: pd.DataFrame, inputs: dict) -> pd.DataFrame:
+    """The stock with its building type, energy class and derived parameters, as the heat balance takes it."""
+    return add_parameters_to_buildings(
+        stock.copy(),
+        inputs["global_parameters"],
+        inputs["building_type_parameters"],
+        inputs["energy_class_parameters"],
     )
 
 
-@pytest.fixture
-def buildings() -> pd.DataFrame:
-    """A mixed residential/office stock sized for the hourly heat-flow benchmarks."""
-    return make_buildings(N_BUILDINGS_HEAT_FLOWS)
+@pytest.fixture(scope="session")
+def time_series(inputs: dict) -> dict[str, np.ndarray]:
+    """The hourly model time series for the weather year."""
+    return create_time_series(
+        inputs["global_parameters"],
+        inputs["raw_weather_data"],
+        inputs["solar_fractions_path"],
+        inputs["presence_load_factors_path"],
+    )
 
 
-@pytest.fixture
-def building_stock() -> pd.DataFrame:
-    """A larger stock for the whole-stock vectorised (non-hourly) benchmarks."""
-    return make_buildings(N_BUILDINGS_STOCK, seed=1)
-
-
-@pytest.fixture
-def time_series() -> dict[str, np.ndarray]:
-    """One hourly year of weather, solar radiation, UHI and presence profiles (float32, as the model uses)."""
-    rng = np.random.default_rng(2)
-    hours = np.arange(HOURS_PER_YEAR)
-    seasonal = -10.0 * np.cos(2 * np.pi * hours / HOURS_PER_YEAR)
-    diurnal = -4.0 * np.cos(2 * np.pi * hours / 24)
-    daylight = np.clip(np.sin(2 * np.pi * (hours % 24 - 6) / 24), 0, None)
-    series = {
-        "T_outdoor_minus_indoor_C": seasonal + diurnal - 10.0 + rng.normal(0.0, 2.0, HOURS_PER_YEAR),
-        "UHI_fraction": rng.uniform(0.0, 1.0, HOURS_PER_YEAR),
+@pytest.fixture(scope="session")
+def demand(buildings: pd.DataFrame, time_series: dict[str, np.ndarray], inputs: dict) -> dict[bool, pd.DataFrame]:
+    """Per-building cooling demand, keyed by whether the hourly series were kept."""
+    return {
+        include_time_series: calc_cooling_demand_metrics_for_df(
+            buildings.copy(),
+            time_series,
+            inputs["global_parameters"],
+            include_time_series,
+        )
+        for include_time_series in (False, True)
     }
-    for i, direction in enumerate(SOLAR_DIRECTIONS):
-        series[f"P_sol_{direction}_W_m2"] = daylight * (100.0 + 20.0 * i) * rng.uniform(0.5, 1.0, HOURS_PER_YEAR)
-    for use in END_USES:
-        for load in ("people", "lighting", "appliances"):
-            series[f"presence_{load}_{use}"] = rng.uniform(0.0, 1.0, HOURS_PER_YEAR)
-    return {name: values.astype(np.float32) for name, values in series.items()}
 
 
-@pytest.fixture
-def weather_df() -> pd.DataFrame:
-    """Several years of hourly KNMI-style weather, as read before the time series is built."""
-    rng = np.random.default_rng(3)
-    dates = pd.date_range("2021-01-01", periods=N_WEATHER_YEARS * HOURS_PER_YEAR, freq="h")
-    hour = np.arange(len(dates)) % 24  # The series starts at midnight
-    daylight = np.clip(np.sin(2 * np.pi * (hour - 6) / 24), 0, None)
-    return pd.DataFrame(
-        {
-            "date": dates,
-            "H": hour + 1,
-            "T_outdoor_raw_C": 10.0 + 8.0 * daylight + rng.normal(0.0, 3.0, len(dates)),
-            "Q": np.round(daylight * rng.uniform(0.0, 300.0, len(dates))),
-            "wind_speed_m_s": rng.uniform(0.0, 12.0, len(dates)),
-        },
-    )
+@pytest.fixture(scope="session")
+def impacts(demand: dict[bool, pd.DataFrame], inputs: dict) -> dict[bool, pd.DataFrame]:
+    """Per-building cooling demand and environmental impacts, keyed like ``demand``."""
+    return {
+        include_time_series: run_impact_stage(
+            buildings,
+            inputs["global_parameters"],
+            inputs["building_type_parameters"],
+            inputs["cooling_technology_parameters"],
+        )[0]
+        for include_time_series, buildings in demand.items()
+    }
