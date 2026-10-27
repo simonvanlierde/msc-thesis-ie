@@ -47,7 +47,9 @@ jobs:
           flags: dashboard
       # The a11y suite shares this job's install; a separate job billed its own
       # runner minute for a second checkout and pnpm install.
-      - run: pnpm exec playwright install --with-deps chromium
+      # No --with-deps: the runner has Chromium's libraries, and apt would only add
+      # fonts the site does not use, from a mirror that can take minutes for them.
+      - run: pnpm exec playwright install chromium
       - run: pnpm test:e2e
 
   deploy:
