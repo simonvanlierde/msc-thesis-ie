@@ -60,7 +60,7 @@ cd msc-thesis-ie
 uv sync                                                    # locked environment from uv.lock
 uv run snakemake --configfile config/smoke.yaml --cores 4  # fast end-to-end check (minutes)
 uv run snakemake --cores 4                                 # scenario results + overview figure
-uv run jupyter lab                                         # open main.ipynb and gis.ipynb
+uv run --with jupyterlab jupyter lab                       # open main.ipynb and gis.ipynb
 ```
 
 - [docs/pipeline.md](docs/pipeline.md): the pipeline, its opt-in targets, the container, the city
