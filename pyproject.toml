@@ -44,7 +44,7 @@
     Thesis = "https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a"
 
 [dependency-groups]
-  dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.16.6", "ty>=0.0.79", "pre-commit>=4.6.2", "nbstripout>=0.9.1"]
+  dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.16.6", "ty>=0.0.79", "prek>=0.5.5", "nbstripout>=0.9.1"]
 
 # Skip releases younger than a week, matching Renovate's minimumReleaseAge,
 # so a hijacked release has time to be yanked before any relock picks it up.

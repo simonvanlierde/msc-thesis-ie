@@ -22,7 +22,7 @@ uv run ruff check .            # lint
 uv run ruff format .           # format
 uv run ty check                # type check (informational)
 uv run pytest                  # tests
-uv run pre-commit install      # git hooks
+uv run prek install            # git hooks
 ```
 
 CI runs the same checks, plus a Snakemake dry run, on every pull request
