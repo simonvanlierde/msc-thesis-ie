@@ -44,7 +44,7 @@
     Thesis = "https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a"
 
 [dependency-groups]
-  dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.16.6", "ty>=0.0.79", "prek>=0.5.5", "nbstripout>=0.9.1"]
+  dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "pytest-codspeed>=5.0.3", "ruff>=0.16.6", "ty>=0.0.79", "prek>=0.5.5", "nbstripout>=0.9.1"]
 
 # Skip releases younger than a week, matching Renovate's minimumReleaseAge,
 # so a hijacked release has time to be yanked before any relock picks it up.
@@ -90,6 +90,7 @@
     [tool.ruff.lint.per-file-ignores]
       "cdm/__init__.py" = ["D104"]
       "tests/*"               = ["D", "PLR2004", "S101"] # don't require docstrings in tests
+      "benchmarks/*"          = ["D", "PLR2004", "S101"] # CodSpeed benchmarks follow the test conventions
       # Notebooks are exploratory: allow prints, commented-out code, magic values, °C/× unicode,
       # pandas .at/.values style, TODO/hack markers and formatter-conflicting trailing commas.
       # Notebook imports are used at runtime, so they must not move into type-checking blocks (TC).

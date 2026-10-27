@@ -1,0 +1,51 @@
+name: CodSpeed
+
+on:
+  push:
+    branches: [main]
+    # Only Python changes can move the numbers; dashboard and docs PRs skip the run.
+    paths: &python-paths
+      - "cdm/**"
+      - "benchmarks/**"
+      - "tests/test_integration.py"
+      - "data/input/parameters/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/codspeed.yml"
+  pull_request:
+    paths: *python-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  benchmarks:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # CodSpeed upload via OIDC, no token secret
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@821a40cd6c80e3cfe387caf55668287addd808da # v5.5.0
+        with:
+          mode: simulation
+          run: uv run pytest benchmarks/ --codspeed

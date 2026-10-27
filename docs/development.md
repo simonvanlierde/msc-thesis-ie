@@ -14,6 +14,7 @@ Install with `uv sync`. Without uv, `pip install .` in a virtual environment als
 | `scripts/` | Data acquisition and pipeline entry points. |
 | `docs/` | The headline figure and the script that regenerates it. |
 | `tests/` | Unit tests for the geometric, thermodynamic and environmental functions. |
+| `benchmarks/` | CodSpeed performance benchmarks of the pipeline stages. |
 
 ## Checks
 
@@ -29,6 +30,22 @@ CI runs the same checks, plus a Snakemake dry run, on every pull request
 ([workflow](../.github/workflows/ci.yml)). On
 commit, the hooks run ruff (lint and format), the dashboard formatter and `ty`. On push, they run
 the test suite and the dashboard checks. `ty` reports its findings without blocking, as in CI.
+
+## Benchmarks
+
+`benchmarks/` holds [pytest-codspeed](https://codspeed.io/docs/reference/pytest-codspeed) benchmarks
+for the pipeline stages: parameter assignment, time series, heat balance, impacts and aggregation.
+They run the real SQ parameters and one year of the committed backup weather on a 200-building
+synthetic stock, so they need no Zenodo data. Without `--codspeed` they run once each as ordinary tests.
+
+```bash
+uv run pytest benchmarks/                                                     # run as tests
+codspeed run --mode simulation -- uv run pytest benchmarks/ --codspeed        # measure locally
+```
+
+The [CodSpeed workflow](../.github/workflows/codspeed.yml) measures them with CPU simulation on every
+push to `main` and every pull request that touches the Python code or its inputs, and reports
+performance changes on the PR.
 
 ## Regenerating the figures
 

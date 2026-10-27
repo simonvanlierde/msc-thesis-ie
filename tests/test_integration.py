@@ -59,7 +59,7 @@ REQUIRED_INPUTS = [
 ]
 
 
-def _make_synthetic_stock(n: int = SAMPLE_SIZE, seed: int = SAMPLE_SEED) -> pd.DataFrame:
+def make_synthetic_stock(n: int = SAMPLE_SIZE, seed: int = SAMPLE_SEED) -> pd.DataFrame:
     """Build a deterministic stock of ``n`` buildings with all raw attributes the model reads."""
     rng = np.random.default_rng(seed)
     end_use = np.where(rng.random(n) < 0.9, "residential", "office")
@@ -159,7 +159,7 @@ def _assert_within_tolerance(total_kwh: float, reference_kwh: float) -> None:
     reason="real SQ parameter / weather inputs are not checked out",
 )
 def test_full_pipeline_sq_synthetic_stock(monkeypatch: pytest.MonkeyPatch) -> None:
-    total_kwh = _run_sq_total_cooling_demand(monkeypatch, _make_synthetic_stock())
+    total_kwh = _run_sq_total_cooling_demand(monkeypatch, make_synthetic_stock())
     _assert_within_tolerance(total_kwh, REFERENCE_SYNTHETIC_TOTAL_E_COOLING_KWH)
 
 
@@ -175,7 +175,7 @@ def test_hoisted_demand_stage_matches_monolithic_run(monkeypatch: pytest.MonkeyP
     does not change the result.
     """
     inputs = _load_sq_inputs(monkeypatch)
-    buildings = _make_synthetic_stock(n=500)
+    buildings = make_synthetic_stock(n=500)
 
     combined, combined_summary = run_CDM_model_for_SA(
         buildings.copy(),
