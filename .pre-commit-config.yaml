@@ -1,5 +1,5 @@
 # Mirrors the CI checks in .github/workflows/ci.yml.
-# Install once with: uv run pre-commit install
+# Install once with: uv run prek install
 # Fast linters/formatters run on commit; tests and the dashboard build run on push.
 default_install_hook_types: [pre-commit, pre-push]
 default_stages: [pre-commit]

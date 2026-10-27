@@ -1,0 +1,69 @@
+{
+  "status_quo": {
+    "archetype_groups": 26,
+    "cooling_demand_kWh": 1146485857.6701527,
+    "cooling_demand_capped_kWh": 1117902942.4579852,
+    "peak_power_kW": 1430965.4812969386,
+    "peak_power_capped_kW": 782577.1876921654,
+    "intensity_office_kWh_m2": 115.24078078405758,
+    "intensity_residential_kWh_m2": 35.53149105668262,
+    "office_share_floor_area": 0.13464532022328363,
+    "office_share_demand": 0.3353934071047327,
+    "office_share_electricity": 0.6784007908047396,
+    "office_share_GHG": 0.6540208869020798,
+    "unmet_demand_share": 0.6415114218586486,
+    "GHG_total_kgCO2eq": 48829991.926532485,
+    "population": 708921.8699999999,
+    "GHG_per_capita_kgCO2eq": 68.879229140628,
+    "GHG_phase_shares": {
+      "electricity": 0.8822545874875384,
+      "refrigerant": 0.09726799493101136,
+      "production": 0.019096917519779488,
+      "EoL": 0.0013805000616708063
+    },
+    "equipment_mass_kg": 3003445.6943598846,
+    "material_intensity_office_kg_m2": 0.5244529635142408,
+    "material_intensity_residential_kg_m2": 0.058452866713616,
+    "material_intensity_ratio": 8.972236829439792,
+    "ADP_kgSbeq": 58.421832617168,
+    "CSI_kgSieq": 365136453.85730004
+  },
+  "scenarios": {
+    "2030": {
+      "demand_change": 0.00430170791775053,
+      "electricity_change": 0.2788922489293306,
+      "GHG_change": -0.48519291427875444,
+      "mass_change": 0.5555527264916511,
+      "unmet_demand_share": 0.4685731858644151,
+      "office_share_demand": 0.2613055800884855,
+      "intensity_residential_kWh_m2": 36.7302999530269
+    },
+    "2050_L": {
+      "demand_change": -0.12391496737617735,
+      "electricity_change": -0.3364563760035607,
+      "GHG_change": -0.9029045361742292,
+      "mass_change": 1.659293935199079,
+      "unmet_demand_share": 0.3855554374819077,
+      "office_share_demand": 0.24622502636611177,
+      "intensity_residential_kWh_m2": 34.15978794285194
+    },
+    "2050_M": {
+      "demand_change": 0.18175347622555016,
+      "electricity_change": 0.46984100878808954,
+      "GHG_change": -0.8091094969966,
+      "mass_change": 1.9758919517723537,
+      "unmet_demand_share": 0.28826939477861535,
+      "office_share_demand": 0.24506204724386182,
+      "intensity_residential_kWh_m2": 41.300707443836295
+    },
+    "2050_H": {
+      "demand_change": 0.8647839576560361,
+      "electricity_change": 3.151800435896365,
+      "GHG_change": 0.7120224110684283,
+      "mass_change": 2.549901007723979,
+      "unmet_demand_share": 0.16640896487686074,
+      "office_share_demand": 0.19613254571731875,
+      "intensity_residential_kWh_m2": 62.098725564654
+    }
+  }
+}

@@ -32,7 +32,12 @@ export function quantileBreaks(values: number[], bins: number): number[] {
     const q = (i / bins) * (v.length - 1);
     const lo = Math.floor(q);
     const hi = Math.ceil(q);
-    breaks.push(v[lo] + (v[hi] - v[lo]) * (q - lo));
+    const t = q - lo;
+    const span = v[hi] - v[lo];
+    // Values more than Number.MAX_VALUE apart overflow the span to Infinity; weight the two ends
+    // instead. The clamp keeps a break inside its interval despite rounding.
+    const x = Number.isFinite(span) ? v[lo] + span * t : v[lo] * (1 - t) + v[hi] * t;
+    breaks.push(Math.min(Math.max(x, v[lo]), v[hi]));
   }
   return breaks;
 }

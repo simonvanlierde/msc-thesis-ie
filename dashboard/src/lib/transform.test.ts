@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { elecFactors, lcaStages, officeHeadline, rollup, share } from "./transform";
 import type { Archetype, GhgStages, Scenario } from "./types";
@@ -109,5 +110,52 @@ describe("lcaStages", () => {
       "EoL_phase",
     ]);
     expect(out[1]).toMatchObject({ label: "Electricity", value: 10 });
+  });
+});
+
+describe("rollup properties", () => {
+  const amount = fc.double({ min: 0, max: 1e12, noNaN: true });
+  const archetype = fc
+    .record({
+      use: fc.constantFrom("Residential", "Office"),
+      age: fc.constantFrom("New", "Old"),
+      form: fc.constantFrom("Highrise", "Lowrise"),
+      floor_area_m2: amount,
+      E_cooling_kWh: amount,
+      GHG_emissions_total_kgCO2eq: amount,
+      ADP_kgSbeq: amount,
+      CSI_kgSieq: amount,
+    })
+    .map((over) => arch(over));
+  const metrics = [
+    "floor_area_m2",
+    "E_cooling_kWh",
+    "GHG_emissions_total_kgCO2eq",
+    "ADP_kgSbeq",
+    "CSI_kgSieq",
+  ] as const;
+
+  it("rows and their totals match the archetypes they group, for every facet", () => {
+    fc.assert(
+      fc.property(fc.array(archetype), fc.constantFrom("use", "age", "form"), (as, facet) => {
+        const rows = rollup(as, facet);
+        // Grouping changes the summation order, so allow float rounding relative to the sum.
+        const close = (got: number, want: number) =>
+          expect(Math.abs(got - want)).toBeLessThanOrEqual(1e-9 * Math.max(1, want));
+        expect(rows.map((r) => r.key).sort()).toEqual([...new Set(as.map((a) => a[facet]))].sort());
+        for (const m of metrics) {
+          close(
+            rows.reduce((s, r) => s + r[m], 0),
+            as.reduce((s, a) => s + a[m], 0),
+          );
+          for (const r of rows) {
+            close(
+              r[m],
+              as.filter((a) => a[facet] === r.key).reduce((s, a) => s + a[m], 0),
+            );
+          }
+        }
+      }),
+    );
   });
 });
