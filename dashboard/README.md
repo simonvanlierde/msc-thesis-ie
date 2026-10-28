@@ -5,7 +5,7 @@ Hague need, and the life-cycle climate impact of that cooling. A map colours the
 neighbourhoods (buurten) by cooling demand, profiles show a summer day and the months, and stacked
 bars split the life-cycle greenhouse-gas emissions per scenario.
 
-**[Open the live dashboard →](https://simonvanlierde.github.io/msc-thesis-ie/)**
+**[Open the live dashboard →](https://simonvanlierde.com/msc-thesis-ie/)**
 
 ![The dashboard's map view: cooling demand across The Hague's 112 neighbourhoods, shown on the 2050 Medium scenario](docs/screenshot.png)
 

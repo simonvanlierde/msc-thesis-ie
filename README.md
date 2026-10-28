@@ -6,7 +6,7 @@
 [![Dashboard](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/dashboard.yml/badge.svg)](https://github.com/simonvanlierde/msc-thesis-ie/actions/workflows/dashboard.yml)
 [![codecov](https://codecov.io/gh/simonvanlierde/msc-thesis-ie/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/msc-thesis-ie)
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/simonvanlierde/msc-thesis-ie?utm_source=badge)
-[![Dashboard](https://img.shields.io/badge/dashboard-live-brightgreen.svg)](https://simonvanlierde.github.io/msc-thesis-ie/)
+[![Dashboard](https://img.shields.io/badge/dashboard-live-brightgreen.svg)](https://simonvanlierde.com/msc-thesis-ie/)
 [![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue.svg)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Data DOI](https://img.shields.io/badge/data-10.5281%2Fzenodo.8344580-blue.svg)](https://doi.org/10.5281/zenodo.8344580)
@@ -16,9 +16,9 @@ This is the model behind my MSc Industrial Ecology thesis (Leiden University & T
 estimates how much cooling the buildings of The Hague need, and what that cooling costs in
 electricity, greenhouse-gas emissions and materials, today and in scenarios for 2030 and 2050.
 
-**[Open the live dashboard →](https://simonvanlierde.github.io/msc-thesis-ie/)**
+**[Open the live dashboard →](https://simonvanlierde.com/msc-thesis-ie/)**
 
-[![Dashboard](dashboard/docs/screenshot.png)](https://simonvanlierde.github.io/msc-thesis-ie/)
+[![Dashboard](dashboard/docs/screenshot.png)](https://simonvanlierde.com/msc-thesis-ie/)
 
 ## Key findings
 
