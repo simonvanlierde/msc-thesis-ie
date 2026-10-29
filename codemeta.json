@@ -1,0 +1,27 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@type": "SoftwareSourceCode",
+  "name": "Cooling for Comfort, Warming the World: cooling demand and environmental impact model for The Hague",
+  "description": "Codebase for an MSc Industrial Ecology thesis modelling residential and office cooling demand and its environmental impacts in The Hague, the Netherlands, combining geospatial building data, thermodynamic modelling and life-cycle-based environmental impact assessment across 2020, 2030 and three 2050 scenarios.",
+  "author": [
+    {
+      "@type": "Person",
+      "@id": "https://orcid.org/0009-0006-6953-909X",
+      "givenName": "Simon",
+      "familyName": "van Lierde"
+    }
+  ],
+  "codeRepository": "https://github.com/simonvanlierde/msc-thesis-ie",
+  "url": "https://github.com/simonvanlierde/msc-thesis-ie",
+  "issueTracker": "https://github.com/simonvanlierde/msc-thesis-ie/issues",
+  "license": "https://spdx.org/licenses/GPL-3.0-or-later",
+  "programmingLanguage": "Python",
+  "keywords": [
+    "industrial ecology",
+    "cooling demand",
+    "urban heat",
+    "energy modelling",
+    "life cycle assessment",
+    "geospatial analysis"
+  ]
+}

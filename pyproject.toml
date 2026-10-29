@@ -9,12 +9,12 @@
   authors = [{ name = "Simon van Lierde" }]
   description = "Cooling demand and environmental impact model for residential and office buildings in The Hague (MSc Industrial Ecology thesis)."
   keywords = [
-    "industrial-ecology",
-    "cooling-demand",
-    "energy-modelling",
-    "life-cycle-assessment",
-    "urban-heat",
-    "geospatial",
+    "industrial ecology",
+    "cooling demand",
+    "urban heat",
+    "energy modelling",
+    "life cycle assessment",
+    "geospatial analysis",
   ]
   license = { text = "GPL-3.0-or-later" }
   name = "cooling-demand-model"
