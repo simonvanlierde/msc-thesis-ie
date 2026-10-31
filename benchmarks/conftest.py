@@ -17,9 +17,11 @@ for _var in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
 import warnings  # noqa: E402
 from typing import TYPE_CHECKING  # noqa: E402
 
+import geopandas as gpd  # noqa: E402
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 import requests  # noqa: E402
+from shapely.geometry import Point  # noqa: E402
 
 from cdm.parameters import add_parameters_to_buildings  # noqa: E402
 from cdm.readers import read_global_parameters, read_parameter_specific_data  # noqa: E402
@@ -29,6 +31,8 @@ from cdm.time_series import create_time_series, get_raw_weather_data  # noqa: E4
 from tests.test_integration import PARAMETER_DIR, PARAMETERS_TOML, SCENARIO, make_synthetic_stock  # noqa: E402
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import pandas as pd
 
 # Small enough to simulate in seconds; the heat balance cost is linear in buildings x hours.
@@ -69,6 +73,22 @@ def inputs() -> dict:
         "solar_fractions_path": str(PARAMETER_DIR / "multidirectional_solar_radiation_fractions.csv"),
         "presence_load_factors_path": str(PARAMETER_DIR / "presence_load_factors.csv"),
     }
+
+
+@pytest.fixture(scope="session")
+def stock_gpkg_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A synthetic GeoPackage file with residential/office buildings in EPSG:28992."""
+    raw = make_synthetic_stock(n=N_BUILDINGS).assign(
+        id_BAG=np.arange(N_BUILDINGS),
+        status="Pand in gebruik",
+        energy_label="A",
+    )
+    raw["end_use"] = raw["end_use"].replace({"residential": "woonfunctie", "office": "kantoorfunctie"})
+    gdf = gpd.GeoDataFrame(raw, geometry=[Point(i, i) for i in range(len(raw))], crs="EPSG:28992")
+    tmp_dir = tmp_path_factory.mktemp("bench_gis")
+    gpkg_path = tmp_dir / "buildings.gpkg"
+    gdf.to_file(gpkg_path, layer="BAG_buildings", driver="GPKG")
+    return gpkg_path
 
 
 @pytest.fixture(scope="session")

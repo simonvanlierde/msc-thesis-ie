@@ -12,14 +12,23 @@ import pytest
 
 from cdm.aggregation import aggregate_results
 from cdm.parameters import add_parameters_to_buildings
+from cdm.readers import read_buildings
 from cdm.sensitivity_analysis import run_impact_stage
 from cdm.thermodynamic import calc_cooling_demand_metrics_for_df
 from cdm.time_series import create_time_series
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import numpy as np
     import pandas as pd
     from pytest_codspeed import BenchmarkFixture
+
+
+def test_read_buildings(benchmark: BenchmarkFixture, stock_gpkg_path: Path) -> None:
+    result = benchmark(read_buildings, stock_gpkg_path, "BAG_buildings")
+    assert len(result) == 200
+    assert set(result["end_use"].unique()).issubset({"residential", "office"})
 
 
 def test_add_parameters_to_buildings(benchmark: BenchmarkFixture, stock: pd.DataFrame, inputs: dict) -> None:
