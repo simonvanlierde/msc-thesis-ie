@@ -51,9 +51,6 @@
 # so a hijacked release has time to be yanked before any relock picks it up.
 [tool.uv]
   exclude-newer = "7 days"
-  # Security fixes released inside the cooldown (pillow 13.0.0, certifi 2026.10.19).
-  # TODO: drop after 2026-10-28, once both are older than a week.
-  exclude-newer-package = { pillow = "2026-10-21T00:00:00Z", certifi = "2026-10-21T00:00:00Z" }
 
 [tool.ruff]
   line-length    = 120
