@@ -183,23 +183,23 @@ const card = `<!doctype html><meta charset="utf-8"><style>
   * { box-sizing: border-box }
   body { margin: 0; width: 1200px; height: 630px; background: #f9f9f7; color: #0b0b0b;
          font-family: "Public Sans", sans-serif; display: flex; flex-direction: column }
-  .top { flex: 1 1 auto; padding: 64px 64px 0 }
-  .kicker { font-size: 22px; color: #52514e; letter-spacing: 0.01em }
-  h1 { font-family: Newsreader; font-weight: 500;
-       font-size: 68px; line-height: 1.04; letter-spacing: -0.02em; margin: 28px 0 0;
-       max-width: 17ch; text-wrap: balance }
+  /* Link previews may crop to the centred 630 px: all the meaning sits in x 285-915. */
+  .top { flex: 1 1 auto; width: 630px; margin: 0 auto; padding: 60px 0 0 }
+  h1 { font-family: Newsreader; font-weight: 500; font-size: 58px; line-height: 1.06;
+       letter-spacing: -0.02em; margin: 0; text-wrap: balance }
   em { font-style: normal; color: #256abf }
-  .credit { padding: 0 64px 22px; font-size: 20px; color: #52514e }
-  .band { flex: 0 0 168px; display: block; width: 1200px; height: 168px }
+  .what { font-size: 38px; line-height: 1.2; color: #3d3c3a; margin: 36px 0 0 }
+  .url { font-size: 30px; line-height: 1.2; color: #52514e; margin: 10px 0 0 }
+  .band { flex: 0 0 150px; display: block; width: 1200px; height: 150px }
   .band svg { display: block }
 </style>
 <body>
   <div class="top">
-    <div class="kicker">Cooling for Comfort, Warming the World · The Hague</div>
     <h1>Offices fill just <em>${area}</em> of the floor area but drive <em>${ghg}</em> of cooling emissions.</h1>
+    <p class="what">MSc thesis: cooling in The Hague</p>
+    <p class="url">simonvanlierde.com/msc-thesis-ie</p>
   </div>
-  <div class="credit">Every hour of a typical year, below · MSc Industrial Ecology thesis, Leiden University &amp; TU Delft</div>
-  <div class="band">${heatBand(heatGrid(temporal), 1200, 168)}</div>
+  <div class="band">${heatBand(heatGrid(temporal), 1200, 150)}</div>
 </body>`;
 
 await shoot(card, 1200, 630, join(OUT, "og.png"));
