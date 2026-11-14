@@ -8,7 +8,7 @@ from pathlib import Path
 import geopandas as gpd
 import pytest
 
-from scripts.build_dataset_release import FIELDS, build_release
+from scripts.build_dataset_release import FIELDS, build_release, main
 
 
 def test_release_excludes_private_columns_and_verifies_archive(tmp_path: Path) -> None:
@@ -75,3 +75,20 @@ def test_release_records_invalid_geometry_exclusions(tmp_path: Path) -> None:
     review = (tmp_path / "release-review/excluded-records.csv").read_text()
     assert buildings.loc[0, "id_BAG"] in review
     assert "invalid or empty geometry" in review
+
+
+def test_cli_missing_source_reports_io_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "release"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["build_dataset_release.py", "--source", str(tmp_path / "missing.gpkg"), "--output", str(output)],
+    )
+    assert main() == 3
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("error:")
+    assert not output.exists()

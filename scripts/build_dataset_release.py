@@ -163,7 +163,7 @@ def main() -> int:
     except ValueError as error:
         print(f"error: {error!s}", file=sys.stderr)  # noqa: T201
         return 1
-    except OSError as error:
+    except Exception as error:  # noqa: BLE001 - Map execution failures to the documented CLI exit code.
         print(f"error: {error!s}", file=sys.stderr)  # noqa: T201
         return 3
     print(archive)  # noqa: T201
