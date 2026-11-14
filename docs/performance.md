@@ -1,6 +1,7 @@
 # Profile sensitivity runs and full-stock memory
 
-Run these commands from the repository root with Python 3.14 and the locked dependencies.
+Run these commands from the repository root with the locked dependencies.
+The diagnostic results below record the Python version used for each measurement.
 The profiler runs the production sensitivity drivers without plotting or retaining scientific outputs.
 It uses SQ parameters and the committed 2022 weather backup, with no KNMI request.
 
