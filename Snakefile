@@ -21,7 +21,7 @@ PARAMETER_GROUP_FILES = [
     f"{PARAMETER_DIR}/parameters_energy_class.csv",
     f"{PARAMETER_DIR}/parameters_cooling_technology.csv",
 ]
-RAW_DIR = "data/raw"
+RAW_DIR = config.get("raw_dir", "data/raw")
 
 # All pipeline products go under RESULTS_DIR, leaving the committed reference
 # outputs in data/output/ and docs/ untouched.
@@ -59,7 +59,7 @@ RIVM_UHI_ZIP_URL = config["rivm_uhi"]["zip_url"]
 RIVM_UHI_CACHE_DIR = f"{RAW_DIR}/rivm_uhi"
 # gis.ipynb reads this exact path (a clip of the national raster). The rule
 # materialises it, so the notebook's one external raster becomes reproducible.
-UHI_RASTER = "data/input/geodata/UHI_effect_TheHague.tif"
+UHI_RASTER = config.get("rivm_uhi_raster", "data/input/geodata/UHI_effect_TheHague.tif")
 
 HABIB_UHI_FILES_API = config["habib_uhi"]["files_api"]
 HABIB_UHI_ARCHIVE_FILE_NAME = config["habib_uhi"]["archive_file_name"]
@@ -67,7 +67,7 @@ HABIB_UHI_ZIP_MEMBER = config["habib_uhi"]["uhimax_zip_member"]
 HABIB_UHI_CACHE_DIR = f"{RAW_DIR}/habib_uhi"
 # Per-building UHImax raster (Habib et al. 2025); Task 3 samples it, replacing the
 # flawed citywide RIVM uplift above.
-HABIB_UHI_RASTER = "data/input/geodata/UHImax_habib_TheHague_5m.tif"
+HABIB_UHI_RASTER = config.get("habib_uhi_raster", "data/input/geodata/UHImax_habib_TheHague_5m.tif")
 
 # The model rules call ``cdm`` through a shell command, so Snakemake's ``code``
 # rerun-trigger (which only hashes run:/script: bodies) cannot see it. Declare the
@@ -330,7 +330,7 @@ rule fetch_uhi_raster:
 
 rule fetch_uhi_habib:
     # Heavy: 4TU serves the whole 99-municipality dataset as one ~4.5 GB national zip
-    # (cached), from which only The Hague's UHImax member is extracted.
+    # (cached), from which only the configured municipality's UHImax member is extracted.
     retries: NETWORK_RETRIES
     input:
         environment="uv.lock",
@@ -438,7 +438,7 @@ rule add_uhi_to_buildings:
     input:
         environment="uv.lock",
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_nouhi_full.gpkg",
-        uhi_habib="data/input/geodata/UHImax_habib_TheHague_5m.tif",
+        uhi_habib=HABIB_UHI_RASTER,
         script="scripts/gis/add_uhi_to_buildings.py",
     output:
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
