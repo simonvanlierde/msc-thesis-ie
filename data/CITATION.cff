@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "Cite the dataset version DOI after publication; cite the upstream sources listed in README.md."
+title: "The Hague building inputs with local UHImax (open subset)"
+type: dataset
+version: 0.1.0
+authors:
+  - family-names: van Lierde
+    given-names: Simon
+license: CC-BY-SA-4.0
+repository-code: "https://github.com/simonvanlierde/msc-thesis-ie"
+url: "https://doi.org/10.5281/zenodo.8344580"

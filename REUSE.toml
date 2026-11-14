@@ -1,0 +1,6 @@
+version = 1
+
+[[annotations]]
+path = ["tests/fixtures/**", "data/README.md", "data/CITATION.cff"]
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+SPDX-FileCopyrightText = "Kadaster; Habib et al. (2025); Simon van Lierde"
