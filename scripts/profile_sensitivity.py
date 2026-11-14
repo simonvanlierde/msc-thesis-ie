@@ -111,6 +111,8 @@ def main() -> int:
     package = commands.add_parser("package", help="Measure the complete private open-input packaging path.")
     package.add_argument("--output", type=Path, required=True, help="New private release directory.")
     args = parser.parse_args()
+    if args.mode == "package" and args.profile.resolve() == (args.output.parent / f"{args.output.name}.zip").resolve():
+        parser.error("--profile must not replace the measured archive")
     try:
         if args.profile.exists():
             raise FileExistsError(args.profile)  # noqa: TRY301 - Keep overwrite refusal at the CLI boundary.

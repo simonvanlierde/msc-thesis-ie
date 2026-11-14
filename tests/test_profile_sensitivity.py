@@ -103,3 +103,26 @@ def test_real_sensitivity_profile_is_offline_and_complete(
     original = profile.read_bytes()
     assert profile_sensitivity.main() == 3
     assert profile.read_bytes() == original
+
+
+@pytest.mark.parametrize("name", ["release", "release.v0.1"])
+def test_profile_cannot_overwrite_measured_archive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+) -> None:
+    output = tmp_path / name
+    archive = tmp_path / f"{name}.zip"
+    buildings = gpd.read_file("tests/fixtures/bag_2000.gpkg", layer="buildings").head(2)
+    source = tmp_path / "stock.gpkg"
+    buildings.to_file(source, layer="BAG_buildings_full", driver="GPKG")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["profile", "--source", str(source), "--profile", str(archive), "package", "--output", str(output)],
+    )
+    with pytest.raises(SystemExit) as error:
+        profile_sensitivity.main()
+    assert error.value.code == 2
+    assert not output.exists()
+    assert not archive.exists()
