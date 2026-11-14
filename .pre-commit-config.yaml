@@ -66,11 +66,11 @@ repos:
         # pnpm writes its own version into the lockfile as a second YAML document.
         exclude: (^|/)pnpm-lock\.yaml$
       - id: end-of-file-fixer
-        exclude: ^(data|tests/fixtures)/
+        exclude: ^(data|tests/fixtures|LICENSES)/
       - id: mixed-line-ending
-        exclude: ^(data|tests/fixtures)/
+        exclude: ^(data|tests/fixtures|LICENSES)/
       - id: trailing-whitespace
-        exclude: ^(data|tests/fixtures)/
+        exclude: ^(data|tests/fixtures|LICENSES)/
       # Not gated to python: .rumdl.toml ships to every stack.
       - id: check-toml
 
@@ -97,4 +97,4 @@ repos:
         # translation catalogs: gettext .po files and anything in a locales/ directory.
         # List other files with text in other languages under [files] extend-exclude in
         # _typos.toml.
-        exclude: ^\.copier-answers\.yml$|\.po$|(^|/)locales/
+        exclude: ^LICENSES/|^\.copier-answers\.yml$|\.po$|(^|/)locales/
