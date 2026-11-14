@@ -4,7 +4,6 @@ from pathlib import Path
 import yaml
 from snakemake.utils import update_config
 
-from cdm.constants import SCENARIOS
 from scripts.gis.fetch_uhi_habib import download_file, ensure_rd_new, extract_member
 
 
@@ -28,10 +27,7 @@ localrules: all
 
 rule all:
     input:
-        expand("results/two-cities/{city}/CDM_results_{scenario}_full.csv",
-               city=["oegstgeest", "voorschoten"], scenario=SCENARIOS),
-        expand("results/two-cities/{city}/figures/scenario_overview.png",
-               city=["oegstgeest", "voorschoten"]),
+        lambda wildcards: [*rules.oegstgeest_all.input, *rules.voorschoten_all.input],
 
 
 module oegstgeest:
@@ -49,8 +45,8 @@ use rule provide_ep_online_energy_labels from oegstgeest
 
 # Notebook and paper targets embed Hague-specific paths or interpretation. Keep them out
 # of this prototype instead of presenting those outputs as validated for another city.
-use rule fetch_city_boundary, fetch_bag_residences, discover_pdok_3d_height_tiles, download_pdok_3d_height_tiles, fetch_weather, prepare_bag_geodata, add_uhi_to_buildings, subsample_buildings, thermodynamic_model, lca, scenario_overview_figure from oegstgeest as oegstgeest_*
-use rule fetch_city_boundary, fetch_bag_residences, discover_pdok_3d_height_tiles, download_pdok_3d_height_tiles, fetch_weather, prepare_bag_geodata, add_uhi_to_buildings, subsample_buildings, thermodynamic_model, lca, scenario_overview_figure from voorschoten as voorschoten_*
+use rule all, fetch_city_boundary, fetch_bag_residences, discover_pdok_3d_height_tiles, download_pdok_3d_height_tiles, fetch_weather, prepare_bag_geodata, add_uhi_to_buildings, subsample_buildings, thermodynamic_model, lca, scenario_overview_figure from oegstgeest as oegstgeest_*
+use rule all, fetch_city_boundary, fetch_bag_residences, discover_pdok_3d_height_tiles, download_pdok_3d_height_tiles, fetch_weather, prepare_bag_geodata, add_uhi_to_buildings, subsample_buildings, thermodynamic_model, lca, scenario_overview_figure from voorschoten as voorschoten_*
 
 
 # One producer owns the mutable archive cache; extraction jobs only read that ZIP.

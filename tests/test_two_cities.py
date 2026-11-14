@@ -103,3 +103,15 @@ def test_each_city_extracts_its_own_habib_member(workflow: Path) -> None:
             np.testing.assert_array_equal(raster.read(1), np.full((2, 2), value))
             assert raster.crs.to_epsg() == 28992
     assert archive.exists()
+
+
+def test_aggregate_uses_each_profile_subset_and_results_root(workflow: Path) -> None:
+    profile = workflow / "config/cities/oegstgeest.yaml"
+    settings = yaml.safe_load(profile.read_text())
+    settings["results_dir"] = "results/alternate-oegstgeest"
+    settings["building_subset"] = "sample"
+    profile.write_text(yaml.safe_dump(settings))
+    products = _summary(workflow, "workflow/two_cities.smk")
+    assert "results/alternate-oegstgeest/CDM_results_SQ_sample.csv" in products
+    assert "results/two-cities/voorschoten/CDM_results_SQ_full.csv" in products
+    assert not any(path.startswith("results/two-cities/oegstgeest/") for path in products)
