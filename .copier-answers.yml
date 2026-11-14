@@ -23,7 +23,7 @@ public: true
 python_dir: .
 python_kind: research
 python_layout: flat
-python_version: '3.14'
+python_version: '3.15'
 site: none
 stacks:
 - python

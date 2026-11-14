@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/simonvanlierde/msc-thesis-ie/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/msc-thesis-ie)
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/simonvanlierde/msc-thesis-ie?utm_source=badge)
 [![Dashboard](https://img.shields.io/badge/dashboard-live-brightgreen.svg)](https://simonvanlierde.com/msc-thesis-ie/)
-[![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue.svg)](https://www.python.org/)
+[![Python 3.15+](https://img.shields.io/badge/python-3.15%2B-blue.svg)](https://www.python.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Data DOI](https://img.shields.io/badge/data-10.5281%2Fzenodo.8344580-blue.svg)](https://doi.org/10.5281/zenodo.8344580)
 [![Thesis](https://img.shields.io/badge/thesis-TU%20Delft%20repository-blue.svg)](https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a)
