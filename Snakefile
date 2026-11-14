@@ -72,6 +72,8 @@ HABIB_UHI_RASTER = "data/input/geodata/UHImax_habib_TheHague_5m.tif"
 # The model rules call ``cdm`` through a shell command, so Snakemake's ``code``
 # rerun-trigger (which only hashes run:/script: bodies) cannot see it. Declare the
 # model sources as inputs so editing the model re-runs the rules that use it.
+# Every executable rule also tracks uv.lock: shell jobs do not use a Snakemake-managed
+# environment, so software-env cannot detect dependency changes.
 MODEL_SRC = sorted(str(path) for path in Path("cdm").glob("*.py"))
 
 # Rules that hit PDOK/KNMI/EP-Online. A 5xx mid-pagination kills the whole script, which
@@ -95,6 +97,7 @@ rule paper:
 
 rule paper_figures:
     input:
+        environment="uv.lock",
         csv=f"{RESULTS_DIR}/CDM_results_SQ_{SUBSET}.csv",
         geodata=f"{RESULTS_GEODATA_DIR}/buildings_with_CDM_results_SQ_{SUBSET}.gpkg",
         script="scripts/make_paper_figures.py",
@@ -112,6 +115,7 @@ rule paper_figures:
 # re-synced against by hand.
 rule paper_numbers:
     input:
+        environment="uv.lock",
         csvs=expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_{SUBSET}.csv", scenario=SCENARIOS),
         script="scripts/paper_numbers.py",
     output:
@@ -147,6 +151,10 @@ rule notebooks:
 
 rule fetch_city_boundary:
     retries: NETWORK_RETRIES
+    input:
+        environment="uv.lock",
+        script="scripts/gis/fetch_city_boundary.py",
+        http="scripts/gis/pdok_http.py",
     output:
         boundary=BOUNDARY_GEOJSON,
         bbox=BBOX_FILE,
@@ -170,6 +178,9 @@ rule fetch_city_boundary:
 rule fetch_bag_residences:
     retries: NETWORK_RETRIES
     input:
+        environment="uv.lock",
+        script="scripts/gis/fetch_ogc_features.py",
+        http="scripts/gis/pdok_http.py",
         bbox=BBOX_FILE,
     output:
         BAG_RESIDENCES,
@@ -191,6 +202,9 @@ rule fetch_bag_residences:
 rule discover_pdok_3d_height_tiles:
     retries: NETWORK_RETRIES
     input:
+        environment="uv.lock",
+        script="scripts/gis/discover_pdok_3d_height_tiles.py",
+        http="scripts/gis/pdok_http.py",
         bbox=BBOX_FILE,
     output:
         f"{PDOK_3D_DIR}/height_tiles_manifest.json",
@@ -214,7 +228,10 @@ rule discover_pdok_3d_height_tiles:
 rule download_pdok_3d_height_tiles:
     retries: NETWORK_RETRIES
     input:
-        f"{PDOK_3D_DIR}/height_tiles_manifest.json",
+        environment="uv.lock",
+        script="scripts/gis/download_manifest_files.py",
+        http="scripts/gis/pdok_http.py",
+        manifest=f"{PDOK_3D_DIR}/height_tiles_manifest.json",
     output:
         tiles=directory(f"{PDOK_3D_DIR}/height_tiles"),
         manifest=f"{PDOK_3D_DIR}/height_tiles_local_manifest.json",
@@ -223,7 +240,7 @@ rule download_pdok_3d_height_tiles:
     shell:
         """
         python -m scripts.gis.download_manifest_files \
-          --manifest {input} \
+          --manifest {input.manifest} \
           --output-dir {output.tiles} \
           --local-manifest {output.manifest} > {log} 2>&1
         """
@@ -234,6 +251,9 @@ rule download_pdok_3d_height_tiles:
 rule fetch_cbs_postcode4:
     retries: NETWORK_RETRIES
     input:
+        environment="uv.lock",
+        script="scripts/gis/fetch_ogc_features.py",
+        http="scripts/gis/pdok_http.py",
         bbox=BBOX_FILE,
     output:
         CBS_POSTCODE4,
@@ -261,6 +281,9 @@ rule fetch_cbs_postcode4:
 rule fetch_cbs_buurten:
     retries: NETWORK_RETRIES
     input:
+        environment="uv.lock",
+        script="scripts/gis/fetch_ogc_features.py",
+        http="scripts/gis/pdok_http.py",
         bbox=BBOX_FILE,
     output:
         CBS_BUURTEN,
@@ -284,6 +307,9 @@ rule fetch_uhi_raster:
     # Only needed by run_gis_notebook, never by `all`.
     retries: NETWORK_RETRIES
     input:
+        environment="uv.lock",
+        script="scripts/gis/fetch_uhi_raster.py",
+        http="scripts/gis/pdok_http.py",
         bbox=BBOX_FILE,
     output:
         UHI_RASTER,
@@ -306,6 +332,10 @@ rule fetch_uhi_habib:
     # Heavy: 4TU serves the whole 99-municipality dataset as one ~4.5 GB national zip
     # (cached), from which only The Hague's UHImax member is extracted.
     retries: NETWORK_RETRIES
+    input:
+        environment="uv.lock",
+        script="scripts/gis/fetch_uhi_habib.py",
+        http="scripts/gis/pdok_http.py",
     output:
         HABIB_UHI_RASTER,
     params:
@@ -328,6 +358,9 @@ rule fetch_uhi_habib:
 
 rule provide_ep_online_energy_labels:
     retries: NETWORK_RETRIES
+    input:
+        environment="uv.lock",
+        script="scripts/gis/ensure_energy_labels.py",
     output:
         EP_ONLINE_LABELS,
     log:
@@ -345,8 +378,10 @@ rule fetch_weather:
     # mtime -- still retriggers the fetch. Widen to MODEL_SRC if get_raw_weather_data
     # ever starts transforming more of the data.
     input:
+        environment="uv.lock",
         script="scripts/gis/fetch_weather.py",
         time_series="cdm/time_series.py",
+        uhi="cdm/uhi.py",
     output:
         WEATHER_CSV,
     params:
@@ -365,17 +400,17 @@ rule fetch_weather:
         """
 
 
-# Always builds the full stock. The optional `sample` subset is a downstream selection
-# (subsample_buildings), so this output is pinned to `_full` regardless of SUBSET. UHI is
-# added by a separate rule below so cdm/*.py edits (model_src) don't retrigger raster sampling.
+# Always builds the full stock; the optional sample is selected downstream. Only the
+# imported geometry helper is an input, so heat-balance edits do not rebuild geodata.
 rule prepare_bag_geodata:
     input:
+        environment="uv.lock",
         height_manifest=f"{PDOK_3D_DIR}/height_tiles_local_manifest.json",
         residences=BAG_RESIDENCES,
         energy_labels=EP_ONLINE_LABELS,
         boundary=BOUNDARY_GEOJSON,
         script="scripts/gis/prepare_pdok_model_geodata.py",
-        model_src=MODEL_SRC,
+        geometric="cdm/geometric.py",
     output:
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_nouhi_full.gpkg",
     params:
@@ -397,11 +432,10 @@ rule prepare_bag_geodata:
         """
 
 
-# Split out from prepare_bag_geodata (2026-07-18): the windowed UHI sampling made that rule
-# take 30+ min, and it re-ran on every cdm/*.py edit via model_src. This rule depends only on
-# the Habib raster and its own script -- not model_src -- so model iteration stays fast.
+# Raster sampling is separate from the model so heat-balance edits do not repeat it.
 rule add_uhi_to_buildings:
     input:
+        environment="uv.lock",
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_nouhi_full.gpkg",
         uhi_habib="data/input/geodata/UHImax_habib_TheHague_5m.tif",
         script="scripts/gis/add_uhi_to_buildings.py",
@@ -433,6 +467,7 @@ rule add_uhi_to_buildings:
 # writes a schema-identical GeoPackage, so every downstream rule treats `sample` like `full`.
 rule subsample_buildings:
     input:
+        environment="uv.lock",
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_full.gpkg",
         script="scripts/subsample_buildings.py",
         model_src=MODEL_SRC,
@@ -459,6 +494,7 @@ rule subsample_buildings:
 
 rule thermodynamic_model:
     input:
+        environment="uv.lock",
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
         parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
         weather=WEATHER_CSV,
@@ -492,6 +528,7 @@ rule thermodynamic_model:
 
 rule lca:
     input:
+        environment="uv.lock",
         cooling_demand=f"{INTERMEDIATE_DIR}/buildings_with_cooling_demand_{{scenario}}_{SUBSET}.gpkg",
         parameters=PARAMETERS_TOML,
         script="scripts/run_cdm_stage.py",
@@ -521,6 +558,7 @@ rule lca:
 
 rule scenario_overview_figure:
     input:
+        environment="uv.lock",
         csvs=expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_{SUBSET}.csv", scenario=SCENARIOS),
         script="docs/make_overview_figure.py",
     output:
@@ -534,6 +572,7 @@ rule scenario_overview_figure:
 
 rule cooling_mix_sensitivity:
     input:
+        environment="uv.lock",
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
         parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
         weather=WEATHER_CSV,
@@ -571,6 +610,7 @@ rule cooling_mix_sensitivity:
 # sample subset. Replaces the ~20-SA main.ipynb section. Opt-in; pulled by `notebooks`.
 rule sensitivity:
     input:
+        environment="uv.lock",
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_{SUBSET}.gpkg",
         parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
         weather=WEATHER_CSV,
@@ -606,6 +646,7 @@ rule sensitivity:
 
 rule run_main_notebook:
     input:
+        environment="uv.lock",
         # Pinned to the sample subset regardless of SUBSET: the notebook keeps hourly series for
         # every building it models, which the full stock cannot fit in memory (~90+ GB).
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_sample.gpkg",
@@ -638,6 +679,7 @@ rule run_main_notebook:
 # reports it as out-of-date whenever the model, parameters or results move underneath it.
 rule dashboard_data:
     input:
+        environment="uv.lock",
         # Pinned to the full stock (not SUBSET), like run_gis_notebook: the dashboard ships the
         # whole city, and the build scripts resolve `*_full` filenames themselves.
         cdm_csvs=expand(f"{RESULTS_DIR}/CDM_results_{{scenario}}_full.csv", scenario=SCENARIOS),
@@ -682,6 +724,7 @@ rule dashboard_data:
 
 rule run_gis_notebook:
     input:
+        environment="uv.lock",
         # gis.ipynb pins SCENARIO="SQ". Every input it reads is now produced by a rule -- the UHI
         # raster, the CBS postcode areas (income) and buurten (neighbourhoods), and the municipal
         # boundary (the city outline). The committed GeographicDivisions GeoPackage is gone.
