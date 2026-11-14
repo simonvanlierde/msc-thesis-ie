@@ -6,7 +6,8 @@ The [pipeline guide](pipeline.md) describes its targets, settings and optional i
 
 ```mermaid
 flowchart LR
-    sources[PDOK buildings and KNMI weather] --> gis[GIS preparation]
+    sources[PDOK buildings, EP-Online labels and Habib UHI] --> gis[GIS preparation]
+    weather[KNMI weather] --> model
     parameters[Scenario parameters] --> model[cdm heat balance]
     gis --> model
     model --> impacts[Cooling and life-cycle impacts]

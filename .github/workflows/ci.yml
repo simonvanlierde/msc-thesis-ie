@@ -35,7 +35,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --locked --dev --group dataset
 
       - name: Check runtime dependency licences
         run: |

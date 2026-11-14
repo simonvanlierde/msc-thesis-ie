@@ -27,6 +27,11 @@ uv run pytest                  # tests
 uv run prek install            # git hooks
 ```
 
+CI installs the optional `dataset` group so the release allowlist and archive tests run too.
+To run those checks locally, use `uv run --group dataset pytest tests/test_dataset_release.py`.
+The committed building fixture uses real building inputs with synthetic energy labels;
+[the fixture notes](../tests/fixtures/README.md) describe its source and limits.
+
 CI runs the same checks, plus a Snakemake dry run, on every pull request
 ([workflow](../.github/workflows/ci.yml)). On
 commit, the hooks run ruff (lint and format), the dashboard formatter and `ty`. On push, they run
