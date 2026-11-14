@@ -1,5 +1,5 @@
 import { type LineCustomSvgLayer, type LineSeries, ResponsiveLine } from "@nivo/line";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { num } from "../lib/format";
 import type { Palette } from "../lib/palette";
 import { scenarioLabel as rowLabel } from "../lib/scenarioMeta";
@@ -173,26 +173,37 @@ function makePeakLayer(palette: Palette): LineCustomSvgLayer<Series> {
           stroke={palette.page}
           strokeWidth={2}
         />
-        <text
-          x={tx}
-          y={peak.py - 14}
-          textAnchor="middle"
-          fill={palette.textPrimary}
-          stroke={palette.page}
-          strokeWidth={3}
-          paintOrder="stroke"
-          fontSize={13}
-          fontWeight={600}
-          fontFamily="inherit"
-        >
-          {text}
-        </text>
+        {innerWidth >= 300 && (
+          <text
+            x={tx}
+            y={peak.py - 14}
+            textAnchor="middle"
+            fill={palette.textPrimary}
+            stroke={palette.page}
+            strokeWidth={3}
+            paintOrder="stroke"
+            fontSize={13}
+            fontWeight={600}
+            fontFamily="inherit"
+          >
+            {text}
+          </text>
+        )}
       </g>
     );
   };
 }
 
 export function TemporalView({ temporal, scenario, elec, palette }: Props) {
+  const container = useRef<HTMLElement>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    if (!container.current) return;
+    const observer = new ResizeObserver(([entry]) => setCompact(entry.contentRect.width < 520));
+    observer.observe(container.current);
+    return () => observer.disconnect();
+  }, []);
+  const margin = compact ? { ...MARGIN, right: 20 } : MARGIN;
   const uses = temporal.uses;
   const profiles = temporal.by_scenario[scenario];
   const theme = nivoTheme(palette);
@@ -230,11 +241,14 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
       y: hw.series[use][i] * factor(use),
     })),
   }));
-  // One tick per midnight; the tick label drops the redundant "00:00".
-  const hwTicks = heatwave[0].data.filter((_, i) => i % 24 === 0).map((d) => d.x);
+  const peak = heatwave
+    .flatMap((series) => series.data.map((point) => ({ ...point, use: series.id })))
+    .reduce((highest, point) => (point.y > highest.y ? point : highest));
+  // Narrow charts label every other day to keep dates apart.
+  const hwTicks = heatwave[0].data.filter((_, i) => i % (compact ? 48 : 24) === 0).map((d) => d.x);
 
   return (
-    <section id="when" aria-labelledby="when-h">
+    <section ref={container} id="when" aria-labelledby="when-h">
       <h2 id="when-h">
         When cooling is needed <span className="h-scenario">· {rowLabel(scenario)}</span>
       </h2>
@@ -270,11 +284,16 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
             data={monthly}
             theme={theme}
             colors={(s) => s.color}
-            layers={[...LAYERS, endLabels]}
-            margin={MARGIN}
+            layers={compact ? [...LAYERS] : [...LAYERS, endLabels]}
+            margin={margin}
             xScale={{ type: "point" }}
             yScale={{ type: "linear", min: 0, max: "auto" }}
-            axisBottom={{ legend: "Month", legendOffset: 40, legendPosition: "middle" }}
+            axisBottom={{
+              legend: "Month",
+              legendOffset: 40,
+              legendPosition: "middle",
+              tickValues: compact ? temporal.months.filter((_, i) => i % 2 === 0) : temporal.months,
+            }}
             axisLeft={{
               legend: energyLabel,
               legendOffset: -45,
@@ -308,8 +327,8 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
             data={heatwave}
             theme={theme}
             colors={(s) => s.color}
-            layers={[...LAYERS, endLabels, peakLayer]}
-            margin={MARGIN}
+            layers={compact ? [...LAYERS, peakLayer] : [...LAYERS, endLabels, peakLayer]}
+            margin={margin}
             xScale={{ type: "point" }}
             yScale={{ type: "linear", min: 0, max: "auto" }}
             axisBottom={{
@@ -317,7 +336,10 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
               legendOffset: 40,
               legendPosition: "middle",
               tickValues: hwTicks,
-              format: (v) => String(v).replace(" 00:00", ""),
+              format: (v) =>
+                compact
+                  ? String(v).split(" ").slice(0, 2).join(" ")
+                  : String(v).replace(" 00:00", ""),
             }}
             axisLeft={{
               legend: powerLabel,
@@ -336,38 +358,73 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
         <Legend items={useLegend} title="Building use" />
         <figcaption>
           Hourly {isElec ? "electric" : "cooling"} power · heatwave of {hwWeek} ·{" "}
-          {rowLabel(scenario)}.
+          {rowLabel(scenario)}. {USE_LABEL[peak.use] ?? peak.use} peak: {num(peak.y, 3)} GW at{" "}
+          {peak.x}.
         </figcaption>
       </figure>
 
       <details className="datatable">
         <summary>Data table: monthly {isElec ? "electricity" : "cooling energy"} (GWh)</summary>
-        <table>
-          <caption>
-            {isElec ? "Electricity for cooling" : "Cooling energy"} by month and building use (GWh)
-            · {rowLabel(scenario)}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Month</th>
-              {uses.map((u) => (
-                <th scope="col" key={u}>
-                  {USE_LABEL[u] ?? u}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {temporal.months.map((mo, i) => (
-              <tr key={mo}>
-                <td>{mo}</td>
+        {/* biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users must be able to scroll wide tables */}
+        <section className="table-scroll" aria-label="Monthly data" tabIndex={0}>
+          <table>
+            <caption>
+              {isElec ? "Electricity for cooling" : "Cooling energy"} by month and building use
+              (GWh) · {rowLabel(scenario)}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
                 {uses.map((u) => (
-                  <td key={u}>{num(profiles.monthly[u][i] * factor(u), 1)}</td>
+                  <th scope="col" key={u}>
+                    {USE_LABEL[u] ?? u}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {temporal.months.map((mo, i) => (
+                <tr key={mo}>
+                  <td>{mo}</td>
+                  {uses.map((u) => (
+                    <td key={u}>{num(profiles.monthly[u][i] * factor(u), 1)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </details>
+      <details className="datatable">
+        <summary>Data table: hourly {isElec ? "electric" : "cooling"} power (GW)</summary>
+        {/* biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users must be able to scroll wide tables */}
+        <section className="table-scroll" aria-label="Hourly data" tabIndex={0}>
+          <table>
+            <caption>
+              {powerLabel} by hour and building use · {hwWeek} · {rowLabel(scenario)}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Hour</th>
+                {uses.map((use) => (
+                  <th scope="col" key={use}>
+                    {USE_LABEL[use] ?? use}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {hw.dates.map((date, i) => (
+                <tr key={date}>
+                  <td>{hourLabel(date, temporal.months)}</td>
+                  {uses.map((use) => (
+                    <td key={use}>{num(hw.series[use][i] * factor(use), 3)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       </details>
     </section>
   );

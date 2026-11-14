@@ -30,6 +30,7 @@ interface Props {
   buurten: BuurtCollection | null;
   scenario: ScenarioKey;
   palette: Palette;
+  onRetry: () => void;
 }
 
 export const METRIC_LABEL: Record<MapMetric, string> = {
@@ -43,7 +44,7 @@ const METRIC_OPTIONS: { value: MapMetric; label: string }[] = [
 ];
 const fmt1 = (n: number) => num(n, 1);
 
-export function MapView({ buurten, scenario, palette }: Props) {
+export function MapView({ buurten, scenario, palette, onRetry }: Props) {
   const [metric, setMetric] = useState<MapMetric>("intensity");
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
@@ -79,12 +80,11 @@ export function MapView({ buurten, scenario, palette }: Props) {
     return { fc, values, breaks, legend: legendRows(breaks, palette.sequential, fmt1) };
   }, [buurten, scenario, metric, palette]);
 
-  // Init the map once. Style loading is async (CARTO, with an offline fallback), so the
-  // map is created inside the promise rather than at the top of the effect.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount only
+  // Style loading is async, so create the map after it resolves, including after a data retry.
   useEffect(() => {
     if (!(container.current && buurten)) return;
     let cancelled = false;
+    setReady(false);
 
     loadStyle(pal.current).then(({ style, basemap }) => {
       if (cancelled || !container.current) return;
@@ -148,7 +148,7 @@ export function MapView({ buurten, scenario, palette }: Props) {
       map.current?.remove();
       map.current = null;
     };
-  }, []);
+  }, [buurten]);
 
   // Theme change → new basemap style. Skipped on mount, when the map does not exist yet.
   useEffect(() => {
@@ -200,7 +200,7 @@ export function MapView({ buurten, scenario, palette }: Props) {
             className="map"
             ref={container}
             role="group"
-            aria-label={`Interactive choropleth map of ${METRIC_LABEL[metric]} across The Hague neighbourhoods. A data table of the highest neighbourhoods follows.`}
+            aria-label={`Interactive choropleth map of ${METRIC_LABEL[metric]} across The Hague neighbourhoods. A data table of all neighbourhoods follows.`}
           />
           <Legend items={view.legend} title={METRIC_LABEL[metric]} />
           <ValueStrip
@@ -217,10 +217,12 @@ export function MapView({ buurten, scenario, palette }: Props) {
           <BuurtTable fc={buurten} scenario={scenario} metric={metric} />
         </figure>
       ) : (
-        <p className="note">
-          Map data not built yet. Run <code>python dashboard/scripts/build_choropleth.py</code> with
-          the geodata present to generate the neighbourhood layer.
-        </p>
+        <div className="note">
+          <p>Neighbourhood data is unavailable. The other results are still available.</p>
+          <button type="button" className="iconbtn" onClick={onRetry}>
+            Try again
+          </button>
+        </div>
       )}
     </section>
   );
@@ -236,32 +238,37 @@ function BuurtTable({
   metric: MapMetric;
 }) {
   const rows = fc.features
-    .map((f) => ({ name: f.properties.buurtnaam, v: metricValue(f.properties, scenario, metric) }))
-    .filter((r) => r.v !== null)
-    .sort((a, b) => (b.v as number) - (a.v as number))
-    .slice(0, 15);
+    .map((f) => ({
+      code: f.properties.buurtcode,
+      name: f.properties.buurtnaam,
+      v: metricValue(f.properties, scenario, metric),
+    }))
+    .sort((a, b) => (b.v ?? -Infinity) - (a.v ?? -Infinity));
   return (
     <details className="datatable">
-      <summary>Data table: 15 highest neighbourhoods</summary>
-      <table>
-        <caption>
-          {METRIC_LABEL[metric]} · {scenarioLabel(scenario)}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Neighbourhood</th>
-            <th scope="col">{METRIC_UNIT[metric]}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.name}>
-              <td>{r.name}</td>
-              <td>{num(r.v as number, 1)}</td>
+      <summary>Data table: all neighbourhoods</summary>
+      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users must be able to scroll wide tables */}
+      <section className="table-scroll" aria-label="Neighbourhood data" tabIndex={0}>
+        <table>
+          <caption>
+            {METRIC_LABEL[metric]} · {scenarioLabel(scenario)}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Neighbourhood</th>
+              <th scope="col">{METRIC_UNIT[metric]}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.code}>
+                <td>{r.name}</td>
+                <td>{r.v === null ? "No data" : num(r.v, 1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
     </details>
   );
 }

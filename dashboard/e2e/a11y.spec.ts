@@ -69,7 +69,7 @@ test("captures a screenshot for the README", async ({ page }) => {
   await page.locator("#map [data-map-idle]").waitFor({ timeout: 20_000 });
 
   // ready() force-opens the disclosure tables so axe can scan them. The figure encloses its
-  // table, so leaving it open would drag 15 rows into the crop — collapse them again.
+  // table, so leaving it open would drag all neighbourhood rows into the crop — collapse them again.
   await page.locator("details.datatable").evaluateAll((tables) => {
     for (const t of tables) t.removeAttribute("open");
   });

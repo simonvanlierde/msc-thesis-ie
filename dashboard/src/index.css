@@ -576,12 +576,18 @@ fieldset.segmented > legend {
 
 /* Data table (screen-reader + everyone fallback) */
 details.datatable {
+  min-width: 0;
   margin-top: 0.75rem;
 }
 details.datatable > summary {
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 0.9rem;
+}
+.table-scroll {
+  padding: 0;
+  max-width: 100%;
+  overflow-x: auto;
 }
 table {
   border-collapse: collapse;
@@ -1223,7 +1229,7 @@ details.fork__more > summary {
 
 .payoff {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 1.5rem 2rem;
 }
 /* Bars grow from the baseline the first time the charts scroll into view. Default state is
