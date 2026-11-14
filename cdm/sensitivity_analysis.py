@@ -242,7 +242,7 @@ def run_SA_for_variable_in_cooling_technology_parameters(
     variable_name: str,
     multiplier_start: float,
     multiplier_end: float,
-    cooling_technology_parameters: dict[str, float],
+    cooling_technology_parameters: list[dict[str, float]],
     static_parameters: dict,
     calculation_steps: int = 50,
 ) -> pd.DataFrame:
