@@ -76,6 +76,10 @@ def workflow(tmp_path: Path) -> Path:
         ("cdm/thermodynamic.py", {"thermodynamic_model", "lca", "scenario_overview_figure", "all"}),
         ("cdm/geometric.py", MODEL_JOBS),
         (
+            "data/input/parameters/raw_weather_data_2018_2022_HvH.csv",
+            {"fetch_weather", "thermodynamic_model", "lca", "scenario_overview_figure", "all"},
+        ),
+        (
             "uv.lock",
             MODEL_JOBS
             | {

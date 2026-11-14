@@ -6,7 +6,7 @@ check:
     uv run --locked ruff check .
     uv run --locked ruff format --check .
     uv run --locked ty check
-    uv run --locked pytest
+    uv run --locked --group dataset pytest
     pnpm -C dashboard check
 
 # Type-check the model and scripts.

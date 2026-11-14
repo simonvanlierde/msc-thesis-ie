@@ -380,6 +380,7 @@ rule fetch_weather:
     input:
         environment="uv.lock",
         script="scripts/gis/fetch_weather.py",
+        backup="data/input/parameters/raw_weather_data_2018_2022_HvH.csv",
         time_series="cdm/time_series.py",
         uhi="cdm/uhi.py",
     output:
