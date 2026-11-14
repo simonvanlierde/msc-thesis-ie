@@ -653,6 +653,8 @@ rule run_main_notebook:
         buildings=f"{RESULTS_GEODATA_DIR}/BAG_buildings_with_residence_data_sample.gpkg",
         parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
         weather=WEATHER_CSV,
+        solar_fractions=f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv",
+        presence_load_factors=f"{PARAMETER_DIR}/presence_load_factors.csv",
         notebook="main.ipynb",
         model_src=MODEL_SRC,
     output:
@@ -660,6 +662,8 @@ rule run_main_notebook:
         # The notebook's figures now write here (repointed off the old data/output/ fork), so
         # declare the directory to make them tracked, cleanable pipeline artifacts.
         figures=directory(f"{RESULTS_DIR}/figures/main"),
+    params:
+        results_dir=lambda wildcards, output: str(Path(output.notebook).parent.parent),
     log:
         f"{LOG_DIR}/run_main_notebook.log",
     shell:
@@ -668,10 +672,12 @@ rule run_main_notebook:
         # The notebook reads the fetched weather CSV itself (falling back to a live KNMI fetch
         # only when it is absent), so the declared weather input keeps it hermetic.
         """
+        RESULTS_DIR={params.results_dir:q} \
+        WEATHER_CSV={input.weather:q} \
         BUILDING_SUBSET_NAME=sample \
         jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
-          --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
-          {input.notebook} > {log} 2>&1
+          --output-dir "$(dirname {output.notebook:q})" --output "$(basename {output.notebook:q})" \
+          {input.notebook:q} > {log:q} 2>&1
         """
 
 
@@ -693,6 +699,8 @@ rule dashboard_data:
         # and the model directly.
         buurten=CBS_BUURTEN,
         weather=WEATHER_CSV,
+        solar_fractions=f"{PARAMETER_DIR}/multidirectional_solar_radiation_fractions.csv",
+        presence_load_factors=f"{PARAMETER_DIR}/presence_load_factors.csv",
         parameters=[PARAMETERS_TOML, *PARAMETER_GROUP_FILES],
         scripts=[
             "dashboard/scripts/build_scenarios.py",
@@ -742,14 +750,17 @@ rule run_gis_notebook:
     output:
         notebook=f"{RESULTS_DIR}/notebooks/gis.executed.ipynb",
         figures=directory(f"{RESULTS_DIR}/figures/gis"),
+    params:
+        results_dir=lambda wildcards, output: str(Path(output.notebook).parent.parent),
     log:
         f"{LOG_DIR}/run_gis_notebook.log",
     shell:
         # BUILDING_SUBSET_NAME=full: the notebook reads it (cell 31) to pick the CDM layer, matching
         # the full-stock inputs declared above.
         """
+        RESULTS_DIR={params.results_dir:q} \
         BUILDING_SUBSET_NAME=full \
         jupyter nbconvert --execute --to notebook --ExecutePreprocessor.timeout=-1 \
-          --output-dir "$(dirname {output.notebook})" --output "$(basename {output.notebook})" \
-          {input.notebook} > {log} 2>&1
+          --output-dir "$(dirname {output.notebook:q})" --output "$(basename {output.notebook:q})" \
+          {input.notebook:q} > {log:q} 2>&1
         """

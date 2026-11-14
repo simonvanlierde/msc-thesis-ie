@@ -90,7 +90,6 @@ def run_cooling_demand(args: argparse.Namespace) -> None:
         buildings,
         time_series,
         global_parameters,
-        args.include_time_series,
     )
 
     output_path = Path(args.output)
@@ -137,7 +136,6 @@ def parse_args() -> argparse.Namespace:
     cooling.add_argument("--weather-csv", required=True)
     cooling.add_argument("--output", required=True)
     cooling.add_argument("--output-layer", required=True)
-    cooling.add_argument("--include-time-series", action="store_true")
     cooling.set_defaults(func=run_cooling_demand)
 
     lca = subparsers.add_parser("lca")
