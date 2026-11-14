@@ -5,7 +5,7 @@ import { type GeoJSONSource, MapLibreMap, NavigationControl, setWorkerUrl } from
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { attachTooltip, firstSymbolId, loadStyle } from "../lib/basemap";
+import { attachTooltip, firstSymbolId, loadStyle, plainStyle } from "../lib/basemap";
 import {
   binIndex,
   legendRows,
@@ -48,7 +48,7 @@ export function MapView({ buurten, scenario, palette, onRetry }: Props) {
   const [metric, setMetric] = useState<MapMetric>("intensity");
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
-  const [ready, setReady] = useState(false);
+  const [styleVersion, setStyleVersion] = useState(0);
 
   // Latest palette + basemap flag for the style.load handler, which outlives the render
   // that created it.
@@ -80,98 +80,91 @@ export function MapView({ buurten, scenario, palette, onRetry }: Props) {
     return { fc, values, breaks, legend: legendRows(breaks, palette.sequential, fmt1) };
   }, [buurten, scenario, metric, palette]);
 
-  // Style loading is async, so create the map after it resolves, including after a data retry.
+  // Create the map immediately so theme changes can cancel obsolete style requests.
   useEffect(() => {
     if (!(container.current && buurten)) return;
-    let cancelled = false;
-    setReady(false);
+    const m = new MapLibreMap({
+      container: container.current,
+      style: plainStyle(pal.current),
+      // CARTO attribution becomes available when its style replaces the plain fallback.
+      attributionControl: { compact: true },
+      dragRotate: false,
+      // lets the WebGL canvas appear in screenshots (maplibre v5 nests this option)
+      canvasContextAttributes: { preserveDrawingBuffer: true },
+    });
+    m.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    m.fitBounds(bbox(buurten), { padding: 20, animate: false });
 
-    loadStyle(pal.current).then(({ style, basemap }) => {
-      if (cancelled || !container.current) return;
-      hasBasemap.current = basemap;
-      const m = new MapLibreMap({
-        container: container.current,
-        style,
-        // CARTO's licence requires attribution; the plain fallback has nothing to credit.
-        attributionControl: basemap && { compact: true },
-        dragRotate: false,
-        // lets the WebGL canvas appear in screenshots (maplibre v5 nests this option)
-        canvasContextAttributes: { preserveDrawingBuffer: true },
+    // Fires on first load and again after every setStyle, which drops our layers.
+    m.on("style.load", () => {
+      m.addSource("buurten", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
       });
-      m.addControl(new NavigationControl({ showCompass: false }), "top-right");
-      // Marks "everything this map is going to draw is drawn", which the screenshot test waits
-      // on. `networkidle` used to stand in for it and never settles while the map streams tiles.
-      m.on("idle", () => container.current?.setAttribute("data-map-idle", ""));
-      m.fitBounds(bbox(buurten), { padding: 20, animate: false });
-
-      // Fires on first load and again after every setStyle, which drops our layers.
-      m.on("style.load", () => {
-        m.addSource("buurten", {
-          type: "geojson",
-          data: { type: "FeatureCollection", features: [] },
-        });
-        m.addLayer(
-          {
-            id: "fill",
-            type: "fill",
-            source: "buurten",
-            // semi-transparent over a basemap so the streets underneath still read
-            paint: {
-              "fill-color": ["get", "__c"],
-              "fill-opacity": hasBasemap.current ? 0.72 : 0.9,
-            },
+      m.addLayer(
+        {
+          id: "fill",
+          type: "fill",
+          source: "buurten",
+          // semi-transparent over a basemap so the streets underneath still read
+          paint: {
+            "fill-color": ["get", "__c"],
+            "fill-opacity": hasBasemap.current ? 0.72 : 0.9,
           },
-          firstSymbolId(m), // under the place labels
-        );
-        m.addLayer(
-          {
-            id: "outline",
-            type: "line",
-            source: "buurten",
-            paint: { "line-color": pal.current.baseline, "line-width": 0.5 },
-          },
-          firstSymbolId(m),
-        );
-        setReady(true);
-      });
-
-      attachTooltip(m, "fill", (f) => [
-        String(f.properties.buurtnaam),
-        Number(f.properties.__v) < 0 ? "no data" : fmt1(Number(f.properties.__v)),
-      ]);
-
-      map.current = m;
+        },
+        firstSymbolId(m), // under the place labels
+      );
+      m.addLayer(
+        {
+          id: "outline",
+          type: "line",
+          source: "buurten",
+          paint: { "line-color": pal.current.baseline, "line-width": 0.5 },
+        },
+        firstSymbolId(m),
+      );
+      setStyleVersion((version) => version + 1);
     });
 
+    attachTooltip(m, "fill", (f) => [
+      String(f.properties.buurtnaam),
+      Number(f.properties.__v) < 0 ? "no data" : fmt1(Number(f.properties.__v)),
+    ]);
+
+    map.current = m;
+
     return () => {
-      cancelled = true;
       map.current?.remove();
       map.current = null;
     };
   }, [buurten]);
 
-  // Theme change → new basemap style. Skipped on mount, when the map does not exist yet.
+  // One owner for initial and subsequent style requests; the current theme always wins.
   useEffect(() => {
     const m = map.current;
-    if (!m) return;
+    if (!(m && buurten)) return;
     let cancelled = false;
-    setReady(false);
+    container.current?.removeAttribute("data-map-idle");
     loadStyle(palette).then(({ style, basemap }) => {
       if (cancelled || map.current !== m) return;
       hasBasemap.current = basemap;
       m.setStyle(style); // style.load re-adds the source and layers
+      // The placeholder's idle event must not mark a pending basemap as finished.
+      m.once("idle", () => {
+        if (!cancelled && map.current === m) container.current?.setAttribute("data-map-idle", "");
+      });
     });
     return () => {
       cancelled = true;
     };
-  }, [palette]);
+  }, [palette, buurten]);
 
-  // Push new data / colours whenever the view or the style changes.
+  // Every style replacement recreates the source, even if the view data stays the same.
   useEffect(() => {
     const m = map.current;
-    if (!(m && ready && view)) return;
+    if (!(m && view && styleVersion)) return;
     (m.getSource("buurten") as GeoJSONSource | undefined)?.setData(view.fc);
-  }, [view, ready]);
+  }, [view, styleVersion]);
 
   return (
     <section id="map" aria-labelledby="map-h">
