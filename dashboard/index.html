@@ -2,21 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.cartocdn.com; font-src 'self'; connect-src 'self' https://*.cartocdn.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Stamp the theme before first paint, or a saved override flashes the other theme.
          Key and fallback must match src/lib/useTheme.ts. -->
-    <script>"use strict";
-      try {
-        const saved = localStorage.getItem("cooling-dashboard.theme");
-        const dark =
-          saved === "dark" ||
-          (saved !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.dataset.theme = dark ? "dark" : "light";
-      } catch {
-        document.documentElement.dataset.theme = "light";
-      }
-    </script>
+    <!-- biome-ignore lint/performance/noSyncScripts: Apply the saved theme before first paint. -->
+    <script src="%BASE_URL%theme.js"></script>
 
     <title>Cooling for Comfort, Warming the World · The Hague</title>
     <meta

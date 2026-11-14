@@ -16,7 +16,8 @@
     "life cycle assessment",
     "geospatial analysis",
   ]
-  license = { text = "GPL-3.0-or-later" }
+  license = "GPL-3.0-or-later"
+  license-files = ["LICENSE"]
   name = "cooling-demand-model"
   readme = "README.md"
   requires-python = ">=3.14"
@@ -45,6 +46,10 @@
     Thesis = "https://repository.tudelft.nl/record/uuid:32222863-536f-464a-b8c6-6c2283a7249a"
 
 [dependency-groups]
+dataset = [
+    "frictionless>=5",
+    "pyarrow>=23",
+]
   dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "pytest-codspeed>=5.0.3", "ruff>=0.16.6", "ty>=0.0.79", "prek>=0.5.5", "nbstripout>=0.9.1"]
 
 # Skip releases younger than a week, matching Renovate's minimumReleaseAge,
@@ -111,10 +116,33 @@
   exclude_also = ["if __name__ == .__main__.:", "raise NotImplementedError"]
   fail_under   = 50
 
-# Type checking with ty is informational: the scientific code stores heterogeneous
-# records in dicts and DataFrames that the pre-release type checker cannot fully model.
+# Type-check the model and scripts against the supported Python version.
 [tool.ty.environment]
   python-version = "3.14"
 
 [tool.ty.src]
   exclude = ["**/*.ipynb"]
+
+[tool.pytest]
+  minversion = "9.0"
+  testpaths = ["tests"]
+  addopts = ["-ra"]
+  log_level = "INFO"
+  strict = true
+  filterwarnings = ["default"]
+
+[tool.repo-review.ignore]
+  PY007 = "just is the task runner; just check runs the repository checks"
+  GH200 = "Renovate updates dependencies, actions and hook revisions in renovate.json5"
+  PC110 = "ruff format runs as a local hook using the project environment"
+  PC140 = "ty runs as a local hook and in CI"
+  PC170 = "The repository documents are Markdown, not reStructuredText"
+  PC190 = "ruff check runs as a local hook using the project environment"
+  PC901 = "GitHub Actions runs the checks; this repository does not use pre-commit.ci"
+  PC902 = "GitHub Actions runs the checks; this repository does not use pre-commit.ci"
+  PC903 = "GitHub Actions runs the checks; this repository does not use pre-commit.ci"
+  RF002 = "Ruff target-version is explicitly py314; requires-python has no upper bound"
+
+# These wheels omit licence metadata; the gate verifies their exact MIT licence files first.
+[tool.licensecheck]
+  ignore_packages = ["conda-inject", "snakemake-interface-common", "snakemake-interface-logger-plugins", "snakemake-interface-report-plugins", "snakemake-interface-scheduler-plugins", "snakemake-interface-storage-plugins"]

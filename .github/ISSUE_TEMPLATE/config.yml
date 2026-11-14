@@ -1,0 +1,9 @@
+# Questions go to CONTRIBUTING.md, so the issue list holds bugs and feature requests only.
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/simonvanlierde/msc-thesis-ie/blob/main/.github/CONTRIBUTING.md
+    about: How to get help, and what this project takes on.
+  - name: Report a vulnerability
+    url: https://github.com/simonvanlierde/msc-thesis-ie/security/advisories/new
+    about: Privately, as SECURITY.md says.

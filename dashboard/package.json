@@ -20,7 +20,8 @@
     "test:e2e": "playwright test",
     "check": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build",
     "data": "python scripts/build_scenarios.py && python scripts/build_choropleth.py && python scripts/build_temporal.py",
-    "og": "node scripts/build_og.mjs"
+    "og": "node scripts/build_og.mjs",
+    "licenses": "node --test scripts/checkLicenses.selfcheck.mjs && pnpm licenses list --prod --json | node scripts/checkLicenses.mjs"
   },
   "dependencies": {
     "@nivo/line": "^0.99.0",

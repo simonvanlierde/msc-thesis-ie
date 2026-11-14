@@ -38,6 +38,8 @@ jobs:
           cache-dependency-path: dashboard/pnpm-lock.yaml
           install: false
       - run: pnpm install --frozen-lockfile
+      # Runs pnpm licenses list and checks each SPDX expression against GPL compatibility.
+      - run: pnpm run licenses
       - run: pnpm check
       # pnpm check runs the unit tests with coverage, which writes coverage/lcov.info.
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
