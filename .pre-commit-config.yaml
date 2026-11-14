@@ -58,3 +58,45 @@ repos:
     rev: a3c5a9794449e78a33583e456af41bb24ebd240e # frozen: v0.1.0
     hooks:
       - id: citesync
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-yaml
+        # pnpm writes its own version into the lockfile as a second YAML document.
+        exclude: (^|/)pnpm-lock\.yaml$
+      - id: end-of-file-fixer
+        exclude: ^(data|tests/fixtures)/
+      - id: mixed-line-ending
+        exclude: ^(data|tests/fixtures)/
+      - id: trailing-whitespace
+        exclude: ^(data|tests/fixtures)/
+      # Not gated to python: .rumdl.toml ships to every stack.
+      - id: check-toml
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: c92afdf2c6ca336aaa8f39e2bd8d48f62dbd8e1f # frozen: v1.31.1
+    hooks:
+      - id: zizmor
+
+  - repo: https://github.com/rvben/rumdl-pre-commit
+    rev: eaeb8abc646954face3eb41726f085385410f761 # frozen: v0.3.1
+    hooks:
+      - id: rumdl
+        args: [--fix]
+
+  # Misspelt words in code, comments and docs. It fixes the ones it is sure of and
+  # fails, so you review the fix. List a word it must leave alone in _typos.toml.
+
+  - repo: https://github.com/crate-ci/typos
+    rev: 7f9d0819ca1c008ade73f4b41fa9d258d48f605b # frozen: v1.51.1
+    hooks:
+      - id: typos
+        # Copier writes the template's commit id here, and a hex id can spell a word
+        # typos rejects. typos knows English only, so it would rewrite valid words in
+        # translation catalogs: gettext .po files and anything in a locales/ directory.
+        # List other files with text in other languages under [files] extend-exclude in
+        # _typos.toml.
+        exclude: ^\.copier-answers\.yml$|\.po$|(^|/)locales/
