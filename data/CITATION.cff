@@ -1,8 +1,8 @@
 cff-version: 1.2.0
-message: "Cite the dataset version DOI after publication; cite the upstream sources listed in README.md."
-title: "The Hague building inputs with local UHImax (open subset)"
+message: "Unpublished preparation. Cite the complete dataset version DOI once released and the upstream sources listed in README.md."
+title: "The Hague building inputs with local UHImax (unpublished preparation)"
 type: dataset
-version: 0.1.0
+version: 0.1.0-dev
 authors:
   - family-names: van Lierde
     given-names: Simon

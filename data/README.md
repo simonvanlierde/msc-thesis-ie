@@ -9,7 +9,7 @@ tags:
   - the-hague
 ---
 
-# The Hague building inputs with local UHImax
+# The Hague building inputs with local UHImax (unpublished preparation)
 
 This open subset contains building geometry and physical inputs with corrected local urban heat island (UHI) maxima.
 It excludes energy labels and all environmental impact results. It cannot reproduce the published cooling totals on its own.
@@ -64,8 +64,10 @@ Environmental impact results, characterisation factors and source activity ident
 
 ## Distribution and maintenance
 
-This is the open subset prepared for dataset version 0.1 on [Zenodo concept record 8344580](https://doi.org/10.5281/zenodo.8344580).
-Preparation does not imply that this version is published. Cite the version DOI after publication.
+This local archive previews the open inputs for a future complete dataset version 0.1 on
+[Zenodo concept record 8344580](https://doi.org/10.5281/zenodo.8344580).
+Publication is deferred until the full joined dataset can be released with verified permission for the EP-Online inputs.
+This preview is unpublished. Cite the complete dataset version DOI once released.
 Simon van Lierde maintains the transformations in [the model repository](https://github.com/simonvanlierde/msc-thesis-ie).
 
 From the repository root, build a new local release folder:

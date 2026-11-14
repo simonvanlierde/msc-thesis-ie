@@ -75,8 +75,8 @@ def build_release(source: Path, output: Path) -> Path:
     package = {
         "$schema": "https://datapackage.org/profiles/2.0/datapackage.json",
         "name": "hague-uhi-building-inputs",
-        "title": "The Hague building inputs with local UHImax (open subset)",
-        "version": "0.1.0",
+        "title": "The Hague building inputs with local UHImax (unpublished preparation)",
+        "version": "0.1.0-dev",
         "licenses": [{"name": "CC-BY-SA-4.0", "path": "https://creativecommons.org/licenses/by-sa/4.0/"}],
         "resources": [
             {
