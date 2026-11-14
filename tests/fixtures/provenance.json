@@ -1,0 +1,8 @@
+{
+  "source_path": "results/geodata/BAG_buildings_with_residence_data_full.gpkg",
+  "source_sha256": "22f3cc0bceed21d11150d13075394b5369f8e468e02b8abd2425d114ea8f9aa3",
+  "sample_rows": 2000,
+  "random_state": 42,
+  "label_source": "independent synthetic cycle in test; no EP-Online columns read",
+  "fixture_sha256": "ca7dca148f9f82c3a1d2b2375c15c9e6f4e723e9211a928152081ec9057a9754"
+}

@@ -1,6 +1,7 @@
 # Development
 
-Install with `uv sync`. Without uv, `pip install .` in a virtual environment also works.
+Install with `uv sync --locked`. Run `pnpm -C dashboard install --frozen-lockfile` for the dashboard.
+`just check` runs the Python and dashboard checks.
 
 | Path | Description |
 | --- | --- |
@@ -21,15 +22,20 @@ Install with `uv sync`. Without uv, `pip install .` in a virtual environment als
 ```bash
 uv run ruff check .            # lint
 uv run ruff format .           # format
-uv run ty check                # type check (informational)
+uv run ty check                # type check
 uv run pytest                  # tests
 uv run prek install            # git hooks
 ```
 
+CI and `just check` install the optional `dataset` group so the release allowlist and archive tests run too.
+To run those checks locally, use `uv run --group dataset pytest tests/test_dataset_release.py`.
+The committed building fixture uses real building inputs with synthetic energy labels;
+[the fixture notes](../tests/fixtures/README.md) describe its source and limits.
+
 CI runs the same checks, plus a Snakemake dry run, on every pull request
 ([workflow](../.github/workflows/ci.yml)). On
 commit, the hooks run ruff (lint and format), the dashboard formatter and `ty`. On push, they run
-the test suite and the dashboard checks. `ty` reports its findings without blocking, as in CI.
+the test suite and the dashboard checks. Type errors fail both the hook and CI.
 
 ## Benchmarks
 

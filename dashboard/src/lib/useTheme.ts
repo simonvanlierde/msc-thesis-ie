@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Mode } from "./palette";
 
-/** Must match the key and the fallback chain in the inline script in index.html. */
+/** Must match the key and the fallback chain in the script in public/theme.js. */
 const KEY = "cooling-dashboard.theme";
 
 function initialMode(): Mode {

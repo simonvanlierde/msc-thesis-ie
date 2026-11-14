@@ -1,0 +1,5 @@
+# Words typos must leave alone. Add your own below.
+[default.extend-words]
+# NumPy's API spells it this way (`array.flags.writeable`).
+writeable = "writeable"
+WRITEABLE = "WRITEABLE"

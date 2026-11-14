@@ -96,3 +96,31 @@ test("captures a screenshot for the README", async ({ page }) => {
   });
   await page.screenshot({ path: "docs/screenshot.png", fullPage: true, clip });
 });
+
+test("accessibility statement is linked and passes axe", async ({ page }) => {
+  await ready(page);
+  await page.getByRole("link", { name: "Accessibility", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Accessibility", exact: true })).toBeVisible();
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
+    .analyze();
+  expect(violations).toEqual([]);
+});
+
+test("production CSP permits theme, charts and map resources", async ({ page }) => {
+  const violations: string[] = [];
+  await page.exposeFunction("recordCspViolation", (uri: string) => violations.push(uri));
+  await page.addInitScript(() => {
+    document.addEventListener("securitypolicyviolation", (event) => {
+      (window as unknown as { recordCspViolation: (uri: string) => void }).recordCspViolation(
+        `${event.violatedDirective}: ${event.blockedURI}`,
+      );
+    });
+  });
+  await ready(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", /light|dark/);
+  await page.locator("#map").scrollIntoViewIfNeeded();
+  await page.locator("#map [data-map-idle]").waitFor({ timeout: 20_000 });
+  expect(await page.locator('meta[http-equiv="Content-Security-Policy"]').count()).toBe(1);
+  expect(violations).toEqual([]);
+});

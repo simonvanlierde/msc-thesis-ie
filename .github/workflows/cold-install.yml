@@ -1,0 +1,76 @@
+name: cold install
+
+# Runs the README's setup and task commands as written, in a container that has none
+# of the tools the README asks for, so a step the README leaves out fails here before
+# it fails a new contributor. It runs the ```sh blocks under `## Development`, from
+# the checkout: a `pip install` or `npm install` of the published package can't pass
+# before the first release, so keep those under another heading.
+on:
+  pull_request:
+    paths: [README.md, .github/workflows/cold-install.yml, justfile, "just/**", "**/pyproject.toml", "**/uv.lock", "**/.python-version"]
+  schedule:
+    - cron: "47 5 * * 1" # Mondays, 05:47 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readme:
+    name: README commands, fresh container
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Debian with git, curl and a C compiler, like a new contributor's machine. Pinned
+    # to a digest, so a moved tag can't swap the image. Renovate bumps it; Dependabot
+    # doesn't read workflow images, so with Dependabot it moves on `copier update`.
+    container: buildpack-deps:trixie@sha256:5214476af627916270063c9f99a969381f32cd961c861ea95e740ba71abc125f
+    env:
+      # As in python.yml: uv checks every package against OSV's malware advisories before
+      # its code runs. The preview flag only silences the "experimental" warning.
+      UV_MALWARE_CHECK: "1"
+      UV_PREVIEW_FEATURES: malware-check
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The tools the README's "You need" sentence names, and nothing more.
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          # The weekly run saves the cache; a pull request only reads it.
+          save-cache: ${{ github.event_name != 'pull_request' }}
+          version: "0.13.6"
+      - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
+        with:
+          tool: just@1.59.0
+          fallback: none
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: dashboard/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26"
+          package-manager-cache: false
+
+      - name: Run the README's Development blocks
+        # NOTE: drops the task lines that need Docker, a browser's system libraries,
+        # live source URLs or hours (their own workflows run them); list a new slow
+        # recipe here when the README gains one. The parser reads only ``` fences, not
+        # ~~~ ones or nested fences, and a `## ` line inside a block ends the section.
+        run: |-
+          awk '/^## /{dev = ($0 == "## Development")}
+               dev && /^```/{code = !code && /^```(sh|bash|shell)[[:space:]]*$/; next}
+               dev && code' README.md |
+            grep -vE '^[[:space:]]*just +(up|pipeline|ts-(e2e|shots)|[a-z]+-(mutation(-diff)?|property|matrix))( |$)' >"$RUNNER_TEMP/readme.sh" || true
+          if ! test -s "$RUNNER_TEMP/readme.sh"; then
+            echo "README.md has no sh block under ## Development to run. Add one with the setup commands, or delete .github/workflows/cold-install.yml." >&2
+            exit 1
+          fi
+          # Not a README step: the runner's user owns the checkout and this container
+          # runs as root, so git refuses the repository as "dubious ownership".
+          chown -R "$(id -u):$(id -g)" .
+          bash -ex "$RUNNER_TEMP/readme.sh"

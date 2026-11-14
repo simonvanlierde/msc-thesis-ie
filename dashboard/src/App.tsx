@@ -237,6 +237,9 @@ export function App() {
                 </a>
                 .
               </p>
+              <p>
+                <a href={`${import.meta.env.BASE_URL}accessibility.html`}>Accessibility</a>
+              </p>
               <p className="note">{data.scenarios.meta.source}</p>
             </footer>
           </>

@@ -1,7 +1,7 @@
 """Snakemake wrappers for the thesis cooling-demand notebook stages.
 
 The code below follows the executable cells in ``main.ipynb`` and delegates the
-scientific calculations to the existing ``functions`` package.
+scientific calculations to the existing ``cdm`` package.
 """
 
 from __future__ import annotations

@@ -1,0 +1,4 @@
+[global]
+  # READMEs have long badge and link lines that don't wrap, so MD013 would flag nearly every line.
+  disable = ["MD013"]
+  flavor  = "gfm"

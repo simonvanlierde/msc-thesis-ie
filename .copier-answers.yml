@@ -1,0 +1,32 @@
+# Managed by copier. Do not edit by hand. Run: copier update
+_commit: v0.15.0
+_src_path: gh:simonvanlierde/project-templates
+author_email: 90462640+simonvanlierde@users.noreply.github.com
+author_name: Simon van Lierde
+author_orcid: ''
+copyright_year: '2026'
+customise: true
+data_license: none
+decision_records: false
+dependency_bot: renovate
+extras:
+- cold_install
+github_user: simonvanlierde
+level: standard
+license: GPL-3.0-or-later
+module_name: cdm
+node_version: '26'
+project_description: Cooling demand and environmental impact model for buildings in
+    The Hague
+project_name: msc-thesis-ie
+public: true
+python_dir: .
+python_kind: research
+python_layout: flat
+python_version: '3.14'
+site: none
+stacks:
+- python
+- ts
+ts_dir: dashboard
+ts_kind: app

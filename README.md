@@ -68,6 +68,20 @@ uv run --with jupyterlab jupyter lab                       # open main.ipynb and
 - [docs/development.md](docs/development.md): repository layout, checks and git hooks.
 - [dashboard/README.md](dashboard/README.md): the dashboard's data, accessibility and deploy.
 
+## Development
+
+Install [uv](https://docs.astral.sh/uv/), [just](https://just.systems/), Node.js 26 and the pnpm version in `dashboard/package.json`.
+From the repository root:
+
+```sh
+uv sync --locked
+pnpm -C dashboard install --frozen-lockfile
+just check
+```
+
+The [development guide](docs/development.md) describes hooks, benchmarks and figure generation.
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) covers pull requests and bug reports.
+
 ## Citation
 
 If you use this work, please cite the thesis and the dataset (see [`CITATION.cff`](CITATION.cff)):

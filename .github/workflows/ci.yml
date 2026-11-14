@@ -35,7 +35,13 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --locked --dev --group dataset
+
+      - name: Check runtime dependency licences
+        run: |
+          uv run --locked python scripts/check_dependency_licenses.py
+          uv export --locked --no-default-groups --no-hashes --no-annotate --no-header --no-emit-project -q -o "$RUNNER_TEMP/requirements.txt"
+          uv run --locked --with licensecheck==2026.0.8 licensecheck -r "$RUNNER_TEMP/requirements.txt" --zero
 
       - name: Lint (ruff)
         run: uv run ruff check .
@@ -56,10 +62,5 @@ jobs:
       - name: Validate Snakemake workflow (dry-run)
         run: uv run --with snakemake snakemake --dry-run --forceall
 
-      # Informational for now: the scientific code uses `np.array` as a type
-      # annotation in many places, which ty (pre-release) flags. A step, not its
-      # own job, so it reuses the synced environment instead of billing a second
-      # runner minute per PR.
       - name: Type check (ty)
         run: uv run ty check
-        continue-on-error: true

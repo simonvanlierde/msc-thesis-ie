@@ -6,17 +6,19 @@ parameter files and the *real* local weather backup, and checks the total annual
 cooling energy demand against a pinned reference so a refactor that shifts the result
 by more than the tolerance fails.
 
-Two variants run the same harness on different building stocks:
+Three variants run the same harness on different building stocks:
 
 * ``synthetic`` — a deterministic 2000-building stock generated in-process. Always
-  available, so this is the guard that runs in CI (the real BAG geometry is a large
-  gitignored Zenodo product CI never sees).
+  available in CI without external building files.
+* ``BAG with synthetic labels`` — a committed sample of real building inputs, with
+  energy labels generated independently of EP-Online. Runs in CI.
 * ``real BAG sample`` — a deterministic 2000-building sample of the real Hague stock.
   Skipped when the BAG GeoPackage is not checked out locally.
 """
 
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
@@ -34,6 +36,7 @@ SCENARIO = "SQ"
 BACKUP_WEATHER_YEARS = (2018, 2022)
 REAL_BAG_GPKG = Path("data/output/geodata/BAG_buildings_with_residence_data_full.gpkg")
 REAL_BAG_LAYER = "BAG_buildings_full"
+BAG_FIXTURE = Path(__file__).parent / "fixtures" / "bag_2000.gpkg"
 
 SAMPLE_SIZE = 2000
 SAMPLE_SEED = 42
@@ -46,6 +49,7 @@ TOLERANCE = 0.05
 # uhi_fallback_C = 1 K, a large drop from the old 8.3 degC daytime uplift (~52-59% lower demand).
 REFERENCE_SYNTHETIC_TOTAL_E_COOLING_KWH = 75_997_845.95
 REFERENCE_REAL_BAG_TOTAL_E_COOLING_KWH = 12_289_401.45
+REFERENCE_BAG_SYNTHETIC_LABELS_TOTAL_KWH = 11_973_527.75
 
 # Skip cleanly if the real parameter / weather inputs are not checked out.
 REQUIRED_INPUTS = [
@@ -217,3 +221,39 @@ def test_full_pipeline_sq_real_bag_sample(monkeypatch: pytest.MonkeyPatch) -> No
     buildings = stock.sample(n=SAMPLE_SIZE, random_state=SAMPLE_SEED).reset_index(drop=True)
     total_kwh = _run_sq_total_cooling_demand(monkeypatch, buildings)
     _assert_within_tolerance(total_kwh, REFERENCE_REAL_BAG_TOTAL_E_COOLING_KWH)
+
+
+def test_bag_fixture_contains_only_open_inputs() -> None:
+    buildings = gpd.read_file(BAG_FIXTURE, layer="buildings")
+    assert len(buildings) == SAMPLE_SIZE
+    assert buildings["id_BAG"].notna().all()
+    assert buildings.crs.to_epsg() == 28992
+    assert set(buildings.columns) == {
+        "id_BAG",
+        "status",
+        "construction_year",
+        "height_m",
+        "floor_area_ground_m2",
+        "volume_m3",
+        "MBR_azimuth",
+        "MBR_width_m",
+        "MBR_length_m",
+        "end_use",
+        "floor_area_total_m2",
+        "number_of_residences",
+        "UHI_max_C",
+        "geometry",
+    }
+    assert buildings.geometry.is_valid.all()
+
+
+def test_full_pipeline_sq_bag_with_synthetic_labels(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Real BAG/height/UHI inputs with independent synthetic labels; not a stock estimate."""
+    buildings = gpd.read_file(BAG_FIXTURE, layer="buildings")
+    buildings["end_use"] = buildings["end_use"].replace(
+        {"woonfunctie": "residential", "kantoorfunctie": "office"},
+    )
+    # Cycle through labels in sorted BAG-id order without reading any EP-Online data.
+    buildings["energy_label_int"] = np.arange(len(buildings)) % 12 + 1
+    total_kwh = _run_sq_total_cooling_demand(monkeypatch, buildings)
+    _assert_within_tolerance(total_kwh, REFERENCE_BAG_SYNTHETIC_LABELS_TOTAL_KWH)
