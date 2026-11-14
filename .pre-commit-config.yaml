@@ -27,11 +27,9 @@ repos:
         files: ^dashboard/
         pass_filenames: false
 
-      # Informational, like the type-check job in CI: the scientific code annotates with
-      # `np.array` in many places, which ty flags. Reported, never blocking.
       - id: ty
-        name: ty check (informational)
-        entry: bash -c 'uv run ty check || true'
+        name: ty check
+        entry: uv run ty check
         language: system
         types: [python]
         pass_filenames: false
