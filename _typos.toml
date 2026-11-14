@@ -3,6 +3,3 @@
 # NumPy's API spells it this way (`array.flags.writeable`).
 writeable = "writeable"
 WRITEABLE = "WRITEABLE"
-
-# PNG is the image file format used for model figures.
-PNGs = "PNGs"

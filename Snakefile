@@ -582,7 +582,7 @@ rule cooling_mix_sensitivity:
         model_src=MODEL_SRC,
     output:
         table=f"{RESULTS_DIR}/cooling_mix_elasticities_table.csv",
-        # The sweep writes two PNGs per technology pair; declare the directory so
+        # The sweep writes two image files per technology pair; declare the directory so
         # Snakemake can clean and invalidate them instead of them appearing from nowhere.
         figures=directory(f"{RESULTS_DIR}/figures/SA"),
     params:
