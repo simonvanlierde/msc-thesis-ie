@@ -1,0 +1,14 @@
+# Prototype only: predictions outside The Hague still need independent validation.
+results_dir: results/two-cities/voorschoten
+raw_dir: data/raw/two-cities/voorschoten
+dashboard_data_dir: results/two-cities/voorschoten/dashboard_data
+habib_uhi_raster: data/raw/two-cities/voorschoten/uhi/habib.tif
+rivm_uhi_raster: data/raw/two-cities/voorschoten/uhi/rivm.tif
+city:
+  name: Voorschoten
+  weather_station: 330
+weather:
+  start_year: 2020
+  end_year: 2020
+habib_uhi:
+  uhimax_zip_member: UHI_NL/0_primary_dataset/UHImax/UHImax_Voorschoten.tif

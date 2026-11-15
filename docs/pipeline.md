@@ -71,14 +71,13 @@ weather:
   end_year: 2025
 ```
 
-The pipeline fetches the municipal boundary and its bounding box from PDOK by name, and clips the
-buildings to that boundary, so the results cover exactly that municipality. To switch cities,
-change the name and pick the nearest KNMI station, or override the settings without editing the
-file:
+The pipeline fetches the municipal boundary and clips the buildings to it. A different city also
+needs its own Habib archive member, raster output, raw-input root and results root. Changing only
+the municipality name would reuse The Hague's UHI raster and overwrite its results.
 
-```bash
-uv run snakemake --config city='{name: Rotterdam, weather_station: 344}' --cores 4
-```
+The [two-city prototype](two-city-prototype.md) supplies complete profiles for Oegstgeest and
+Voorschoten, with separate products and city rasters. Its predictions need validation before
+use outside The Hague.
 
 ## EP-Online energy labels
 
