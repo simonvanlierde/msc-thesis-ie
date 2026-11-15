@@ -1,7 +1,12 @@
 # Development
 
-Install with `uv sync --locked`. Run `pnpm -C dashboard install --frozen-lockfile` for the dashboard.
+Python 3.15 is required. Install with `uv sync --locked`.
+Run `pnpm -C dashboard install --frozen-lockfile` for the dashboard.
 `just check` runs the Python and dashboard checks.
+
+The locked `immutables` dependency builds from source on Python 3.15.
+Local installation needs a C compiler and C library headers.
+The Dockerfile installs these build dependencies and removes them after installation.
 
 | Path | Description |
 | --- | --- |
@@ -32,10 +37,30 @@ To run those checks locally, use `uv run --group dataset pytest tests/test_datas
 The committed building fixture uses real building inputs with synthetic energy labels;
 [the fixture notes](../tests/fixtures/README.md) describe its source and limits.
 
-CI runs the same checks, plus a Snakemake dry run, on every pull request
+CI runs the same checks and a Snakemake dry run on Python 3.15 for every pull request
 ([workflow](../.github/workflows/ci.yml)). On
 commit, the hooks run ruff (lint and format), the dashboard formatter and `ty`. On push, they run
 the test suite and the dashboard checks. Type errors fail both the hook and CI.
+Coverage includes branches. Unexpected warnings fail tests;
+the one documented filter covers a deprecated operator inside Rasterio 1.5.
+
+## Sampling profiles
+
+Python 3.15 includes a [sampling profiler](https://docs.python.org/3.15/library/profiling.sampling.html).
+Create the output directory before you run it:
+
+```bash
+mkdir -p results
+```
+
+Sample the model-stage benchmarks:
+
+```bash
+uv run python -m profiling.sampling run --flamegraph -o results/profile.html -m pytest benchmarks/ -q
+```
+
+Replace the benchmark invocation with the workload to measure. Keep profiles under the ignored `results/` directory.
+The runtime upgrade alone does not establish a speed improvement for this model.
 
 ## Benchmarks
 

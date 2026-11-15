@@ -20,7 +20,7 @@
   license-files = ["LICENSE"]
   name = "cooling-demand-model"
   readme = "README.md"
-  requires-python = ">=3.14"
+  requires-python = ">=3.15"
   version = "1.1.0"
 
   dependencies = [
@@ -59,7 +59,7 @@ dataset = [
 
 [tool.ruff]
   line-length    = 120
-  target-version = "py314"
+  target-version = "py315"
 
   [tool.ruff.lint]
     ignore = [
@@ -106,6 +106,7 @@ dataset = [
       convention = "google"
 
 [tool.coverage.run]
+  branch = true
   omit   = ["cdm/figures.py"] # Plotting helpers are visual; not unit-tested
   source = ["cdm"]
 
@@ -118,7 +119,7 @@ dataset = [
 
 # Type-check the model and scripts against the supported Python version.
 [tool.ty.environment]
-  python-version = "3.14"
+  python-version = "3.15"
 
 [tool.ty.src]
   exclude = ["**/*.ipynb"]
@@ -129,7 +130,11 @@ dataset = [
   addopts = ["-ra"]
   log_level = "INFO"
   strict = true
-  filterwarnings = ["default"]
+  filterwarnings = [
+    "error",
+    # Rasterio 1.5 calls Affine's deprecated matrix operator; remove when Rasterio updates it.
+    'ignore:Use `@` matmul instead of `\*` mul operator for matrix multiplication:PendingDeprecationWarning:rasterio.transform',
+  ]
 
 [tool.repo-review.ignore]
   PY007 = "just is the task runner; just check runs the repository checks"
@@ -141,7 +146,7 @@ dataset = [
   PC901 = "GitHub Actions runs the checks; this repository does not use pre-commit.ci"
   PC902 = "GitHub Actions runs the checks; this repository does not use pre-commit.ci"
   PC903 = "GitHub Actions runs the checks; this repository does not use pre-commit.ci"
-  RF002 = "Ruff target-version is explicitly py314; requires-python has no upper bound"
+  RF002 = "Ruff target-version is explicitly py315; requires-python has no upper bound"
 
 # These wheels omit licence metadata; the gate verifies their exact MIT licence files first.
 [tool.licensecheck]

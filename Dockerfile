@@ -6,7 +6,7 @@
 #   docker build -t cooling-demand .
 #   docker run --rm -e EP_ONLINE_API_KEY -v "$PWD:/work" cooling-demand \
 #     snakemake --cores 4
-FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.15-trixie-slim@sha256:053efa9652f89ac056731b55b4912131fca1dd644d472b6a40340a62f183a5db
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -16,11 +16,16 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /work
 
 # Resolve dependencies before the source is present, so the layer caches across edits.
+# Rasterio needs Expat at runtime; immutables needs a temporary C compiler.
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=README.md,target=README.md \
-    uv sync --locked --no-dev --no-install-project
+    apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev libexpat1 \
+    && uv sync --locked --no-dev --no-install-project \
+    && apt-get purge -y --auto-remove gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY . /work
 RUN --mount=type=cache,target=/root/.cache/uv \
