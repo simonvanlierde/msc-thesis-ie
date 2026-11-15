@@ -198,7 +198,7 @@ export function TemporalView({ temporal, scenario, elec, palette }: Props) {
   const container = useRef<HTMLElement>(null);
   const [compact, setCompact] = useState(false);
   useEffect(() => {
-    if (!container.current) return;
+    if (!container.current || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(([entry]) => setCompact(entry.contentRect.width < 520));
     observer.observe(container.current);
     return () => observer.disconnect();
