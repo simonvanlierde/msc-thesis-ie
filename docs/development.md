@@ -78,6 +78,9 @@ The [CodSpeed workflow](../.github/workflows/codspeed.yml) measures them with CP
 push to `main` and every pull request that touches the Python code or its inputs, and reports
 performance changes on the PR.
 
+For real-stock sensitivity profiles and peak-memory measurements, use the commands in
+[performance.md](performance.md). These complement the synthetic CI benchmarks.
+
 ## Regenerating the figures
 
 ```bash
