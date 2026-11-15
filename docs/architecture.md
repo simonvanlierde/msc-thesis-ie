@@ -17,7 +17,7 @@ flowchart LR
 ```
 
 `config/` selects the city and weather period; `data/input/parameters/` holds scenario assumptions.
-The full run writes to `results/`. Committed reference results remain under `data/output/`.
+The full run writes to `results/`. `data/output/` holds the 2023 thesis results, which are not the current model output.
 The dashboard reads JSON and GeoJSON exports from `dashboard/public/data/`; it runs no Python in the browser.
 The notebooks provide interactive analysis using the same model package.
 
