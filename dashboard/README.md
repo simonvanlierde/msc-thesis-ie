@@ -71,7 +71,8 @@ skip cleanly when the geodata is missing. Each script takes `--results-dir`, `--
 
 - Every control works with the keyboard, with a skip link and always-visible focus.
 - Every chart and the map have an accessible label and a **data table** fallback, so nothing is
-  only available as a chart or only on hover.
+  only available as a chart or only on hover. The tables include every neighbourhood and every
+  hour of the heatwave week. Wide tables scroll with the keyboard when focused.
 - The colours are safe for colour-blind readers, and colour never carries meaning on its own.
 - The hand-designed light and dark themes are both checked for contrast.
 - `@axe-core/playwright` tests the production build in **both themes** (`pnpm test:e2e`). The

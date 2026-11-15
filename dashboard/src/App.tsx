@@ -207,7 +207,12 @@ export function App() {
               />
 
               <Suspense fallback={<ViewFallback label="the map" />}>
-                <MapView buurten={data.buurten} scenario={scenario} palette={palette} />
+                <MapView
+                  buurten={data.buurten}
+                  scenario={scenario}
+                  palette={palette}
+                  onRetry={load}
+                />
               </Suspense>
               <Suspense fallback={<ViewFallback label="the profiles" />}>
                 {elec && (

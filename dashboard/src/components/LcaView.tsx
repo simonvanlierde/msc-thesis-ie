@@ -84,31 +84,34 @@ export function LcaView({ data, scenario, palette }: Props) {
 
       <details className="datatable">
         <summary>Data table: emissions by life-cycle stage and scenario</summary>
-        <table>
-          <caption>Life-cycle GHG emissions by stage (kt CO₂-eq per year)</caption>
-          <thead>
-            <tr>
-              <th scope="col">Scenario</th>
-              {STAGE_ORDER.map((st) => (
-                <th scope="col" key={st}>
-                  {stageLabels[st]}
-                </th>
-              ))}
-              <th scope="col">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.k}>
-                <th scope="row">{rowLabel(r.k)}</th>
+        {/* biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users must be able to scroll wide tables */}
+        <section className="table-scroll" aria-label="Life-cycle climate impact data" tabIndex={0}>
+          <table>
+            <caption>Life-cycle GHG emissions by stage (kt CO₂-eq per year)</caption>
+            <thead>
+              <tr>
+                <th scope="col">Scenario</th>
                 {STAGE_ORDER.map((st) => (
-                  <td key={st}>{num(r.stages[st] / 1e6, 1)}</td>
+                  <th scope="col" key={st}>
+                    {stageLabels[st]}
+                  </th>
                 ))}
-                <td>{num(r.total, 1)}</td>
+                <th scope="col">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.k}>
+                  <th scope="row">{rowLabel(r.k)}</th>
+                  {STAGE_ORDER.map((st) => (
+                    <td key={st}>{num(r.stages[st] / 1e6, 1)}</td>
+                  ))}
+                  <td>{num(r.total, 1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       </details>
     </section>
   );

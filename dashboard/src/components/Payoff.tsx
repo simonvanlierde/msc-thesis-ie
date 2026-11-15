@@ -123,32 +123,35 @@ export function Payoff({ data, scenario, onChange, palette }: Props) {
 
       <details className="datatable">
         <summary>Data table: demand, electricity and emissions by scenario</summary>
-        <table>
-          <caption>
-            Annual cooling demand, electricity use and life-cycle emissions, by scenario
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Scenario</th>
-              <th scope="col">Demand (GWh)</th>
-              <th scope="col">Electricity (GWh)</th>
-              <th scope="col">Emissions (kt CO₂-eq)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.map((k) => {
-              const t = data.scenarios[k].totals;
-              return (
-                <tr key={k}>
-                  <th scope="row">{rowLabel(k)}</th>
-                  <td>{num(t.E_cooling_kWh / 1e6, 0)}</td>
-                  <td>{num(t.electricity_kWh / 1e6, 0)}</td>
-                  <td>{num(t.GHG_emissions_total_kgCO2eq / 1e6, 1)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {/* biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users must be able to scroll wide tables */}
+        <section className="table-scroll" aria-label="Scenario totals" tabIndex={0}>
+          <table>
+            <caption>
+              Annual cooling demand, electricity use and life-cycle emissions, by scenario
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Scenario</th>
+                <th scope="col">Demand (GWh)</th>
+                <th scope="col">Electricity (GWh)</th>
+                <th scope="col">Emissions (kt CO₂-eq)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.map((k) => {
+                const t = data.scenarios[k].totals;
+                return (
+                  <tr key={k}>
+                    <th scope="row">{rowLabel(k)}</th>
+                    <td>{num(t.E_cooling_kWh / 1e6, 0)}</td>
+                    <td>{num(t.electricity_kWh / 1e6, 0)}</td>
+                    <td>{num(t.GHG_emissions_total_kgCO2eq / 1e6, 1)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
       </details>
     </Act>
   );
