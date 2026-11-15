@@ -22,7 +22,7 @@ MODEL_JOBS = {
 
 def _snakemake(directory: Path, *args: str) -> str:
     result = subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "snakemake", "--cores", "1", "--configfile", "config/smoke.yaml", *args],
+        [sys.executable, "-m", "snakemake", "--configfile", "config/smoke.yaml", "--cores", "1", *args],
         cwd=directory,
         env={**os.environ, "XDG_CACHE_HOME": str(directory / ".cache")},
         capture_output=True,
@@ -35,8 +35,20 @@ def _snakemake(directory: Path, *args: str) -> str:
 
 
 @pytest.fixture
-def workflow(tmp_path: Path) -> Path:
-    for name in ("Snakefile", "uv.lock", "config", "cdm", "scripts", "docs", "data/input/parameters"):
+def workflow(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
+    target = getattr(request, "param", "all")
+    for name in (
+        "Snakefile",
+        "uv.lock",
+        "config",
+        "cdm",
+        "scripts",
+        "docs",
+        "data/input/parameters",
+        "main.ipynb",
+        "gis.ipynb",
+        "dashboard/scripts",
+    ):
         source = ROOT / name
         destination = tmp_path / name
         if source.is_dir():
@@ -44,19 +56,19 @@ def workflow(tmp_path: Path) -> Path:
         else:
             shutil.copy2(source, destination)
     # Only output paths come from --summary: no shell command or remote data is executed.
-    summary = _snakemake(tmp_path, "--summary")
+    summary = _snakemake(tmp_path, target, "--summary")
     for line in summary.splitlines():
         columns = line.split("\t")
         if len(columns) != 6 or columns[0] == "output_file":
             continue
         path = tmp_path / columns[0]
         path.parent.mkdir(parents=True, exist_ok=True)
-        if path.name == "height_tiles":
+        if path.name in {"height_tiles", "main", "gis"}:
             path.mkdir(exist_ok=True)
         else:
             path.touch()
-    _snakemake(tmp_path, "--touch", "--forceall")
-    assert "Nothing to be done" in _snakemake(tmp_path, "--dry-run")
+    _snakemake(tmp_path, target, "--touch", "--forceall")
+    assert "Nothing to be done" in _snakemake(tmp_path, target, "--dry-run")
     return tmp_path
 
 
@@ -109,3 +121,22 @@ def test_reruns_after_dependency_change(workflow: Path, changed: str, expected: 
     output = _snakemake(workflow, "--dry-run")
     jobs = set(re.findall(r"^(?:local)?rule (\w+):", output, re.MULTILINE))
     assert jobs == expected, output
+
+
+@pytest.mark.parametrize("workflow", ["run_main_notebook", "dashboard_data"], indirect=True)
+@pytest.mark.parametrize("parameter", ["presence_load_factors.csv", "multidirectional_solar_radiation_fractions.csv"])
+def test_optional_targets_track_load_inputs(workflow: Path, parameter: str, request: pytest.FixtureRequest) -> None:
+    target = request.node.callspec.params["workflow"]
+    with (workflow / "data/input/parameters" / parameter).open("a") as stream:
+        stream.write("\n# changed dependency\n")
+    output = _snakemake(workflow, target, "--dry-run")
+    assert re.search(rf"^(?:local)?rule {target}:", output, re.MULTILINE), output
+
+
+@pytest.mark.parametrize("workflow", ["run_main_notebook", "run_gis_notebook"], indirect=True)
+def test_notebooks_receive_selected_results_root(workflow: Path, request: pytest.FixtureRequest) -> None:
+    target = request.node.callspec.params["workflow"]
+    output = _snakemake(workflow, target, "--dry-run", "--force", "--printshellcmds")
+    assert "RESULTS_DIR=results/smoke" in output
+    if target == "run_main_notebook":
+        assert "WEATHER_CSV=results/smoke/weather/knmi_330_2020_2020.csv" in output

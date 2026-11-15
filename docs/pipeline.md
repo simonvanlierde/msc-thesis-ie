@@ -58,6 +58,11 @@ uv run snakemake --cores 4 data/input/geodata/UHI_effect_TheHague.tif
 uv run snakemake --cores 4 notebooks
 ```
 
+The notebook targets pass `results_dir` to both notebooks and the declared weather CSV to `main.ipynb`.
+Interactive notebook runs use `results/` unless you set the `RESULTS_DIR` environment variable.
+`main.ipynb` keeps the thesis's May–July 2022 illustrations, so its weather window must include those dates.
+It rejects other windows before modelling; use the scripted model stages for profiles such as the 2020 smoke run.
+
 ## City and weather window
 
 Both are declared in `config/sources.yaml`:
