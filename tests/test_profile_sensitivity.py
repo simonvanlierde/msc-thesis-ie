@@ -126,3 +126,34 @@ def test_profile_cannot_overwrite_measured_archive(
     assert error.value.code == 2
     assert not output.exists()
     assert not archive.exists()
+
+
+@pytest.mark.parametrize(
+    "relative_profile",
+    ["release", "release/run.prof", "release-review", "release-review/run.prof"],
+)
+def test_profile_cannot_create_package_output_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative_profile: str,
+) -> None:
+    output = tmp_path / "release"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "profile",
+            "--source",
+            "missing.gpkg",
+            "--profile",
+            str(tmp_path / relative_profile),
+            "package",
+            "--output",
+            str(output),
+        ],
+    )
+    with pytest.raises(SystemExit) as error:
+        profile_sensitivity.main()
+    assert error.value.code == 2
+    assert not output.exists()
+    assert not (tmp_path / "release-review").exists()

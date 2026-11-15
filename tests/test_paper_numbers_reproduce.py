@@ -11,6 +11,7 @@ tests/paper_numbers_pinned.json.
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -29,6 +30,7 @@ def test_snakemake_paper_numbers_matches_pinned_json(tmp_path: Path) -> None:
 
     # --nolock: a pipeline run in the same checkout must not block (or be blocked by) the test.
     # --drop-metadata: keep the test's run out of .snakemake's rerun records.
+    # Copied reference CSVs must not schedule producers when upstream raw caches are stale.
     subprocess.run(  # noqa: S603 -- fixed argv, no user input
         [
             sys.executable,
@@ -38,13 +40,17 @@ def test_snakemake_paper_numbers_matches_pinned_json(tmp_path: Path) -> None:
             "1",
             "--nolock",
             "--drop-metadata",
+            "--allowed-rules",
+            "paper_numbers",
             "--config",
             f"results_dir={tmp_path}",
             "--",
             str(output),
         ],
         cwd=REPO_ROOT,
+        env={**os.environ, "XDG_CACHE_HOME": str(tmp_path / ".cache")},
         check=True,
+        timeout=30,
     )
 
     # Exact: same CSVs and the locked numpy/pandas give the same floats, so even a last-digit edit fails.

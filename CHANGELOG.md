@@ -21,6 +21,9 @@ Changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Keep the pinned paper-numbers test offline even when upstream raw caches are stale.
+- Keep temporal data available when `ResizeObserver` is unavailable.
+- Reject profiler output paths inside the dataset packaging directory before writing files.
 - Notebooks now track their input CSVs and write under the configured results root.
 - Dashboard maps retry after a data failure and ignore obsolete style responses; narrow screens no longer overflow.
 - Pipeline runs now become stale after script, helper or locked dependency changes.

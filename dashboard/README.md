@@ -49,8 +49,10 @@ pnpm data         # runs the three build_*.py scripts
 ```
 
 `build_scenarios.py` needs only the Python standard library, so it always works. The other two
-skip cleanly when the geodata is missing. Each script takes `--results-dir`, `--geodata-dir`,
-`--divisions` and `--out`, defaulting to the committed reference results in `data/output/`.
+skip cleanly when the geodata is missing. All three builders default to current pipeline outputs:
+`build_scenarios.py` reads scenario CSVs from `results/`; `build_choropleth.py` and `build_temporal.py`
+read `results/geodata/`, and the temporal builder calibrates against `results/`. The historical
+2023 files in `data/output/` are separate. Use each script's `--help` for its input and output options.
 `snakemake dashboard_data` regenerates all three from the pipeline's `results/` outputs.
 
 ### Caveats
