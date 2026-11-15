@@ -49,8 +49,8 @@ full method and discussion.
 
 ## Quick start
 
-The large spatial input datasets are on Zenodo
-([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)), not in this repository. The
+The 2023 thesis input datasets are on Zenodo
+([10.5281/zenodo.8344580](https://doi.org/10.5281/zenodo.8344580)), not in this repository. They do not match the current pipeline inputs; a new dataset version is not yet released. The
 Snakemake pipeline can also fetch them from the official PDOK APIs (the Dutch government's
 geodata service).
 

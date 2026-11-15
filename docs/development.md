@@ -15,7 +15,7 @@ The Dockerfile installs these build dependencies and removes them after installa
 | `gis.ipynb` | Preparation of the BAG geospatial data and spatial visualisations. |
 | `Snakefile`, `config/` | The reproducible pipeline and its city / weather configuration ([pipeline.md](pipeline.md)). |
 | `data/input/parameters/` | All model input parameters, organised per scenario. |
-| `data/output/` | Committed reference results per building type and energy label. |
+| `data/output/` | Reference results of the 2023 thesis model (before the urban heat island correction), per building type and energy label. They pin `scripts/paper_numbers.py`; they are not the current model output. |
 | `dashboard/` | The interactive web dashboard ([its README](../dashboard/README.md)). |
 | `scripts/` | Data acquisition and pipeline entry points. |
 | `docs/` | The headline figure and the script that regenerates it. |

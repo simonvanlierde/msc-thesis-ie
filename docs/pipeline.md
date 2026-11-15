@@ -19,12 +19,9 @@ docker run --rm -e EP_ONLINE_API_KEY -v "$PWD:/work" cooling-demand snakemake --
 ```
 
 The pipeline writes everything it makes under `results/` (`results_dir` in `config/sources.yaml`
-changes that). The committed reference results in `data/output/` and `docs/` stay untouched, so
-you can repeat a run safely and compare its output with the reference directly:
-
-```bash
-diff results/CDM_results_SQ_full.csv data/output/CDM_results_SQ_full.csv
-```
+changes that). The committed `data/output/` results are the 2023 thesis output, before the urban heat island
+correction, and the pipeline never writes there, so you can repeat a run safely. A current run
+differs from them by design.
 
 Git ignores `results/` and the fetched inputs in `data/raw/`. Each rule writes a log under
 `results/logs/`, and the model stages record their run time under `results/benchmarks/`.
